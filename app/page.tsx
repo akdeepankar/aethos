@@ -81,17 +81,17 @@ export default function Home() {
         <div className="hero-grain" />
         <nav className="nav shell" aria-label="Main navigation">
           <a className="brand" href="#top" aria-label="Aethos home">
-            <span className="brand-mark"><i /><i /><i /></span>
+            <Image className="brand-logo" src="/aethos-eagle-logo.jpeg" alt="" width={40} height={40} quality={90} />
             <span>AETHOS</span>
           </a>
           <div className="nav-links">
-            <a href="#features">Features</a>
-            <a href="#research">Research</a>
-            <a href="#ipos">IPOs</a>
-            <a href="#pricing">Pricing</a>
-            <a href="#about">About</a>
+            <a href="/features">Features</a>
+            <a href="/research">Research</a>
+            <a href="/ipos">IPOs</a>
+            <a href="/membership">Pricing</a>
+            <a href="/about">About</a>
           </div>
-          <a className="nav-cta" href="#pricing">Become a member <ArrowUpRight /></a>
+          <a className="nav-cta" href="/membership">Become a member <ArrowUpRight /></a>
         </nav>
 
         <div className="hero-content shell">
@@ -100,8 +100,8 @@ export default function Home() {
             <h1>See the business<br />before the <em>ticker.</em></h1>
             <p className="hero-intro">Aethos publishes long-horizon research on exceptional Indian businesses, industries, and the forces reshaping them.</p>
             <div className="hero-actions">
-              <a className="button button-gold" href="#research">Explore research <ArrowRight /></a>
-              <a className="text-link light-link" href="#about">Our philosophy <span>↗</span></a>
+              <a className="button button-gold" href="/research">Explore research <ArrowRight /></a>
+              <a className="text-link light-link" href="/about">Our philosophy <span>↗</span></a>
             </div>
           </div>
 
@@ -148,9 +148,9 @@ export default function Home() {
             <a className="research-tab" href="#theme-research"><span>03</span> Thematic deep dives</a>
           </div>
 
-          <div className="report-grid" id="company-research">
+          <div className="report-grid">
             {reports.map((report, index) => (
-              <article className="report-card" key={report.title}>
+              <article className="report-card" id={index === 0 ? "company-research" : index === 1 ? "sector-research" : "theme-research"} key={report.title}>
                 <div className={`report-art ${report.className}`}>
                   <span className="art-number">0{index + 1}</span>
                   {index === 0 && <><i className="route route-a" /><i className="route route-b" /><i className="route route-c" /></>}
@@ -161,12 +161,12 @@ export default function Home() {
                 <div className="report-copy">
                   <div className="report-label"><span>{report.tag}</span>{report.free ? <b>Free</b> : <Lock />}</div>
                   <h3>{report.title}</h3>
-                  <div className="report-meta"><span>{report.meta}</span><a href="#pricing" aria-label={`Open ${report.title}`}><ArrowUpRight /></a></div>
+                  <div className="report-meta"><span>{report.meta}</span><a href={["/research/logistics-stack", "/research/indias-transmission-opportunity", "/research/indian-affluent-consumer"][index]} aria-label={`Open ${report.title}`}><ArrowUpRight /></a></div>
                 </div>
               </article>
             ))}
           </div>
-          <div className="section-footer"><a className="text-link" href="#pricing">Browse all research <ArrowRight /></a><span>New work, every week</span></div>
+          <div className="section-footer"><a className="text-link" href="/research">Browse all research <ArrowRight /></a><span>New work, every week</span></div>
         </div>
       </section>
 
@@ -183,7 +183,7 @@ export default function Home() {
           <div className="ipo-dashboard">
             <div className="ipo-dashboard-head">
               <div><span className="live-dot" /> Live tracker <small>Updated 20 Jul, 09:30 IST</small></div>
-              <a href="#pricing">View all IPOs <ArrowUpRight /></a>
+              <a href="/ipos">View all IPOs <ArrowUpRight /></a>
             </div>
             <div className="ipo-table-wrap">
               <table>
@@ -192,12 +192,12 @@ export default function Home() {
                   <tr>
                     <td><strong>Gulf Lloyds India</strong><span>Specialty chemicals</span></td>
                     <td>20 — 22 Jul</td><td>₹ 152 — 160</td><td><b className="tag-main">MAINBOARD</b></td>
-                    <td><a className="deep-dive-link" href="#pricing">Deep dive <ArrowUpRight /></a></td>
+                    <td><a className="deep-dive-link" href="/ipos/gulf-lloyds-india">Deep dive <ArrowUpRight /></a></td>
                   </tr>
                   <tr>
                     <td><strong>Cube Highways Trust</strong><span>Infrastructure trust</span></td>
                     <td>23 — 27 Jul</td><td>₹ 96 — 102</td><td><b className="tag-main">MAINBOARD</b></td>
-                    <td><a className="deep-dive-link" href="#pricing">Deep dive <ArrowUpRight /></a></td>
+                    <td><a className="deep-dive-link" href="/ipos/cube-highways-trust">Deep dive <ArrowUpRight /></a></td>
                   </tr>
                   <tr>
                     <td><strong>Xtranet Technologies</strong><span>Enterprise software</span></td>
@@ -218,7 +218,7 @@ export default function Home() {
             <p className="eyebrow"><span />A clearer way to invest</p>
             <h2>More depth.<br /><em>Less theatre.</em></h2>
             <p>We make the work of understanding a business feel less overwhelming — and much more valuable.</p>
-            <a className="button button-dark" href="#pricing">See what&apos;s inside <ArrowRight /></a>
+            <a className="button button-dark" href="/features">See what&apos;s inside <ArrowRight /></a>
           </div>
           <div className="principles">
             <div className="principle"><span className="principle-number">01</span><div><h3>We do</h3><p>Write original, rigorous research worth returning to.</p></div><Spark /></div>
@@ -232,11 +232,11 @@ export default function Home() {
         <div className="shell">
           <div className="posts-header">
             <div><p className="eyebrow light"><span />From the journal</p><h2>Recent <em>thinking.</em></h2></div>
-            <a className="text-link light-link" href="#pricing">Visit the journal <ArrowRight /></a>
+            <a className="text-link light-link" href="/journal">Visit the journal <ArrowRight /></a>
           </div>
           <div className="post-grid">
             {posts.map((post) => (
-              <a className="post-card" href="#pricing" key={post.title}>
+              <a className="post-card" href={["/journal/boring-businesses-beautiful", "/journal/breadth-of-the-rally", "/journal/gulf-lloyds-ipo-questions"][posts.indexOf(post)]} key={post.title}>
                 <div className={`post-art ${post.className}`}><span className="post-code">A / {post.date.slice(0, 2)}</span><span className="post-shape" /></div>
                 <div className="post-copy"><span>{post.category}</span><h3>{post.title}</h3><p>{post.date} <ArrowUpRight /></p></div>
               </a>
@@ -251,15 +251,15 @@ export default function Home() {
           <p className="eyebrow"><span />The Aethos membership</p>
           <h2>For investors who<br />prefer to <em>think.</em></h2>
           <p className="membership-intro">Start with a selection of free research. Join to access the full library, every IPO deep dive, and the work behind the view.</p>
-          <div className="membership-actions"><a className="button button-dark" href="mailto:hello@aethos.in">Explore membership <ArrowRight /></a><span>Cancel anytime. No noise, ever.</span></div>
+          <div className="membership-actions"><a className="button button-dark" href="/membership">Explore membership <ArrowRight /></a><span>Cancel anytime. No noise, ever.</span></div>
         </div>
       </section>
 
       <footer>
         <div className="shell footer-main">
-          <a className="brand footer-brand" href="#top"><span className="brand-mark"><i /><i /><i /></span><span>AETHOS</span></a>
+          <a className="brand footer-brand" href="#top"><Image className="brand-logo" src="/aethos-eagle-logo.jpeg" alt="" width={40} height={40} quality={90} /><span>AETHOS</span></a>
           <p>Independent research for the<br />long-term Indian investor.</p>
-          <div className="footer-links"><a href="#research">Research</a><a href="#ipos">IPOs</a><a href="#pricing">Membership</a><a href="mailto:hello@aethos.in">Contact</a></div>
+          <div className="footer-links"><a href="/research">Research</a><a href="/ipos">IPOs</a><a href="/membership">Membership</a><a href="mailto:hello@aethos.in">Contact</a></div>
           <a className="footer-email" href="mailto:hello@aethos.in">hello@aethos.in <ArrowUpRight /></a>
         </div>
         <div className="shell footer-bottom"><span>© 2026 Aethos Research. All rights reserved.</span><span>Research, not investment advice.</span><span>Built with intent in India.</span></div>
@@ -267,3 +267,4 @@ export default function Home() {
     </main>
   );
 }
+import Image from "next/image";

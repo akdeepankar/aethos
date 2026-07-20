@@ -1,0 +1,8 @@
+import Link from "next/link";
+import { ArrowRight, Check, SiteFooter, SiteHeader } from "../_components/site-chrome";
+
+const benefits = ["Full library of company, sector, and thematic research", "Every published Aethos IPO deep dive", "New research delivered as it is published", "Member-only context behind our long-form notes"];
+
+export default function MembershipPage() {
+  return <><SiteHeader active="Pricing" /><main className="membership-page"><section className="page-intro"><div className="shell"><p className="eyebrow"><span />The Aethos membership</p><h1>For investors who<br />prefer to <em>think.</em></h1><p>Get the full body of work: the deep dives, the IPO notes, and the reasoning behind a longer-term point of view.</p></div></section><section className="pricing-section"><div className="shell pricing-grid"><div className="pricing-copy"><p className="eyebrow"><span />One considered plan</p><h2>Aethos<br /><em>Member</em></h2><p>Pricing and plan details will be announced soon. Join the early-access list to receive the complete membership brief first.</p></div><div className="pricing-card"><span className="pricing-label">Early access</span><h3>The full library,<br />one calm place.</h3><ul>{benefits.map((benefit) => <li key={benefit}><Check />{benefit}</li>)}</ul><a className="button button-gold" href="mailto:hello@aethos.in?subject=Aethos%20membership%20early%20access">Request early access <ArrowRight /></a><small>No obligations. No spam.</small></div></div></section><section className="membership-note"><div className="shell"><p>Not ready to join?</p><h2>Start with the<br /><em>free research.</em></h2><Link className="text-link" href="/research">Explore free notes <ArrowRight /></Link></div></section></main><SiteFooter /></>;
+}

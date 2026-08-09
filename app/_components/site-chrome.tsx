@@ -1,5 +1,7 @@
+"use client";
 import Link from "next/link";
 import Image from "next/image";
+import { useState, useEffect } from "react";
 
 export function ArrowRight() {
   return <svg viewBox="0 0 24 24" aria-hidden="true" className="icon"><path d="M5 12h14m-6-6 6 6-6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>;
@@ -18,6 +20,16 @@ function Brand() {
 }
 
 export function SiteHeader({ active }: { active?: string }) {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 40);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   const links = [
     ["Features", "/features"],
     ["Research", "/research"],
@@ -26,7 +38,7 @@ export function SiteHeader({ active }: { active?: string }) {
     ["About", "/about"],
   ];
 
-  return <header className="site-header"><nav className="shell page-nav" aria-label="Main navigation"><Brand /><div className="nav-links">{links.map(([label, href]) => <Link className={active === label ? "active" : ""} href={href} key={label}>{label}</Link>)}</div><Link className="nav-cta" href="/membership">Become a member <ArrowUpRight /></Link></nav></header>;
+  return <header className={`site-header ${scrolled ? 'scrolled' : ''}`}><nav className="shell page-nav" aria-label="Main navigation"><Brand /><div className="nav-links">{links.map(([label, href]) => <Link className={active === label ? "active" : ""} href={href} key={label}>{label}</Link>)}</div><Link className="button button-gold" style={{ minHeight: '38px', padding: '0 20px', fontSize: '11px', gap: '8px', borderRadius: '30px' }} href="/membership">Become a member <ArrowUpRight /></Link></nav></header>;
 }
 
 export function SiteFooter() {

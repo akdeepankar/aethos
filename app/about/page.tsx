@@ -1,6 +1,63 @@
-import Link from "next/link";
-import { ArrowRight, SiteFooter, SiteHeader } from "../_components/site-chrome";
-
 export default function AboutPage() {
-  return <><SiteHeader active="About" /><main className="about-page"><section className="page-intro"><div className="shell"><p className="eyebrow"><span />About Aethos</p><h1>Curiosity is a<br /><em>competitive edge.</em></h1><p>Aethos is independent investment research for people who would rather understand a business than react to a ticker.</p></div></section><section className="about-manifesto"><div className="shell"><p className="manifesto-mark">“</p><p>We believe the best investment work is patient, honest about uncertainty, and built to be useful long after the market has moved on.</p><div><span>Independent by design</span><span>India-focused</span><span>Long-term minded</span></div></div></section><section className="about-columns"><div className="shell"><article><span>What we do</span><h2>Publish original work that helps investors form a clearer view.</h2><p>We write research on businesses, sectors, themes, and selected IPOs. The aim is to make complexity legible—not to manufacture certainty.</p></article><article><span>What we don&apos;t do</span><h2>Give buy or sell calls, chase headlines, or make promises about returns.</h2><p>Aethos is not a SEBI-registered investment adviser. Our research is for information and education, not personalised investment advice.</p></article></div></section><section className="journal-subscribe"><div className="shell"><div><p className="eyebrow"><span />See the work</p><h2>Read a note.<br /><em>Stay curious.</em></h2></div><Link className="button button-dark" href="/research">Explore research <ArrowRight /></Link></div></section></main><SiteFooter /></>;
+  return (
+    <div className="dash-overview-page">
+      <div className="dash-welcome-banner">
+        <div className="dash-welcome-copy">
+          <h1>About Aethos Research</h1>
+          <p>Independent research platform focused on Indian businesses, market themes, and long-horizon investing.</p>
+        </div>
+      </div>
+
+      <div className="dash-grid-layout">
+        <div className="dash-main-column">
+          <div className="dash-card">
+            <div className="dash-card-head">
+              <h3 className="dash-card-title">Research Principles & Mandate</h3>
+            </div>
+            <div className="dash-card-body">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ padding: '16px', background: '#fafafa', border: '1px solid var(--gold-light)', borderRadius: '8px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Core Objective</span>
+                  <h4 style={{ margin: '6px 0', fontSize: '14px', fontWeight: '700' }}>First-Principles Business Analysis</h4>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)', lineHeight: '1.5' }}>
+                    Publishing objective work on company moats, financial quality, and sector developments. No short-term momentum trading or buy/sell call mandates.
+                  </p>
+                </div>
+
+                <div style={{ padding: '16px', background: '#fafafa', border: '1px solid var(--gold-light)', borderRadius: '8px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: '700', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Regulatory & Disclosure</span>
+                  <h4 style={{ margin: '6px 0', fontSize: '14px', fontWeight: '700' }}>Independent Research Entity</h4>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--muted)', lineHeight: '1.5' }}>
+                    Aethos Research is not a SEBI-registered investment advisor. All published notes are exclusively for informational and analytical purposes.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="dash-side-column">
+          <div className="dash-card">
+            <div className="dash-card-head">
+              <h3 className="dash-card-title">Platform Stats</h3>
+            </div>
+            <div className="dash-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #e5e5e5' }}>
+                <span style={{ color: 'var(--muted)' }}>Coverage Universe</span>
+                <strong style={{ fontWeight: '700' }}>NSE / BSE 500</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #e5e5e5' }}>
+                <span style={{ color: 'var(--muted)' }}>Focus Region</span>
+                <strong style={{ fontWeight: '700' }}>India (Domestic)</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--muted)' }}>Horizon</span>
+                <strong style={{ fontWeight: '700' }}>3 - 10 Years</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

@@ -1,8 +1,65 @@
 import Link from "next/link";
-import { ArrowRight, Check, SiteFooter, SiteHeader } from "../_components/site-chrome";
-
-const benefits = ["Full library of company, sector, and thematic research", "Every published Aethos IPO deep dive", "New research delivered as it is published", "Member-only context behind our long-form notes"];
+import { ArrowUpRight } from "../_components/site-chrome";
 
 export default function MembershipPage() {
-  return <><SiteHeader active="Pricing" /><main className="membership-page"><section className="page-intro"><div className="shell"><p className="eyebrow"><span />The Aethos membership</p><h1>For investors who<br />prefer to <em>think.</em></h1><p>Get the full body of work: the deep dives, the IPO notes, and the reasoning behind a longer-term point of view.</p></div></section><section className="pricing-section"><div className="shell pricing-grid"><div className="pricing-copy"><p className="eyebrow"><span />One considered plan</p><h2>Aethos<br /><em>Member</em></h2><p>Pricing and plan details will be announced soon. Join the early-access list to receive the complete membership brief first.</p></div><div className="pricing-card"><span className="pricing-label">Early access</span><h3>The full library,<br />one calm place.</h3><ul>{benefits.map((benefit) => <li key={benefit}><Check />{benefit}</li>)}</ul><a className="button button-gold" href="mailto:hello@aethos.in?subject=Aethos%20membership%20early%20access">Request early access <ArrowRight /></a><small>No obligations. No spam.</small></div></div></section><section className="membership-note"><div className="shell"><p>Not ready to join?</p><h2>Start with the<br /><em>free research.</em></h2><Link className="text-link" href="/research">Explore free notes <ArrowRight /></Link></div></section></main><SiteFooter /></>;
+  const benefits = [
+    { title: "Full Research Library", desc: "Access all published company, sectoral, and thematic deep dives." },
+    { title: "IPO Underwriting Notes", desc: "Detailed breakdown of financials & valuation model for mainboard IPOs." },
+    { title: "Weekly Memos & Alerts", desc: "Direct delivery of long-term insights and market signals." },
+    { title: "Financial Models & Data", desc: "Downloadable spreadsheet models behind our underwriting." }
+  ];
+
+  return (
+    <div className="dash-overview-page">
+      <div className="dash-welcome-banner">
+        <div className="dash-welcome-copy">
+          <h1>Institutional Membership Tier</h1>
+          <p>Unrestricted access to research, underwriting models, and investment memos.</p>
+        </div>
+        <div className="dash-banner-meta">
+          <span className="meta-chip">Status: Pro Trial</span>
+        </div>
+      </div>
+
+      <div className="dash-grid-layout">
+        <div className="dash-main-column">
+          <div className="dash-card">
+            <div className="dash-card-head">
+              <h3 className="dash-card-title">Membership Entitlements</h3>
+            </div>
+            <div className="dash-card-body">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+                {benefits.map((b) => (
+                  <div key={b.title} style={{ padding: '16px', background: '#fafafa', border: '1px solid var(--gold-light)', borderRadius: '8px' }}>
+                    <h4 style={{ margin: '0 0 6px', fontSize: '13px', fontWeight: '700' }}>{b.title}</h4>
+                    <p style={{ margin: 0, fontSize: '12px', color: 'var(--muted)', lineHeight: '1.4' }}>{b.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="dash-side-column">
+          <div className="dash-card">
+            <div className="dash-card-head">
+              <h3 className="dash-card-title">Early Access Account</h3>
+            </div>
+            <div className="dash-card-body">
+              <p style={{ fontSize: '12px', color: 'var(--muted)', margin: '0 0 16px' }}>
+                Join the early access membership roster for priority access to institutional research notes.
+              </p>
+              <a 
+                href="mailto:hello@aethos.in?subject=Aethos%20Membership%20Access"
+                className="button button-gold"
+                style={{ width: '100%', justifyContent: 'center', height: '38px', fontSize: '11px', borderRadius: '6px' }}
+              >
+                Request Access Brief <ArrowUpRight />
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

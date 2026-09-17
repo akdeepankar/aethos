@@ -1,7 +1,64 @@
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, SiteFooter, SiteHeader } from "../_components/site-chrome";
+import { ArrowUpRight } from "../_components/site-chrome";
 import { posts } from "../_lib/content";
 
 export default function JournalPage() {
-  return <><SiteHeader /><main className="journal-page"><section className="page-intro page-intro-dark"><div className="shell"><p className="eyebrow light"><span />The Aethos journal</p><h1>Notes for the<br /><em>thinking investor.</em></h1><p>Shorter observations on the businesses, markets, and questions that deserve a closer look.</p></div></section><section className="journal-list"><div className="shell">{posts.map((post) => <Link className="journal-row" href={`/journal/${post.slug}`} key={post.slug}><div className={`journal-art ${post.className}`}><span>A / {post.date.slice(0, 2)}</span></div><div><span>{post.category}</span><h2>{post.title}</h2><p>{post.deck}</p></div><div className="journal-date">{post.date}<ArrowUpRight /></div></Link>)}</div></section><section className="journal-subscribe"><div className="shell"><div><p className="eyebrow"><span />Research, in your inbox</p><h2>Read slowly.<br /><em>Think deeply.</em></h2></div><Link className="button button-dark" href="/membership">Explore membership <ArrowRight /></Link></div></section></main><SiteFooter /></>;
+  return (
+    <div className="dash-overview-page">
+      <div className="dash-welcome-banner">
+        <div className="dash-welcome-copy">
+          <h1>Journal & Market Memos</h1>
+          <p>Short-form observations, market updates, and thematic analysis.</p>
+        </div>
+        <div className="dash-banner-meta">
+          <span className="meta-chip">Total Memos: {posts.length}</span>
+        </div>
+      </div>
+
+      <div className="dash-card">
+        <div className="dash-card-head">
+          <h3 className="dash-card-title">Recent Journal Entries</h3>
+        </div>
+        <div className="dash-card-body" style={{ padding: 0 }}>
+          <div className="dash-table-wrap">
+            <table className="dash-table">
+              <thead>
+                <tr>
+                  <th>Title & Summary</th>
+                  <th>Category</th>
+                  <th>Published Date</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {posts.map((post) => (
+                  <tr key={post.slug}>
+                    <td>
+                      <div className="company-cell">
+                        <span className="company-name">{post.title}</span>
+                        <span className="company-sector">{post.deck}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--muted)' }}>
+                        {post.category}
+                      </span>
+                    </td>
+                    <td style={{ color: 'var(--muted)', fontSize: '11px' }}>
+                      {post.date}
+                    </td>
+                    <td>
+                      <Link href={`/journal/${post.slug}`} className="dash-card-link">
+                        Read Memo <ArrowUpRight />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

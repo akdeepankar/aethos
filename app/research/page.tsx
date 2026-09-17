@@ -1,7 +1,82 @@
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, SiteFooter, SiteHeader } from "../_components/site-chrome";
+import { ArrowUpRight } from "../_components/site-chrome";
 import { reports } from "../_lib/content";
 
 export default function ResearchPage() {
-  return <><SiteHeader active="Research" /><main className="library-page"><section className="page-intro"><div className="shell"><p className="eyebrow"><span />The research library</p><h1>Work that rewards<br /><em>your attention.</em></h1><p>Original writing on Indian businesses, sectors, and long-term themes. Free notes are clearly marked; member research goes further.</p></div></section><section className="library-content"><div className="shell"><div className="library-toolbar"><span>All research <b>{reports.length} notes</b></span><span>Company · Sectoral · Thematic</span></div><div className="library-grid">{reports.map((report, index) => <Link className="library-card" href={`/research/${report.slug}`} key={report.slug}><div className={`report-art ${report.className}`}><span className="art-number">0{index + 1}</span><p>{index === 0 ? "Distribution × Scale" : index === 1 ? "The Grid Report" : "India 2030"}</p></div><div className="library-card-copy"><div><span>{report.tag}</span>{report.free ? <b>Free</b> : <i>Members</i>}</div><h2>{report.title}</h2><p>{report.meta}<ArrowUpRight /></p></div></Link>)}</div></div></section><section className="library-cta"><div className="shell"><div><p className="eyebrow light"><span />Aethos membership</p><h2>Keep following<br />the <em>question.</em></h2></div><Link className="button button-gold" href="/membership">Explore membership <ArrowRight /></Link></div></section></main><SiteFooter /></>;
+  return (
+    <div className="dash-overview-page">
+      <div className="dash-welcome-banner">
+        <div className="dash-welcome-copy">
+          <h1>Research Library</h1>
+          <p>Complete archive of long-form research notes across Indian equities and macroeconomic themes.</p>
+        </div>
+        <div className="dash-banner-meta">
+          <span className="meta-chip">Total Notes: {reports.length}</span>
+          <span className="meta-chip">Coverage: Company, Sectoral, Thematic</span>
+        </div>
+      </div>
+
+      <div className="dash-card">
+        <div className="dash-card-head">
+          <h3 className="dash-card-title">All Published Research Reports</h3>
+        </div>
+        <div className="dash-card-body" style={{ padding: 0 }}>
+          <div className="dash-table-wrap">
+            <table className="dash-table">
+              <thead>
+                <tr>
+                  <th>Title & Focus</th>
+                  <th>Category</th>
+                  <th>Access Tier</th>
+                  <th>Published Date</th>
+                  <th>Reading Time</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reports.map((report) => (
+                  <tr key={report.slug}>
+                    <td>
+                      <div className="company-cell">
+                        <span className="company-name">{report.title}</span>
+                        <span className="company-sector">{report.deck}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--muted)' }}>
+                        {report.tag}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ 
+                        fontSize: '9px', 
+                        fontWeight: '700', 
+                        padding: '3px 8px', 
+                        borderRadius: '4px',
+                        background: report.free ? '#ecfdf5' : '#fef3c7',
+                        color: report.free ? '#047857' : '#b45309'
+                      }}>
+                        {report.free ? 'FREE' : 'PRO'}
+                      </span>
+                    </td>
+                    <td style={{ color: 'var(--muted)', fontSize: '11px' }}>
+                      {report.date}
+                    </td>
+                    <td style={{ color: 'var(--muted)', fontSize: '11px' }}>
+                      {report.readTime}
+                    </td>
+                    <td>
+                      <Link href={`/research/${report.slug}`} className="dash-card-link">
+                        Read Report <ArrowUpRight />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { DashboardLayout } from "./_components/dashboard-layout";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Aethos — Independent investment research",
+  title: "Aethos — Investment Research Dashboard",
   description: "Long-horizon research on Indian businesses, industries, and IPOs.",
 };
 
@@ -27,7 +28,10 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col bg-slate-50">
+        <DashboardLayout>{children}</DashboardLayout>
+      </body>
     </html>
   );
 }
+

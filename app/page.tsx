@@ -21,11 +21,11 @@ export default function Home() {
       {/* Welcome Header */}
       <div className="dash-welcome-banner">
         <div className="dash-welcome-copy">
-          <h1>Research Terminal</h1>
-          <p>Institutional-grade analysis on Indian businesses, sector trends, and capital markets.</p>
+          <h1>Research Overview</h1>
+          <p>Analysis on Indian businesses, sector trends, and financial markets.</p>
         </div>
         <div className="dash-banner-meta">
-          <span className="meta-chip">Market: Open</span>
+          <span className="meta-chip">Market Status: Open</span>
           <span className="meta-chip">NIFTY 50: 24,540 (+0.4%)</span>
         </div>
       </div>

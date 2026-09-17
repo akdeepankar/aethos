@@ -13,11 +13,11 @@ export default function MembershipPage() {
     <div className="dash-overview-page">
       <div className="dash-welcome-banner">
         <div className="dash-welcome-copy">
-          <h1>Institutional Membership Tier</h1>
-          <p>Unrestricted access to research, underwriting models, and investment memos.</p>
+          <h1>Membership Plans</h1>
+          <p>Complete access to research notes, detailed reports, and market updates.</p>
         </div>
         <div className="dash-banner-meta">
-          <span className="meta-chip">Status: Pro Trial</span>
+          <span className="meta-chip">Status: Free Access</span>
         </div>
       </div>
 

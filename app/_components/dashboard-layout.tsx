@@ -218,8 +218,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <div className="sidebar-user-card">
           <div className="user-avatar">AK</div>
           <div className="user-info">
-            <span className="user-name">Pro Member</span>
-            <span className="user-status">Institutional Access</span>
+            <span className="user-name">Active User</span>
+            <span className="user-status">Member</span>
           </div>
         </div>
       </aside>

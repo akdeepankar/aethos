@@ -69,8 +69,8 @@ export default async function IposPage() {
     <div className="dash-overview-page">
       <div className="dash-welcome-banner">
         <div className="dash-welcome-copy">
-          <h1>IPO Intelligence Terminal</h1>
-          <p>Real-time data on active, upcoming, and recent BSE/NSE initial public offerings.</p>
+          <h1>IPO Intelligence</h1>
+          <p>Live data on active, upcoming, and recent BSE/NSE initial public offerings.</p>
         </div>
         <div className="dash-banner-meta">
           <span className="meta-chip">Source: Exchange Disclosures</span>

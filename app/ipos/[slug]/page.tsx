@@ -12,6 +12,8 @@ export default async function IpoDetailPage({ params }: { params: Promise<{ slug
   const ipo = findIpo(slug);
   if (!ipo?.deepDive) notFound();
 
+  const docUrl = ipo.htmlUrl || ipo.pdfUrl;
+
   return (
     <div className="dash-overview-page">
       <div style={{ marginBottom: "14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -22,9 +24,9 @@ export default async function IpoDetailPage({ params }: { params: Promise<{ slug
         >
           ← Back to IPO Intelligence
         </Link>
-        {ipo.pdfUrl && (
+        {docUrl && (
           <a
-            href={ipo.pdfUrl}
+            href={docUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="dash-card-link"
@@ -85,9 +87,17 @@ export default async function IpoDetailPage({ params }: { params: Promise<{ slug
           </span>
         </div>
 
-        {/* Embedded PDF without toolbars or control bars */}
-        {ipo.pdfUrl ? (
-          <div style={{ width: "100%", height: "85vh", minHeight: "850px", background: "#ffffff" }}>
+        {/* Display Document (HTML site or clean PDF) */}
+        {ipo.htmlUrl ? (
+          <div style={{ width: "100%", height: "88vh", minHeight: "850px", background: "#ffffff" }}>
+            <iframe
+              src={ipo.htmlUrl}
+              title={`${ipo.company} — Deep Dive`}
+              style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+            />
+          </div>
+        ) : ipo.pdfUrl ? (
+          <div style={{ width: "100%", height: "88vh", minHeight: "850px", background: "#ffffff" }}>
             <iframe
               src={`${ipo.pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
               title={`${ipo.company} — Deep Dive`}

@@ -11,7 +11,8 @@ type IdeaDetail = {
   sharedPrice: number;
   currentPrice: number;
   sharedDate: string;
-  pdfUrl: string;
+  pdfUrl?: string;
+  htmlUrl?: string;
   tag: string;
   readTime: string;
 };
@@ -39,6 +40,7 @@ const ideasData: Record<string, IdeaDetail> = {
     sharedPrice: 420,
     currentPrice: 588,
     sharedDate: "02 Feb 2026",
+    htmlUrl: "/SpectraA_IPO_Deep_Dive_Website.html",
     pdfUrl: "/SpectraA_Technology_Solutions_IPO_Deep_Dive.pdf",
     tag: "IPO Deep Dive",
     readTime: "24 min read",
@@ -55,6 +57,7 @@ export default async function IdeaDetailPage({ params }: { params: Promise<{ slu
   if (!idea) notFound();
 
   const returnPct = ((idea.currentPrice - idea.sharedPrice) / idea.sharedPrice) * 100;
+  const docUrl = idea.htmlUrl || idea.pdfUrl;
 
   return (
     <div className="dash-overview-page">
@@ -67,25 +70,27 @@ export default async function IdeaDetailPage({ params }: { params: Promise<{ slu
         >
           ← Back to Aethos Ideas
         </Link>
-        <a
-          href={idea.pdfUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="dash-card-link"
-          style={{
-            fontSize: "11px",
-            fontWeight: "600",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "5px",
-            padding: "5px 12px",
-            borderRadius: "6px",
-            background: "#ffffff",
-            border: "1px solid var(--gold-light)",
-          }}
-        >
-          Open in new tab <ArrowUpRight />
-        </a>
+        {docUrl && (
+          <a
+            href={docUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="dash-card-link"
+            style={{
+              fontSize: "11px",
+              fontWeight: "600",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "5px",
+              padding: "5px 12px",
+              borderRadius: "6px",
+              background: "#ffffff",
+              border: "1px solid var(--gold-light)",
+            }}
+          >
+            Open in new tab <ArrowUpRight />
+          </a>
+        )}
       </div>
 
       {/* Main Document Card */}
@@ -145,14 +150,24 @@ export default async function IdeaDetailPage({ params }: { params: Promise<{ slu
           </div>
         </div>
 
-        {/* Embedded PDF without toolbars or control bars */}
-        <div style={{ width: "100%", height: "85vh", minHeight: "850px", background: "#ffffff" }}>
-          <iframe
-            src={`${idea.pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-            title={idea.company}
-            style={{ width: "100%", height: "100%", border: "none", display: "block" }}
-          />
-        </div>
+        {/* Embedded Document */}
+        {idea.htmlUrl ? (
+          <div style={{ width: "100%", height: "88vh", minHeight: "850px", background: "#ffffff" }}>
+            <iframe
+              src={idea.htmlUrl}
+              title={idea.company}
+              style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+            />
+          </div>
+        ) : idea.pdfUrl ? (
+          <div style={{ width: "100%", height: "88vh", minHeight: "850px", background: "#ffffff" }}>
+            <iframe
+              src={`${idea.pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+              title={idea.company}
+              style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );

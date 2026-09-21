@@ -74,10 +74,30 @@ export type Ipo = {
   issueSize: string;
   lotSize: string;
   listing: string;
+  pdfUrl?: string;
   sections: { heading: string; body: string }[];
 };
 
 export const ipos: Ipo[] = [
+  {
+    slug: "spectraa-technology-solutions",
+    company: "SpectraA Technology Solutions Limited",
+    sector: "Industrial Automation & Engineering",
+    period: "18 — 22 Sep 2026",
+    price: "₹420 — 445",
+    type: "Mainboard",
+    deepDive: true,
+    deck: "An institutional underwriting note on high-gravity process engineering, brewery & distillery automation moat, and capital efficiency.",
+    issueSize: "₹450 crore",
+    lotSize: "32 shares",
+    listing: "30 September 2026",
+    pdfUrl: "/SpectraA_Technology_Solutions_IPO_Deep_Dive.pdf",
+    sections: [
+      { heading: "What the company does", body: "SpectraA Technology Solutions is a turnkey engineering and automation provider catering to process industries, industrial automation, and high-spec brewery / distillery facilities. Its competitive moat lies in bespoke engineering design, long-standing OEM contracts, and high switching costs." },
+      { heading: "The central question", body: "With rapid orderbook growth, the primary factor determining post-listing returns is working-capital efficiency and the execution speed of large multi-year industrial projects." },
+      { heading: "What we are watching", body: "Order inflows from multinational beverages clients, margin resilience against raw material spikes, and return on capital employed (ROCE) progression." },
+    ],
+  },
   {
     slug: "gulf-lloyds-india",
     company: "Gulf Lloyds India",

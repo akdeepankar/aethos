@@ -1,12 +1,13 @@
 import fs from "fs";
 import path from "path";
+import { marked } from "marked";
 
 const KNOWN_SLUG_MAP: Record<string, string[]> = {
   "racl-geartech": [
+    "RACL_Geartech_Growth_Triggers.md",
     "RACL_Geartech_Growth_Triggers_Exact.html",
     "RACL_Geartech_Deep_Dive_HTML_Code.txt",
     "RACL_Geartech_Growth_Triggers.html",
-    "RACL GEARTECH LIMITED.html",
   ],
   "spectra-a-tech": [
     "SpectraA_IPO_Deep_Dive_HTML_Code.txt",
@@ -20,8 +21,27 @@ const KNOWN_SLUG_MAP: Record<string, string[]> = {
   ],
 };
 
+function processFileContent(filePath: string): string | null {
+  try {
+    let raw = fs.readFileSync(filePath, "utf-8");
+    if (filePath.endsWith(".md")) {
+      // Strip frontmatter
+      if (raw.startsWith("---")) {
+        const endIdx = raw.indexOf("---", 3);
+        if (endIdx !== -1) {
+          raw = raw.slice(endIdx + 3).trim();
+        }
+      }
+      return marked.parse(raw) as string;
+    }
+    return raw;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Reads any .txt or .html report file from the public/ directory.
+ * Reads any .md, .txt or .html report file from the public/ directory.
  * Matches known slug mappings first, then direct file names, then fuzzy keyword search.
  */
 export function getReportHtml(fileNameOrSlug: string): string | null {
@@ -33,11 +53,8 @@ export function getReportHtml(fileNameOrSlug: string): string | null {
     for (const file of mappedFiles) {
       const p = path.join(publicDir, file);
       if (fs.existsSync(p)) {
-        try {
-          return fs.readFileSync(p, "utf-8");
-        } catch {
-          // continue
-        }
+        const content = processFileContent(p);
+        if (content) return content;
       }
     }
   }
@@ -45,27 +62,20 @@ export function getReportHtml(fileNameOrSlug: string): string | null {
   // 2. Direct file lookup
   const directPath = path.join(publicDir, fileNameOrSlug);
   if (fs.existsSync(directPath)) {
-    try {
-      return fs.readFileSync(directPath, "utf-8");
-    } catch {
-      return null;
-    }
+    return processFileContent(directPath);
   }
 
-  // 3. Lookup with extensions
-  const extensions = [".html", ".txt"];
+  // 3. Lookup with extensions (.md, .html, .txt)
+  const extensions = [".md", ".html", ".txt"];
   for (const ext of extensions) {
     const p = path.join(publicDir, `${fileNameOrSlug}${ext}`);
     if (fs.existsSync(p)) {
-      try {
-        return fs.readFileSync(p, "utf-8");
-      } catch {
-        // continue
-      }
+      const content = processFileContent(p);
+      if (content) return content;
     }
   }
 
-  // 4. Dynamic keyword search in public/ for any future .txt or .html files
+  // 4. Dynamic keyword search in public/ for any future .md, .txt or .html files
   try {
     const files = fs.readdirSync(publicDir);
     const keywords = fileNameOrSlug
@@ -77,7 +87,7 @@ export function getReportHtml(fileNameOrSlug: string): string | null {
     let maxMatches = 0;
 
     for (const file of files) {
-      if (file.endsWith(".txt") || file.endsWith(".html")) {
+      if (file.endsWith(".md") || file.endsWith(".txt") || file.endsWith(".html")) {
         const lowerFile = file.toLowerCase();
         const matchCount = keywords.filter((k) => lowerFile.includes(k)).length;
         if (matchCount > maxMatches) {
@@ -88,7 +98,7 @@ export function getReportHtml(fileNameOrSlug: string): string | null {
     }
 
     if (bestFile && maxMatches > 0) {
-      return fs.readFileSync(path.join(publicDir, bestFile), "utf-8");
+      return processFileContent(path.join(publicDir, bestFile));
     }
   } catch {
     return null;

@@ -51,6 +51,14 @@ export function IconFeatures() {
   );
 }
 
+export function IconIdeas() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="dash-icon">
+      <path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7zM9 21h6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function IconAbout() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="dash-icon">
@@ -112,6 +120,7 @@ export function IconMenu() {
 const navItems = [
   { label: "Overview", href: "/", icon: IconOverview },
   { label: "Research Library", href: "/research", icon: IconResearch, badge: "120+" },
+  { label: "Aethos Ideas", href: "/ideas", icon: IconIdeas, badge: "New", badgeType: "live" },
   { label: "IPO Intelligence", href: "/ipos", icon: IconIpos, badge: "Live", badgeType: "live" },
   { label: "Journal & Memos", href: "/journal", icon: IconJournal },
   { label: "Features", href: "/features", icon: IconFeatures },

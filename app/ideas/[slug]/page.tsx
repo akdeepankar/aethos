@@ -11,10 +11,9 @@ type IdeaDetail = {
   sharedPrice: number;
   currentPrice: number;
   sharedDate: string;
-  pdfUrl?: string;
+  pdfUrl: string;
   tag: string;
   readTime: string;
-  deck: string;
 };
 
 const ideasData: Record<string, IdeaDetail> = {
@@ -30,7 +29,6 @@ const ideasData: Record<string, IdeaDetail> = {
     pdfUrl: "/RACL GEARTECH LIMITED.pdf",
     tag: "Company Deep Dive",
     readTime: "18 min read",
-    deck: "An in-depth underwriting memo on export market moat, customer concentration with premium European OEMs, and long-term operating leverage.",
   },
   "spectra-a-tech": {
     id: "spectra-a-tech",
@@ -44,7 +42,6 @@ const ideasData: Record<string, IdeaDetail> = {
     pdfUrl: "/SpectraA_Technology_Solutions_IPO_Deep_Dive.pdf",
     tag: "IPO Deep Dive",
     readTime: "24 min read",
-    deck: "Granular breakdown of business operations, addressable market, supply chain positioning, valuation band, and financial sustainability.",
   },
 };
 
@@ -61,7 +58,8 @@ export default async function IdeaDetailPage({ params }: { params: Promise<{ slu
 
   return (
     <div className="dash-overview-page">
-      <div style={{ marginBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      {/* Top Action Bar */}
+      <div style={{ marginBottom: "14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Link
           href="/ideas"
           className="dash-card-link"
@@ -69,34 +67,42 @@ export default async function IdeaDetailPage({ params }: { params: Promise<{ slu
         >
           ← Back to Aethos Ideas
         </Link>
-        {idea.pdfUrl && (
-          <a
-            href={idea.pdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="dash-card-link"
-            style={{
-              fontSize: "12px",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "6px 12px",
-              borderRadius: "6px",
-              background: "#ffffff",
-              border: "1px solid var(--gold-light)",
-            }}
-          >
-            Open in new tab <ArrowUpRight />
-          </a>
-        )}
+        <a
+          href={idea.pdfUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="dash-card-link"
+          style={{
+            fontSize: "11px",
+            fontWeight: "600",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "5px",
+            padding: "5px 12px",
+            borderRadius: "6px",
+            background: "#ffffff",
+            border: "1px solid var(--gold-light)",
+          }}
+        >
+          Open in new tab <ArrowUpRight />
+        </a>
       </div>
 
-      <div className="dash-card">
+      {/* Main Document Card */}
+      <div className="dash-card" style={{ overflow: "hidden", background: "#ffffff" }}>
+        {/* Compact Header */}
         <div
           className="dash-card-head"
-          style={{ flexDirection: "column", alignItems: "flex-start", gap: "8px", padding: "24px" }}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "16px 24px",
+            borderBottom: "1px solid var(--gold-light)",
+            background: "#fafafa",
+          }}
         >
-          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
             <span
               style={{
                 fontSize: "10px",
@@ -106,73 +112,47 @@ export default async function IdeaDetailPage({ params }: { params: Promise<{ slu
                 background: "#ecfdf5",
                 padding: "3px 8px",
                 borderRadius: "4px",
+                letterSpacing: "0.05em",
               }}
             >
               {idea.tag}
             </span>
+            <h1 style={{ fontSize: "16px", fontWeight: "700", margin: 0, color: "var(--ink)" }}>
+              {idea.company}
+            </h1>
             <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-              Shared {idea.sharedDate} · {idea.readTime}
+              {idea.ticker} · {idea.sector} · {idea.readTime}
             </span>
           </div>
-          <h1 style={{ fontSize: "24px", fontWeight: "700", margin: "4px 0", lineHeight: "1.2" }}>
-            {idea.company}
-          </h1>
-          <p style={{ margin: 0, fontSize: "14px", color: "var(--muted)", lineHeight: "1.5" }}>
-            {idea.deck}
-          </p>
-        </div>
 
-        {/* Offer & Metrics Strip */}
-        <div style={{ padding: "16px 24px", background: "#fafafa", borderBottom: "1px solid var(--gold-light)" }}>
-          <div className="dash-table-wrap">
-            <table className="dash-table">
-              <thead>
-                <tr>
-                  <th>Sector</th>
-                  <th>Market Cap</th>
-                  <th>Shared Price</th>
-                  <th>Current Price</th>
-                  <th>Return %</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td style={{ fontWeight: "600" }}>{idea.sector}</td>
-                  <td style={{ fontWeight: "600" }}>{idea.mcap}</td>
-                  <td style={{ fontWeight: "600" }}>₹{idea.sharedPrice}</td>
-                  <td style={{ fontWeight: "600" }}>₹{idea.currentPrice}</td>
-                  <td>
-                    <span
-                      style={{
-                        fontSize: "12px",
-                        fontWeight: "700",
-                        color: returnPct >= 0 ? "#10b981" : "#ef4444",
-                      }}
-                    >
-                      {returnPct >= 0 ? "+" : ""}
-                      {returnPct.toFixed(2)}%
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+              Mcap: <strong style={{ color: "var(--ink)" }}>{idea.mcap}</strong>
+            </span>
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: "700",
+                color: returnPct >= 0 ? "#10b981" : "#ef4444",
+                background: returnPct >= 0 ? "#ecfdf5" : "#fef2f2",
+                padding: "2px 8px",
+                borderRadius: "4px",
+              }}
+            >
+              {returnPct >= 0 ? "+" : ""}
+              {returnPct.toFixed(2)}%
+            </span>
           </div>
         </div>
 
-        {/* Embedded PDF Viewer in page */}
-        {idea.pdfUrl ? (
-          <div style={{ width: "100%", height: "85vh", minHeight: "750px", background: "#f4f4f5" }}>
-            <iframe
-              src={idea.pdfUrl}
-              title={`${idea.company} — Research Report`}
-              style={{ width: "100%", height: "100%", border: "none" }}
-            />
-          </div>
-        ) : (
-          <div className="dash-card-body" style={{ padding: "28px 32px" }}>
-            <p style={{ color: "var(--muted)", fontSize: "13px" }}>Research report note in preparation.</p>
-          </div>
-        )}
+        {/* Embedded PDF without toolbars or control bars */}
+        <div style={{ width: "100%", height: "85vh", minHeight: "850px", background: "#ffffff" }}>
+          <iframe
+            src={`${idea.pdfUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+            title={idea.company}
+            style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+          />
+        </div>
       </div>
     </div>
   );

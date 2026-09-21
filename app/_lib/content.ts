@@ -84,18 +84,39 @@ export const ipos: Ipo[] = [
     company: "SpectraA Technology Solutions Limited",
     sector: "Industrial Automation & Engineering",
     period: "18 — 22 Sep 2026",
-    price: "₹420 — 445",
+    price: "₹118 (Issue Price)",
     type: "Mainboard",
     deepDive: true,
     deck: "An institutional underwriting note on high-gravity process engineering, brewery & distillery automation moat, and capital efficiency.",
-    issueSize: "₹450 crore",
-    lotSize: "32 shares",
+    issueSize: "₹38.5 crore",
+    lotSize: "1,200 shares",
     listing: "30 September 2026",
     pdfUrl: "/SpectraA_Technology_Solutions_IPO_Deep_Dive.pdf",
     sections: [
-      { heading: "What the company does", body: "SpectraA Technology Solutions is a turnkey engineering and automation provider catering to process industries, industrial automation, and high-spec brewery / distillery facilities. Its competitive moat lies in bespoke engineering design, long-standing OEM contracts, and high switching costs." },
-      { heading: "The central question", body: "With rapid orderbook growth, the primary factor determining post-listing returns is working-capital efficiency and the execution speed of large multi-year industrial projects." },
-      { heading: "What we are watching", body: "Order inflows from multinational beverages clients, margin resilience against raw material spikes, and return on capital employed (ROCE) progression." },
+      {
+        heading: "1. Business Architecture & Turnkey Engineering Moat",
+        body: "SpectraA operates as an end-to-end design-to-commissioning engineering specialist for process plants, with dominant domain authority in high-gravity breweries, microbreweries, sanitary distilleries, and automated industrial liquid processing. The competitive moat is built on 17 years of bespoke process design, multinational reference clients, proprietary CIP (Clean-In-Place) skid automation, and high switching costs once an OEM standardizes on SpectraA's architectural layouts.",
+      },
+      {
+        heading: "2. Order Book Runway & Export Expansion",
+        body: "The company holds an active executable order book of ₹81.30 crore, providing strong 1.4x coverage over FY26 revenue. Export execution has grown structurally, reaching 29.4% of total revenue across Southeast Asia and Africa, where turnkey contracts command premium pricing and 400–600 bps higher gross margins compared to commoditized domestic fabrication.",
+      },
+      {
+        heading: "3. Financial Performance & Return Architecture",
+        body: "FY26 witnessed significant operational inflection with revenue expanding to ₹57.8 crore, EBITDA margins rising to 19.0%, and PAT margins printing at 11.4%. Return metrics reflect high capital efficiency with Return on Capital Employed (ROCE) at 37.6% and Return on Equity (ROE) at 31.8%. Repeat-order revenue from existing institutional clients reached 50.1%, highlighting sticky customer retention.",
+      },
+      {
+        heading: "4. Expansion Plan & Jaipur Unit Economics",
+        body: "A primary use of IPO proceeds is the ₹11.61 crore expansion of the Jaipur manufacturing unit, expanding total shop-floor area by 2.23x. This expansion enables parallel assembly of multi-vessel brewery skids and large-diameter fermentation tanks, reducing subcontracting bottlenecks and compressing delivery lead times.",
+      },
+      {
+        heading: "5. Diligence Flags & Governance Checks",
+        body: "While operational execution is strong, prospective investors must track post-listing public-company compliance rigor. Cumulative CFO to PAT conversion stood at 49.8% due to working capital expansion (payable days at 235), and customer concentration remains elevated with the top 10 clients contributing 65.6% of revenue. Independent board additions and audit committees are recently formalized.",
+      },
+      {
+        heading: "6. Valuation Context & Underwriting Verdict",
+        body: "At the issue cap price of ₹118, the stock is valued at 13.6x post-money FY26 P/E. This represents an attractive entry multiple relative to industrial process peers, provided the company sustains its high-teens EBITDA margins and demonstrates clean operating cash flow conversion as the expanded Jaipur facility ramps.",
+      },
     ],
   },
   {

@@ -117,9 +117,45 @@ export default function IdeasPage() {
                         </div>
                       </td>
                       <td>
-                        <Link href={`/ideas/${idea.id}`} className="dash-card-link">
-                          Read Report <ArrowUpRight />
-                        </Link>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                          <Link
+                            href={`/ideas/${idea.id}`}
+                            className="dash-card-link"
+                            style={{
+                              padding: "5px 10px",
+                              borderRadius: "6px",
+                              border: "1px solid var(--gold-light)",
+                              background: "#ffffff",
+                              fontSize: "11px",
+                              fontWeight: "600",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            Markdown <ArrowUpRight />
+                          </Link>
+                          {idea.pdfUrl && (
+                            <Link
+                              href={`/ideas/${idea.id}?format=pdf`}
+                              className="dash-card-link"
+                              style={{
+                                padding: "5px 10px",
+                                borderRadius: "6px",
+                                border: "1px solid var(--gold-light)",
+                                background: "#fafafa",
+                                fontSize: "11px",
+                                fontWeight: "600",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                color: "#475467",
+                              }}
+                            >
+                              PDF <ArrowUpRight />
+                            </Link>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

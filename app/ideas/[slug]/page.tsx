@@ -121,8 +121,16 @@ export async function generateStaticParams() {
   return Object.keys(ideasData).map((slug) => ({ slug }));
 }
 
-export default async function IdeaDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function IdeaDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ format?: string }>;
+}) {
   const { slug } = await params;
+  const sParams = searchParams ? await searchParams : {};
+  const initialFormat = sParams.format === "pdf" ? "pdf" : "markdown";
   const idea = ideasData[slug];
   if (!idea) notFound();
 
@@ -135,6 +143,7 @@ export default async function IdeaDetailPage({ params }: { params: Promise<{ slu
         backUrl="/ideas"
         backLabel="Back to Aethos Ideas"
         pdfUrl={idea.pdfUrl}
+        initialFormat={initialFormat}
       />
     );
   }

@@ -5,11 +5,13 @@ import { useEffect, useRef, useState } from "react";
 interface DynamicReportFrameProps {
   htmlContent: string;
   minHeight?: number;
+  zoom?: number;
 }
 
 export default function DynamicReportFrame({
   htmlContent,
   minHeight = 400,
+  zoom = 1.0,
 }: DynamicReportFrameProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [frameHeight, setFrameHeight] = useState<number>(minHeight);
@@ -35,6 +37,8 @@ export default function DynamicReportFrame({
       font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       color: #172033;
       line-height: 1.65;
+      zoom: ${zoom};
+      transition: zoom 0.15s ease-out;
     }
     .spectraa-deep-dive {
       max-width: 100% !important;
@@ -121,6 +125,14 @@ export default function DynamicReportFrame({
 
       window.addEventListener('load', reportHeight);
       window.addEventListener('resize', reportHeight);
+
+      window.addEventListener('message', function(e) {
+        if (e.data && e.data.type === 'AETHOS_SET_ZOOM' && typeof e.data.zoom === 'number') {
+          document.body.style.zoom = e.data.zoom;
+          setTimeout(reportHeight, 50);
+          setTimeout(reportHeight, 200);
+        }
+      });
       
       if (window.ResizeObserver) {
         var ro = new ResizeObserver(function() {
@@ -154,6 +166,20 @@ export default function DynamicReportFrame({
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
   }, []);
+
+  // Update zoom dynamically via postMessage without re-rendering the whole iframe
+  useEffect(() => {
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      try {
+        iframeRef.current.contentWindow.postMessage(
+          { type: "AETHOS_SET_ZOOM", zoom: zoom },
+          "*"
+        );
+      } catch {
+        // ignore cross-origin error if any
+      }
+    }
+  }, [zoom]);
 
   return (
     <div

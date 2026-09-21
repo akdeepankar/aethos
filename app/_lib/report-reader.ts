@@ -1,14 +1,48 @@
 import fs from "fs";
 import path from "path";
 
+const KNOWN_SLUG_MAP: Record<string, string[]> = {
+  "racl-geartech": [
+    "RACL_Geartech_Growth_Triggers_Exact.html",
+    "RACL_Geartech_Deep_Dive_HTML_Code.txt",
+    "RACL_Geartech_Growth_Triggers.html",
+    "RACL GEARTECH LIMITED.html",
+  ],
+  "spectra-a-tech": [
+    "SpectraA_IPO_Deep_Dive_HTML_Code.txt",
+    "SpectraA_IPO_Deep_Dive_Website.html",
+    "SpectraA_Technology_Solutions_IPO_Deep_Dive.html",
+  ],
+  "spectraa-technology-solutions": [
+    "SpectraA_IPO_Deep_Dive_HTML_Code.txt",
+    "SpectraA_IPO_Deep_Dive_Website.html",
+    "SpectraA_Technology_Solutions_IPO_Deep_Dive.html",
+  ],
+};
+
 /**
  * Reads any .txt or .html report file from the public/ directory.
- * If exact fileName is not provided, it tries matching known patterns.
+ * Matches known slug mappings first, then direct file names, then fuzzy keyword search.
  */
 export function getReportHtml(fileNameOrSlug: string): string | null {
   const publicDir = path.join(process.cwd(), "public");
 
-  // 1. Direct file lookup
+  // 1. Check known slug map
+  const mappedFiles = KNOWN_SLUG_MAP[fileNameOrSlug];
+  if (mappedFiles) {
+    for (const file of mappedFiles) {
+      const p = path.join(publicDir, file);
+      if (fs.existsSync(p)) {
+        try {
+          return fs.readFileSync(p, "utf-8");
+        } catch {
+          // continue
+        }
+      }
+    }
+  }
+
+  // 2. Direct file lookup
   const directPath = path.join(publicDir, fileNameOrSlug);
   if (fs.existsSync(directPath)) {
     try {
@@ -18,37 +52,43 @@ export function getReportHtml(fileNameOrSlug: string): string | null {
     }
   }
 
-  // 2. Lookup with common extensions
-  const candidates = [
-    `${fileNameOrSlug}.txt`,
-    `${fileNameOrSlug}.html`,
-    "SpectraA_IPO_Deep_Dive_HTML_Code.txt",
-    "SpectraA_IPO_Deep_Dive_Website.html",
-  ];
-
-  for (const candidate of candidates) {
-    const candPath = path.join(publicDir, candidate);
-    if (fs.existsSync(candPath)) {
+  // 3. Lookup with extensions
+  const extensions = [".html", ".txt"];
+  for (const ext of extensions) {
+    const p = path.join(publicDir, `${fileNameOrSlug}${ext}`);
+    if (fs.existsSync(p)) {
       try {
-        return fs.readFileSync(candPath, "utf-8");
+        return fs.readFileSync(p, "utf-8");
       } catch {
         // continue
       }
     }
   }
 
-  // 3. Fallback: Search in public folder for .txt or .html files matching slug keywords
+  // 4. Dynamic keyword search in public/ for any future .txt or .html files
   try {
     const files = fs.readdirSync(publicDir);
-    const keywords = fileNameOrSlug.toLowerCase().split("-").filter((k) => k.length > 2);
+    const keywords = fileNameOrSlug
+      .toLowerCase()
+      .split(/[-_\s]+/)
+      .filter((k) => k.length > 2);
+
+    let bestFile: string | null = null;
+    let maxMatches = 0;
+
     for (const file of files) {
       if (file.endsWith(".txt") || file.endsWith(".html")) {
         const lowerFile = file.toLowerCase();
-        const matches = keywords.some((k) => lowerFile.includes(k));
-        if (matches) {
-          return fs.readFileSync(path.join(publicDir, file), "utf-8");
+        const matchCount = keywords.filter((k) => lowerFile.includes(k)).length;
+        if (matchCount > maxMatches) {
+          maxMatches = matchCount;
+          bestFile = file;
         }
       }
+    }
+
+    if (bestFile && maxMatches > 0) {
+      return fs.readFileSync(path.join(publicDir, bestFile), "utf-8");
     }
   } catch {
     return null;

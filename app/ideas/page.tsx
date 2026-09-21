@@ -118,7 +118,7 @@ export default function IdeasPage() {
                       </td>
                       <td>
                         <Link href={`/ideas/${idea.id}`} className="dash-card-link">
-                          PDF <ArrowUpRight />
+                          Read Report <ArrowUpRight />
                         </Link>
                       </td>
                     </tr>

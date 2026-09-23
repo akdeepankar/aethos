@@ -92,7 +92,7 @@ export const ipos: Ipo[] = [
     issueSize: "₹38.5 crore",
     lotSize: "1,200 shares",
     listing: "30 September 2026",
-    htmlUrl: "/reports/spectraa",
+    htmlUrl: "/SpectraA_IPO_Deep_Dive_Website.html",
     pdfUrl: "/SpectraA_Technology_Solutions_IPO_Deep_Dive.pdf",
     sections: [
       {

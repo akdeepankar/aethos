@@ -123,14 +123,10 @@ export async function generateStaticParams() {
 
 export default async function IdeaDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams?: Promise<{ format?: string }>;
 }) {
   const { slug } = await params;
-  const sParams = searchParams ? await searchParams : {};
-  const initialFormat = sParams.format === "pdf" ? "pdf" : "markdown";
   const idea = ideasData[slug];
   if (!idea) notFound();
 
@@ -143,7 +139,6 @@ export default async function IdeaDetailPage({
         backUrl="/ideas"
         backLabel="Back to Aethos Ideas"
         pdfUrl={idea.pdfUrl}
-        initialFormat={initialFormat}
       />
     );
   }

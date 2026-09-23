@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { DashboardLayout } from "./_components/dashboard-layout";
 import { AppwriteProvider } from "./_components/appwrite-provider";
+import { AuthProvider } from "./_context/auth-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -31,10 +32,11 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-slate-50">
         <AppwriteProvider>
-          <DashboardLayout>{children}</DashboardLayout>
+          <AuthProvider>
+            <DashboardLayout>{children}</DashboardLayout>
+          </AuthProvider>
         </AppwriteProvider>
       </body>
     </html>
   );
 }
-

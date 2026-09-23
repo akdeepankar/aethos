@@ -4,6 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useAuth } from "../_context/auth-context";
+import { AuthGate } from "./auth-gate";
 
 // Icons
 export function IconOverview() {
@@ -127,6 +129,7 @@ const navItems = [
 ];
 
 const secondaryItems = [
+  { label: "My Dashboard", href: "/dashboard", icon: IconOverview },
   { label: "Membership Plan", href: "/membership", icon: IconMembership },
   { label: "About Aethos", href: "/about", icon: IconAbout },
 ];
@@ -134,6 +137,66 @@ const secondaryItems = [
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user, signOut } = useAuth();
+
+  const isAuthRoute =
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/signin") ||
+    pathname === "/auth/success" ||
+    pathname === "/auth/failure";
+
+  // Dedicated clean view for Auth routes
+  if (isAuthRoute) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#f8fafc", display: "flex", flexDirection: "column" }}>
+        <header
+          style={{
+            height: "64px",
+            borderBottom: "1px solid #e2e8f0",
+            background: "#ffffff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 28px",
+          }}
+        >
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
+            <Image
+              src="/aethos-eagle-logo.jpeg"
+              alt="Aethos"
+              width={32}
+              height={32}
+              style={{ borderRadius: "6px" }}
+              priority
+            />
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <span style={{ fontSize: "14px", fontWeight: "800", letterSpacing: "0.1em", color: "#111111", lineHeight: 1.1 }}>
+                AETHOS
+              </span>
+              <span style={{ fontSize: "8.5px", fontWeight: "700", letterSpacing: "0.12em", color: "#888888" }}>
+                INVESTMENT RESEARCH
+              </span>
+            </div>
+          </Link>
+          <span style={{ fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+            Secure Authentication
+          </span>
+        </header>
+
+        <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+          {children}
+        </main>
+      </div>
+    );
+  }
+
+  const displayName = user?.name || user?.email || "Member";
+  const initials = displayName
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "AW";
 
   return (
     <div className="dashboard-root">
@@ -156,6 +219,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               width={34}
               height={34}
               quality={90}
+              priority
             />
             <div className="brand-text">
               <span className="brand-title">AETHOS</span>
@@ -224,13 +288,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <div className="sidebar-user-card">
-          <div className="user-avatar">AK</div>
+        <Link href="/dashboard" className="sidebar-user-card" style={{ textDecoration: "none" }}>
+          <div className="user-avatar">{initials}</div>
           <div className="user-info">
-            <span className="user-name">Active User</span>
-            <span className="user-status">Member</span>
+            <span className="user-name">{displayName}</span>
+            <span className="user-status">{user ? "Active Member • View" : "Guest Access"}</span>
           </div>
-        </div>
+        </Link>
       </aside>
 
       {/* Main Container */}
@@ -265,15 +329,28 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <span className="notif-dot" />
             </button>
 
-            <Link href="/membership" className="button button-gold header-cta">
-              Upgrade Plan
-            </Link>
+            {user ? (
+              <button
+                type="button"
+                onClick={signOut}
+                className="button button-gold header-cta"
+                style={{ fontSize: "12px", padding: "0 16px", height: "36px", cursor: "pointer" }}
+              >
+                Sign Out
+              </button>
+            ) : (
+              <Link href="/auth" className="button button-gold header-cta">
+                Sign In
+              </Link>
+            )}
           </div>
         </header>
 
-        {/* Page Content Body */}
+        {/* Protected Page Content Body with Gatewall */}
         <main className="dashboard-content">
-          {children}
+          <AuthGate>
+            {children}
+          </AuthGate>
         </main>
       </div>
     </div>

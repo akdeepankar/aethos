@@ -10,6 +10,8 @@ import {
   StoredMediaFile,
 } from "../_lib/admin-store";
 import { Report, Ipo, Post } from "../_lib/content";
+import ReportView from "../_components/ReportView";
+import { adaptReportToRichView } from "../_lib/report-adapter";
 
 type TabType = "reports" | "ideas" | "ipos" | "journal" | "media" | "database";
 type DrawerType = "report" | "idea" | "ipo" | "journal" | "file" | null;
@@ -36,7 +38,101 @@ const RESEARCH_TYPES = [
   "Company updates",
 ];
 
+const DEFAULT_SECTIONS_JSON = JSON.stringify(
+  [
+    {
+      id: "thesis",
+      title: "Investment Thesis & Operating Moat",
+      nav: "Thesis",
+      blocks: [
+        {
+          type: "p",
+          text: "Core investment thesis outlining the multi-year revenue visibility, unit economics, and operational moat.",
+        },
+        {
+          type: "kpis",
+          items: [
+            { label: "Market Cap", value: "₹2,450 Cr", tone: "neutral" },
+            { label: "Revenue Growth", value: "24.5%", note: "YoY", tone: "good" },
+            { label: "EBITDA Margin", value: "25.0%", tone: "good" },
+            { label: "ROCE", value: "28.6%", tone: "good" },
+          ],
+        },
+        {
+          type: "callout",
+          tone: "copper",
+          title: "Institutional Conviction Factor",
+          text: "Proprietary high-barrier manufacturing capabilities combined with sole-source OEM supply agreements across premium export platforms.",
+        },
+      ],
+    },
+    {
+      id: "triggers",
+      title: "Growth Triggers & Milestones",
+      nav: "Growth Triggers",
+      blocks: [
+        {
+          type: "p",
+          text: "Key operational milestones and production ramps scheduled over the FY27-FY29 horizon.",
+        },
+        {
+          type: "triggers",
+          items: [
+            {
+              id: "trig-1",
+              category: "Capacity Expansion",
+              title: "Automated Machining Facility Commissioning",
+              tagline: "Doubling precision capacity to meet European OEM export contracts.",
+              timeline: "Q3 FY27 – FY28",
+              fields: [
+                {
+                  label: "Capex Scope",
+                  text: "₹85 crore dedicated high-precision facility currently completing installation and validation.",
+                },
+                {
+                  label: "Management Commentary",
+                  text: "“Trial batches are completed and initial commercial production is slated to ramp to peak run rates by Q3.”",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      id: "risks",
+      title: "Downside Risks & Key Monitors",
+      nav: "Risks",
+      blocks: [
+        {
+          type: "risks",
+          items: [
+            {
+              title: "Export Market Macro Headwinds",
+              text: "Prolonged slowdown across key European automotive or industrial markets could moderate delivery timelines.",
+            },
+            {
+              title: "Raw Material Price Volatility",
+              text: "Specialty alloy steel price fluctuations are partially protected by quarterly indexation clauses.",
+            },
+          ],
+        },
+      ],
+    },
+  ],
+  null,
+  2
+);
+
 // Clean minimalist SVG icons (No emojis)
+function IconEye() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 function IconBook() {
   return (
     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -176,7 +272,10 @@ export default function AdminPage() {
   const [selectedFile, setSelectedFile] = useState<StoredMediaFile | null>(null);
   const [hasCopiedUrl, setHasCopiedUrl] = useState(false);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [reportDrawerMode, setReportDrawerMode] = useState<"edit" | "preview" | "split">("edit");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const jsonFileInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingJson, setIsDraggingJson] = useState(false);
 
   // Report Form State
   const [editingReport, setEditingReport] = useState<Report | null>(null);
@@ -187,19 +286,15 @@ export default function AdminPage() {
     sector: "Electrical equipment",
     researchType: "Stock deep dives",
     company: "",
-    readTime: "12 min read",
-    date: "24 Sep 2026",
+    readTime: "10 min read",
+    date: "Today",
     free: true,
     imageUrl: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
     pdfUrl: "",
     isNew: true,
     isSaved: false,
     tabCategory: "company" as "company" | "sectoral" | "thematic",
-    sections: [
-      { heading: "Thesis", body: "" },
-      { heading: "Market Position & Moat", body: "" },
-      { heading: "Financials & Valuation", body: "" },
-    ],
+    sectionsJson: DEFAULT_SECTIONS_JSON,
   });
 
   // Idea Form State
@@ -239,10 +334,168 @@ export default function AdminPage() {
     setTimeout(() => setNotification(null), 3500);
   };
 
+  // Format / Beautify JSON
+  const handleFormatJson = () => {
+    try {
+      const parsed = JSON.parse(reportForm.sectionsJson);
+      setReportForm((prev) => ({
+        ...prev,
+        sectionsJson: JSON.stringify(parsed, null, 2),
+      }));
+      showNotification("JSON formatted and validated", "success");
+    } catch (err) {
+      showNotification("Invalid JSON syntax: " + (err as Error).message, "error");
+    }
+  };
+
+  // Load standard template
+  const handleLoadTemplate = () => {
+    setReportForm((prev) => ({
+      ...prev,
+      sectionsJson: DEFAULT_SECTIONS_JSON,
+    }));
+    showNotification("Loaded standard report template", "info");
+  };
+
+  // Upload or Drag-and-Drop JSON file
+  const handleJsonFileUpload = (file: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        if (!text || !text.trim()) {
+          showNotification("Uploaded file is empty", "error");
+          return;
+        }
+        const parsed = JSON.parse(text);
+
+        if (Array.isArray(parsed)) {
+          setReportForm((prev) => ({
+            ...prev,
+            sectionsJson: JSON.stringify(parsed, null, 2),
+          }));
+          showNotification(`Loaded ${parsed.length} sections from "${file.name}"`, "success");
+        } else if (typeof parsed === "object" && parsed !== null) {
+          // If it's a full report object with sections or blocks
+          let extractedJson = DEFAULT_SECTIONS_JSON;
+          if (parsed.sectionsJson) {
+            extractedJson = typeof parsed.sectionsJson === "string" ? parsed.sectionsJson : JSON.stringify(parsed.sectionsJson, null, 2);
+          } else if (parsed.sections && Array.isArray(parsed.sections)) {
+            extractedJson = JSON.stringify(parsed.sections, null, 2);
+          } else if (parsed.richSections && Array.isArray(parsed.richSections)) {
+            extractedJson = JSON.stringify(parsed.richSections, null, 2);
+          } else if (parsed.blocks && Array.isArray(parsed.blocks)) {
+            extractedJson = JSON.stringify([{ id: "main", title: parsed.title || "Overview", nav: "Overview", blocks: parsed.blocks }], null, 2);
+          } else {
+            extractedJson = JSON.stringify(parsed, null, 2);
+          }
+
+          setReportForm((prev) => ({
+            ...prev,
+            title: parsed.title || prev.title,
+            slug: parsed.slug || prev.slug,
+            deck: parsed.deck || prev.deck,
+            sector: parsed.sector || prev.sector,
+            researchType: parsed.researchType || prev.researchType,
+            company: parsed.company || prev.company,
+            imageUrl: parsed.imageUrl || prev.imageUrl,
+            pdfUrl: parsed.pdfUrl || prev.pdfUrl,
+            sectionsJson: extractedJson,
+          }));
+          showNotification(`Imported report specification from "${file.name}"`, "success");
+        } else {
+          showNotification("JSON must be an array of sections or a report object", "error");
+        }
+      } catch (err) {
+        showNotification("Failed to parse JSON file: " + (err as Error).message, "error");
+      }
+    };
+    reader.onerror = () => {
+      showNotification("Error reading JSON file", "error");
+    };
+    reader.readAsText(file);
+  };
+
+  // Generate preview report object for live preview modal
+  const getPreviewReport = (): Report => {
+    const slug = reportForm.slug.trim() || "preview-report";
+    const autoDate = editingReport?.date || new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+    let parsedSections: any[] = [];
+    try {
+      if (reportForm.sectionsJson.trim()) {
+        const parsed = JSON.parse(reportForm.sectionsJson);
+        if (Array.isArray(parsed)) parsedSections = parsed;
+      }
+    } catch {
+      // fallback
+    }
+
+    const legacySections = parsedSections.map((sec) => ({
+      heading: sec.title || sec.heading || "Section",
+      body: sec.blocks?.[0]?.text || sec.body || "",
+    }));
+
+    return {
+      slug,
+      title: reportForm.title.trim() || "Untitled Research Report",
+      tag: reportForm.researchType.toUpperCase(),
+      researchType: reportForm.researchType as any,
+      sector: reportForm.sector,
+      company: reportForm.company.trim() || reportForm.title.trim() || "Target Company",
+      ticker: reportForm.company ? reportForm.company.split(" ")[0].toUpperCase() : "STOCK",
+      tabCategory: reportForm.tabCategory,
+      deck: reportForm.deck.trim() || "Research analysis and core thesis.",
+      readTime: "10 min read",
+      date: autoDate,
+      meta: autoDate,
+      free: reportForm.free,
+      imageUrl: reportForm.imageUrl.trim(),
+      pdfUrl: reportForm.pdfUrl.trim() || undefined,
+      isNew: reportForm.isNew,
+      isSaved: reportForm.isSaved,
+      isUnread: true,
+      sections: legacySections,
+      sectionsJson: reportForm.sectionsJson,
+    };
+  };
+
+  const handleOpenPreview = (mode: "preview" | "split" = "preview") => {
+    try {
+      if (reportForm.sectionsJson.trim()) {
+        JSON.parse(reportForm.sectionsJson);
+      }
+      setReportDrawerMode(mode);
+    } catch (err) {
+      showNotification("Please fix JSON syntax before previewing: " + (err as Error).message, "error");
+    }
+  };
+
   // Open report editor drawer
   const handleOpenReportDrawer = (report?: Report) => {
+    setReportDrawerMode("edit");
     if (report) {
       setEditingReport(report);
+      let initialJson = DEFAULT_SECTIONS_JSON;
+      if (report.sectionsJson) {
+        try {
+          initialJson = JSON.stringify(JSON.parse(report.sectionsJson), null, 2);
+        } catch {
+          initialJson = report.sectionsJson;
+        }
+      } else if (report.sections && report.sections.length > 0) {
+        initialJson = JSON.stringify(
+          report.sections.map((s, idx) => ({
+            id: `sec-${idx + 1}-${s.heading.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+            title: s.heading,
+            nav: s.heading.slice(0, 24),
+            blocks: [{ type: "p", text: s.body }],
+          })),
+          null,
+          2
+        );
+      }
       setReportForm({
         title: report.title,
         slug: report.slug,
@@ -250,7 +503,7 @@ export default function AdminPage() {
         sector: report.sector || report.tag || "Electrical equipment",
         researchType: (report.researchType as string) || "Stock deep dives",
         company: report.company || "",
-        readTime: report.readTime || "12 min read",
+        readTime: "10 min read",
         date: report.date || "Today",
         free: report.free,
         imageUrl: report.imageUrl || "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
@@ -258,7 +511,7 @@ export default function AdminPage() {
         isNew: Boolean(report.isNew),
         isSaved: Boolean(report.isSaved),
         tabCategory: report.tabCategory || "company",
-        sections: report.sections && report.sections.length > 0 ? report.sections : [{ heading: "Thesis", body: report.deck }],
+        sectionsJson: initialJson,
       });
     } else {
       setEditingReport(null);
@@ -269,19 +522,15 @@ export default function AdminPage() {
         sector: "Electrical equipment",
         researchType: "Stock deep dives",
         company: "",
-        readTime: "12 min read",
-        date: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+        readTime: "10 min read",
+        date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
         free: true,
         imageUrl: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
         pdfUrl: "",
         isNew: true,
         isSaved: false,
         tabCategory: "company",
-        sections: [
-          { heading: "Thesis", body: "" },
-          { heading: "Market Position & Moat", body: "" },
-          { heading: "Financials & Valuation", body: "" },
-        ],
+        sectionsJson: DEFAULT_SECTIONS_JSON,
       });
     }
     setActiveDrawer("report");
@@ -295,10 +544,10 @@ export default function AdminPage() {
         company: idea.company,
         ticker: idea.ticker,
         sector: idea.sector,
-        mcap: idea.mcap,
-        sharedPrice: idea.sharedPrice,
-        currentPrice: idea.currentPrice,
-        sharedDate: idea.sharedDate,
+        mcap: idea.mcap || "2000cr",
+        sharedPrice: idea.sharedPrice || 0,
+        currentPrice: idea.currentPrice || 0,
+        sharedDate: idea.sharedDate || "Today",
         thesis: idea.thesis || "",
         pdfUrl: idea.pdfUrl || "",
       });
@@ -308,10 +557,10 @@ export default function AdminPage() {
         company: "",
         ticker: "",
         sector: "Automotive",
-        mcap: "1500cr",
-        sharedPrice: 500,
-        currentPrice: 550,
-        sharedDate: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+        mcap: "2000cr",
+        sharedPrice: 1000,
+        currentPrice: 1200,
+        sharedDate: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
         thesis: "",
         pdfUrl: "",
       });
@@ -327,28 +576,28 @@ export default function AdminPage() {
         company: ipo.company,
         slug: ipo.slug,
         sector: ipo.sector,
-        period: ipo.period,
-        price: ipo.price,
-        type: ipo.type,
-        deepDive: ipo.deepDive,
-        deck: ipo.deck,
-        issueSize: ipo.issueSize,
-        lotSize: ipo.lotSize,
-        listing: ipo.listing,
+        period: ipo.period || "20-22 Sep 2026",
+        price: ipo.price || "₹100 - ₹120",
+        type: (ipo.type as "Mainboard" | "SME") || "Mainboard",
+        deepDive: Boolean(ipo.deepDive),
+        deck: ipo.deck || "",
+        issueSize: ipo.issueSize || "₹500 crore",
+        lotSize: ipo.lotSize || "100 shares",
+        listing: ipo.listing || "30 Sep 2026",
       });
     } else {
       setEditingIpo(null);
       setIpoForm({
         company: "",
         slug: "",
-        sector: "Industrial Automation",
-        period: "18-22 Sep 2026",
-        price: "₹118",
+        sector: "Industrial",
+        period: "20-22 Sep 2026",
+        price: "₹100 - ₹120",
         type: "Mainboard",
         deepDive: true,
         deck: "",
-        issueSize: "₹38.5 crore",
-        lotSize: "1,200 shares",
+        issueSize: "₹500 crore",
+        lotSize: "100 shares",
         listing: "30 Sep 2026",
       });
     }
@@ -362,6 +611,24 @@ export default function AdminPage() {
       showNotification("Title is required", "error");
       return;
     }
+
+    let parsedSections: any[] = [];
+    try {
+      if (reportForm.sectionsJson.trim()) {
+        const parsed = JSON.parse(reportForm.sectionsJson);
+        if (Array.isArray(parsed)) {
+          parsedSections = parsed;
+        }
+      }
+    } catch {
+      showNotification("Invalid JSON in report sections. Please check syntax.", "error");
+      return;
+    }
+
+    const legacySections = parsedSections.map((sec) => ({
+      heading: sec.title || sec.heading || "Section",
+      body: sec.blocks?.[0]?.text || sec.body || "",
+    }));
 
     const slug = reportForm.slug.trim() || reportForm.title.toLowerCase().replace(/[^a-z0-9]/g, "-").slice(0, 60);
     const autoDate = editingReport?.date || new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
@@ -383,7 +650,8 @@ export default function AdminPage() {
       isNew: reportForm.isNew,
       isSaved: reportForm.isSaved,
       isUnread: true,
-      sections: reportForm.sections.filter((s) => s.heading.trim() || s.body.trim()),
+      sections: legacySections.length > 0 ? legacySections : [{ heading: "Thesis", body: reportForm.deck.trim() }],
+      sectionsJson: reportForm.sectionsJson,
     };
 
     if (editingReport) {
@@ -1226,17 +1494,23 @@ export default function AdminPage() {
             }}
           />
 
-          {/* Slide-over Right Column Drawer */}
+          {/* Slide-over Right Column Drawer (expands when in preview or split mode) */}
           <div
             style={{
               position: "fixed",
               top: 0,
               right: 0,
               bottom: 0,
-              width: "min(580px, 95vw)",
+              width:
+                activeDrawer === "report" && reportDrawerMode === "split"
+                  ? "min(1420px, 98vw)"
+                  : activeDrawer === "report" && reportDrawerMode === "preview"
+                  ? "min(1240px, 96vw)"
+                  : "min(580px, 95vw)",
+              transition: "width 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
               background: "#ffffff",
               borderLeft: "1px solid #e2e8f0",
-              boxShadow: "-12px 0 40px rgba(0,0,0,0.12)",
+              boxShadow: "-12px 0 40px rgba(0,0,0,0.16)",
               zIndex: 1001,
               display: "flex",
               flexDirection: "column",
@@ -1247,40 +1521,119 @@ export default function AdminPage() {
             {/* Drawer Header */}
             <div
               style={{
-                padding: "18px 24px",
+                padding: "16px 24px",
                 borderBottom: "1px solid #e2e8f0",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
                 background: "#f8fafc",
+                flexShrink: 0,
               }}
             >
-              <div>
-                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: "#0f172a" }}>
-                  {activeDrawer === "report"
-                    ? editingReport
-                      ? "Edit Research Report"
-                      : "Add New Research Report"
-                    : activeDrawer === "idea"
-                    ? editingIdea
-                      ? "Edit Stock Idea"
-                      : "Add New Stock Idea"
-                    : activeDrawer === "ipo"
-                    ? editingIpo
-                      ? "Edit IPO Intelligence"
-                      : "Add New IPO Note"
-                    : activeDrawer === "file"
-                    ? selectedFile
-                      ? selectedFile.name
-                      : "File Details"
-                    : "Add Item"}
-                </h3>
-                <span style={{ fontSize: "12px", color: "#64748b" }}>
-                  {activeDrawer === "file"
-                    ? "Stored File Inspection & Asset Management"
-                    : "Directly saved to database & displayed across platform"}
-                </span>
+              <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: "#0f172a" }}>
+                    {activeDrawer === "report"
+                      ? editingReport
+                        ? "Edit Research Report"
+                        : "Add New Research Report"
+                      : activeDrawer === "idea"
+                      ? editingIdea
+                        ? "Edit Stock Idea"
+                        : "Add New Stock Idea"
+                      : activeDrawer === "ipo"
+                      ? editingIpo
+                        ? "Edit IPO Intelligence"
+                        : "Add New IPO Note"
+                      : activeDrawer === "file"
+                      ? selectedFile
+                        ? selectedFile.name
+                        : "File Details"
+                      : "Add Item"}
+                  </h3>
+                  <span style={{ fontSize: "12px", color: "#64748b" }}>
+                    {activeDrawer === "report"
+                      ? reportDrawerMode === "preview"
+                        ? "Live Preview in full ReportView institutional layout"
+                        : reportDrawerMode === "split"
+                        ? "Side-by-side JSON editor and live ReportView"
+                        : "Directly saved to database & displayed across platform"
+                      : activeDrawer === "file"
+                      ? "Stored File Inspection & Asset Management"
+                      : "Directly saved to database & displayed across platform"}
+                  </span>
+                </div>
+
+                {/* Report View Mode Switcher Tabs */}
+                {activeDrawer === "report" && (
+                  <div
+                    style={{
+                      display: "inline-flex",
+                      background: "#e2e8f0",
+                      padding: "3px",
+                      borderRadius: "7px",
+                      gap: "2px",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setReportDrawerMode("edit")}
+                      style={{
+                        padding: "4px 10px",
+                        fontSize: "12px",
+                        fontWeight: reportDrawerMode === "edit" ? "600" : "500",
+                        background: reportDrawerMode === "edit" ? "#ffffff" : "transparent",
+                        color: reportDrawerMode === "edit" ? "#0f172a" : "#64748b",
+                        border: "none",
+                        borderRadius: "5px",
+                        boxShadow: reportDrawerMode === "edit" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Editor
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPreview("preview")}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        padding: "4px 10px",
+                        fontSize: "12px",
+                        fontWeight: reportDrawerMode === "preview" ? "600" : "500",
+                        background: reportDrawerMode === "preview" ? "#ffffff" : "transparent",
+                        color: reportDrawerMode === "preview" ? "#0f172a" : "#64748b",
+                        border: "none",
+                        borderRadius: "5px",
+                        boxShadow: reportDrawerMode === "preview" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <IconEye />
+                      Preview
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPreview("split")}
+                      style={{
+                        padding: "4px 10px",
+                        fontSize: "12px",
+                        fontWeight: reportDrawerMode === "split" ? "600" : "500",
+                        background: reportDrawerMode === "split" ? "#ffffff" : "transparent",
+                        color: reportDrawerMode === "split" ? "#0f172a" : "#64748b",
+                        border: "none",
+                        borderRadius: "5px",
+                        boxShadow: reportDrawerMode === "split" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Split View
+                    </button>
+                  </div>
+                )}
               </div>
+
               <button
                 type="button"
                 onClick={() => setActiveDrawer(null)}
@@ -1302,270 +1655,821 @@ export default function AdminPage() {
               </button>
             </div>
 
-            {/* Drawer Body - Research Report Form */}
+            {/* Drawer Body - Research Report Form / Preview / Split */}
             {activeDrawer === "report" && (
-              <form onSubmit={handleSaveReport} style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "16px" }}>
-                {/* Title */}
-                <div>
-                  <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                    Publication Title *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={reportForm.title}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const slug = val.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-");
-                      setReportForm((prev) => ({
-                        ...prev,
-                        title: val,
-                        slug: editingReport ? prev.slug : slug,
-                      }));
-                    }}
-                    placeholder="e.g. Power equipment: following the capacity cycle"
-                    style={{ width: "100%", padding: "9px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none" }}
-                  />
-                </div>
-
-                {/* Slug & Company */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                      URL Slug
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={reportForm.slug}
-                      onChange={(e) => setReportForm((prev) => ({ ...prev, slug: e.target.value }))}
-                      placeholder="power-equipment-capacity-cycle"
-                      style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12.5px", outline: "none" }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                      Company / Target Focus
-                    </label>
-                    <input
-                      type="text"
-                      value={reportForm.company}
-                      onChange={(e) => setReportForm((prev) => ({ ...prev, company: e.target.value }))}
-                      placeholder="e.g. Power Grid Corp"
-                      style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12.5px", outline: "none" }}
-                    />
-                  </div>
-                </div>
-
-                {/* Research Type & Sector */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                      Research Type
-                    </label>
-                    <select
-                      value={reportForm.researchType}
-                      onChange={(e) => setReportForm((prev) => ({ ...prev, researchType: e.target.value }))}
-                      style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12.5px", background: "#ffffff", outline: "none" }}
-                    >
-                      {RESEARCH_TYPES.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                      Sector
-                    </label>
-                    <select
-                      value={reportForm.sector}
-                      onChange={(e) => setReportForm((prev) => ({ ...prev, sector: e.target.value }))}
-                      style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12.5px", background: "#ffffff", outline: "none" }}
-                    >
-                      {SECTORS.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Summary Deck */}
-                <div>
-                  <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                    Summary Deck
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={reportForm.deck}
-                    onChange={(e) => setReportForm((prev) => ({ ...prev, deck: e.target.value }))}
-                    placeholder="Demand visibility meets execution reality."
-                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none" }}
-                  />
-                </div>
-
-                {/* Cover Picture */}
-                <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-                  <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "6px" }}>
-                    Cover Picture
-                  </label>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 90px", gap: "10px", alignItems: "center", marginBottom: "8px" }}>
-                    <input
-                      type="text"
-                      value={reportForm.imageUrl}
-                      onChange={(e) => setReportForm((prev) => ({ ...prev, imageUrl: e.target.value }))}
-                      placeholder="https://images.unsplash.com/..."
-                      style={{ width: "100%", padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px", outline: "none" }}
-                    />
-                    <div style={{ height: "54px", borderRadius: "6px", overflow: "hidden", background: "#e2e8f0", border: "1px solid #cbd5e1" }}>
-                      {reportForm.imageUrl ? (
-                        <img src={reportForm.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      ) : (
-                        <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#94a3b8" }}>No image</div>
-                      )}
+              <>
+                {/* 1. Standard Form Mode */}
+                {reportDrawerMode === "edit" && (
+                  <form onSubmit={handleSaveReport} style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "16px" }}>
+                    {/* Title */}
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        Publication Title *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={reportForm.title}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const slug = val.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-");
+                          setReportForm((prev) => ({
+                            ...prev,
+                            title: val,
+                            slug: editingReport ? prev.slug : slug,
+                          }));
+                        }}
+                        placeholder="e.g. Power equipment: following the capacity cycle"
+                        style={{ width: "100%", padding: "9px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none" }}
+                      />
                     </div>
-                  </div>
-                  <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                    {[
-                      { label: "Power", url: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80" },
-                      { label: "Industrial", url: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80" },
-                      { label: "Materials", url: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80" },
-                      { label: "Chemicals", url: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=800&q=80" },
-                      { label: "Pharma", url: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=800&q=80" },
-                    ].map((p) => (
-                      <button
-                        key={p.label}
-                        type="button"
-                        onClick={() => setReportForm((prev) => ({ ...prev, imageUrl: p.url }))}
+
+                    {/* Slug & Company */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                          URL Slug
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={reportForm.slug}
+                          onChange={(e) => setReportForm((prev) => ({ ...prev, slug: e.target.value }))}
+                          placeholder="power-equipment-capacity-cycle"
+                          style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12.5px", outline: "none" }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                          Company / Target Focus
+                        </label>
+                        <input
+                          type="text"
+                          value={reportForm.company}
+                          onChange={(e) => setReportForm((prev) => ({ ...prev, company: e.target.value }))}
+                          placeholder="e.g. Power Grid Corp"
+                          style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12.5px", outline: "none" }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Research Type & Sector */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                          Research Type
+                        </label>
+                        <select
+                          value={reportForm.researchType}
+                          onChange={(e) => setReportForm((prev) => ({ ...prev, researchType: e.target.value }))}
+                          style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12.5px", background: "#ffffff", outline: "none" }}
+                        >
+                          {RESEARCH_TYPES.map((t) => (
+                            <option key={t} value={t}>{t}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                          Sector
+                        </label>
+                        <select
+                          value={reportForm.sector}
+                          onChange={(e) => setReportForm((prev) => ({ ...prev, sector: e.target.value }))}
+                          style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12.5px", background: "#ffffff", outline: "none" }}
+                        >
+                          {SECTORS.map((s) => (
+                            <option key={s} value={s}>{s}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Summary Deck */}
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        Summary Deck
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={reportForm.deck}
+                        onChange={(e) => setReportForm((prev) => ({ ...prev, deck: e.target.value }))}
+                        placeholder="Demand visibility meets execution reality."
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none" }}
+                      />
+                    </div>
+
+                    {/* Cover Picture */}
+                    <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                      <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "6px" }}>
+                        Cover Picture
+                      </label>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 90px", gap: "10px", alignItems: "center", marginBottom: "8px" }}>
+                        <input
+                          type="text"
+                          value={reportForm.imageUrl}
+                          onChange={(e) => setReportForm((prev) => ({ ...prev, imageUrl: e.target.value }))}
+                          placeholder="https://images.unsplash.com/..."
+                          style={{ width: "100%", padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px", outline: "none" }}
+                        />
+                        <div style={{ height: "54px", borderRadius: "6px", overflow: "hidden", background: "#e2e8f0", border: "1px solid #cbd5e1" }}>
+                          {reportForm.imageUrl ? (
+                            <img src={reportForm.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          ) : (
+                            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#94a3b8" }}>No image</div>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                        {[
+                          { label: "Power", url: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80" },
+                          { label: "Industrial", url: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80" },
+                          { label: "Materials", url: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80" },
+                          { label: "Chemicals", url: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=800&q=80" },
+                          { label: "Pharma", url: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=800&q=80" },
+                        ].map((p) => (
+                          <button
+                            key={p.label}
+                            type="button"
+                            onClick={() => setReportForm((prev) => ({ ...prev, imageUrl: p.url }))}
+                            style={{
+                              padding: "3px 8px",
+                              fontSize: "11px",
+                              fontWeight: "500",
+                              background: reportForm.imageUrl === p.url ? "#0f172a" : "#ffffff",
+                              color: reportForm.imageUrl === p.url ? "#ffffff" : "#475569",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "4px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Toggles */}
+                    <div style={{ display: "flex", gap: "18px", alignItems: "center", paddingTop: "2px", flexWrap: "wrap" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#334155", cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={reportForm.free}
+                          onChange={(e) => setReportForm((prev) => ({ ...prev, free: e.target.checked }))}
+                        />
+                        <span>Free Public Access</span>
+                      </label>
+
+                      <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#334155", cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={reportForm.isNew}
+                          onChange={(e) => setReportForm((prev) => ({ ...prev, isNew: e.target.checked }))}
+                        />
+                        <span>Show &quot;NEW&quot; Tag</span>
+                      </label>
+
+                      <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#334155", cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={reportForm.isSaved}
+                          onChange={(e) => setReportForm((prev) => ({ ...prev, isSaved: e.target.checked }))}
+                        />
+                        <span>Saved by Default</span>
+                      </label>
+                    </div>
+
+                    {/* Sections JSON Editor */}
+                    <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "14px" }}>
+                      <input
+                        type="file"
+                        ref={jsonFileInputRef}
+                        accept=".json,application/json,text/plain"
+                        style={{ display: "none" }}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) handleJsonFileUpload(f);
+                          e.target.value = "";
+                        }}
+                      />
+
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "6px" }}>
+                        <div>
+                          <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block" }}>
+                            Report Content (JSON Specification)
+                          </label>
+                          <span style={{ fontSize: "11px", color: "#64748b" }}>
+                            Drag &amp; drop .json file, paste blocks, or load template
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", gap: "6px" }}>
+                          <button
+                            type="button"
+                            onClick={() => jsonFileInputRef.current?.click()}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              fontSize: "11px",
+                              fontWeight: "500",
+                              color: "#0f172a",
+                              background: "#f1f5f9",
+                              border: "1px solid #cbd5e1",
+                              borderRadius: "4px",
+                              padding: "3px 8px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <IconUpload />
+                            Upload JSON
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleLoadTemplate}
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: "500",
+                              color: "#475569",
+                              background: "#f1f5f9",
+                              border: "1px solid #cbd5e1",
+                              borderRadius: "4px",
+                              padding: "3px 8px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Template
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleFormatJson}
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: "500",
+                              color: "#0f172a",
+                              background: "#f1f5f9",
+                              border: "1px solid #cbd5e1",
+                              borderRadius: "4px",
+                              padding: "3px 8px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Format
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenPreview("preview")}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              fontSize: "11px",
+                              fontWeight: "600",
+                              color: "#2563eb",
+                              background: "#eff6ff",
+                              border: "1px solid #bfdbfe",
+                              borderRadius: "4px",
+                              padding: "3px 8px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <IconEye />
+                            Preview
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Dropzone & Textarea */}
+                      <div
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setIsDraggingJson(true);
+                        }}
+                        onDragLeave={() => setIsDraggingJson(false)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setIsDraggingJson(false);
+                          const file = e.dataTransfer.files?.[0];
+                          if (file) handleJsonFileUpload(file);
+                        }}
                         style={{
-                          padding: "3px 8px",
-                          fontSize: "11px",
-                          fontWeight: "500",
-                          background: reportForm.imageUrl === p.url ? "#0f172a" : "#ffffff",
-                          color: reportForm.imageUrl === p.url ? "#ffffff" : "#475569",
-                          border: "1px solid #e2e8f0",
-                          borderRadius: "4px",
+                          position: "relative",
+                          border: isDraggingJson ? "2px dashed #3b82f6" : "1px solid #cbd5e1",
+                          borderRadius: "6px",
+                          background: isDraggingJson ? "rgba(59, 130, 246, 0.08)" : "#0f172a",
+                          overflow: "hidden",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {isDraggingJson && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              zIndex: 10,
+                              background: "rgba(15, 23, 42, 0.88)",
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: "8px",
+                              color: "#60a5fa",
+                              fontSize: "13px",
+                              fontWeight: "600",
+                              pointerEvents: "none",
+                            }}
+                          >
+                            <IconUpload />
+                            <span>Drop .json file here to load specification</span>
+                          </div>
+                        )}
+
+                        <textarea
+                          rows={12}
+                          value={reportForm.sectionsJson}
+                          onChange={(e) => setReportForm((prev) => ({ ...prev, sectionsJson: e.target.value }))}
+                          placeholder="Paste JSON sections here, or drag & drop a .json file..."
+                          spellCheck={false}
+                          style={{
+                            width: "100%",
+                            padding: "10px 12px",
+                            border: "none",
+                            fontSize: "12px",
+                            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                            lineHeight: "1.5",
+                            background: "transparent",
+                            color: "#f8fafc",
+                            outline: "none",
+                            resize: "vertical",
+                            display: "block",
+                          }}
+                        />
+
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "6px 12px",
+                            background: "#080c14",
+                            borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+                            fontSize: "11px",
+                            color: "#94a3b8",
+                          }}
+                        >
+                          <span>Drag &amp; drop .json file or click Upload JSON</span>
+                          <button
+                            type="button"
+                            onClick={() => jsonFileInputRef.current?.click()}
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              color: "#60a5fa",
+                              cursor: "pointer",
+                              padding: 0,
+                              fontSize: "11px",
+                              fontWeight: "500",
+                              textDecoration: "underline",
+                            }}
+                          >
+                            Browse file
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Drawer Sticky Footer Actions */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #e2e8f0", paddingTop: "14px", marginTop: "auto" }}>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenPreview("preview")}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "8px 14px",
+                          background: "#f8fafc",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "6px",
+                          fontSize: "12.5px",
+                          fontWeight: "600",
+                          color: "#334155",
                           cursor: "pointer",
                         }}
                       >
-                        {p.label}
+                        <IconEye />
+                        Expand Preview
                       </button>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Toggles */}
-                <div style={{ display: "flex", gap: "18px", alignItems: "center", paddingTop: "2px" }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#334155", cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={reportForm.free}
-                      onChange={(e) => setReportForm((prev) => ({ ...prev, free: e.target.checked }))}
-                    />
-                    <span>Free Public Access</span>
-                  </label>
+                      <div style={{ display: "flex", gap: "10px" }}>
+                        <button
+                          type="button"
+                          onClick={() => setActiveDrawer(null)}
+                          style={{ padding: "8px 16px", background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer" }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          style={{ padding: "8px 18px", background: "#0f172a", border: "none", borderRadius: "6px", fontSize: "13px", fontWeight: "600", color: "#ffffff", cursor: "pointer" }}
+                        >
+                          {editingReport ? "Save Changes" : "Create Report"}
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                )}
 
-                  <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#334155", cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={reportForm.isNew}
-                      onChange={(e) => setReportForm((prev) => ({ ...prev, isNew: e.target.checked }))}
-                    />
-                    <span>Show &quot;NEW&quot; Tag</span>
-                  </label>
-
-                  <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#334155", cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={reportForm.isSaved}
-                      onChange={(e) => setReportForm((prev) => ({ ...prev, isSaved: e.target.checked }))}
-                    />
-                    <span>Saved by Default</span>
-                  </label>
-                </div>
-
-                {/* Sections Editor */}
-                <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "14px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                    <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155" }}>
-                      Analytical Sections ({reportForm.sections.length})
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setReportForm((prev) => ({
-                          ...prev,
-                          sections: [...prev.sections, { heading: `Section ${prev.sections.length + 1}`, body: "" }],
-                        }))
-                      }
-                      style={{ fontSize: "11.5px", fontWeight: "600", color: "#2563eb", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                {/* 2. Full Live Preview Mode inside Expanded Drawer */}
+                {reportDrawerMode === "preview" && (
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", background: "#05080e" }}>
+                    <div style={{ flex: 1, overflowY: "auto" }}>
+                      <ReportView report={adaptReportToRichView(getPreviewReport())} libraryHref="#" />
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "14px 24px",
+                        background: "#0d131f",
+                        borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+                        flexShrink: 0,
+                      }}
                     >
-                      + Add Section
-                    </button>
-                  </div>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                          type="button"
+                          onClick={() => setReportDrawerMode("edit")}
+                          style={{
+                            padding: "7px 14px",
+                            background: "rgba(255, 255, 255, 0.08)",
+                            border: "1px solid rgba(255, 255, 255, 0.15)",
+                            borderRadius: "6px",
+                            fontSize: "12.5px",
+                            fontWeight: "500",
+                            color: "#f8fafc",
+                            cursor: "pointer",
+                          }}
+                        >
+                          ← Back to Editor
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setReportDrawerMode("split")}
+                          style={{
+                            padding: "7px 14px",
+                            background: "rgba(255, 255, 255, 0.08)",
+                            border: "1px solid rgba(255, 255, 255, 0.15)",
+                            borderRadius: "6px",
+                            fontSize: "12.5px",
+                            fontWeight: "500",
+                            color: "#f8fafc",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Switch to Split View
+                        </button>
+                      </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    {reportForm.sections.map((sec, idx) => (
-                      <div key={idx} style={{ padding: "10px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                      <div style={{ display: "flex", gap: "10px" }}>
+                        <button
+                          type="button"
+                          onClick={() => setActiveDrawer(null)}
+                          style={{
+                            padding: "7px 16px",
+                            background: "transparent",
+                            border: "1px solid rgba(255, 255, 255, 0.2)",
+                            borderRadius: "6px",
+                            fontSize: "12.5px",
+                            fontWeight: "500",
+                            color: "#cbd5e1",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => handleSaveReport(e as any)}
+                          style={{
+                            padding: "7px 18px",
+                            background: "#3b82f6",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "12.5px",
+                            fontWeight: "600",
+                            color: "#ffffff",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {editingReport ? "Save Changes" : "Create Report"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. Split View: Form on Left, Live Preview on Right */}
+                {reportDrawerMode === "split" && (
+                  <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+                    {/* Left Form Column */}
+                    <div style={{ width: "480px", minWidth: "440px", borderRight: "1px solid #e2e8f0", display: "flex", flexDirection: "column", background: "#ffffff" }}>
+                      <form onSubmit={handleSaveReport} style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "16px" }}>
+                        {/* Title */}
+                        <div>
+                          <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                            Publication Title *
+                          </label>
                           <input
                             type="text"
-                            value={sec.heading}
+                            required
+                            value={reportForm.title}
                             onChange={(e) => {
-                              const newSecs = [...reportForm.sections];
-                              newSecs[idx].heading = e.target.value;
-                              setReportForm((prev) => ({ ...prev, sections: newSecs }));
+                              const val = e.target.value;
+                              const slug = val.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-");
+                              setReportForm((prev) => ({
+                                ...prev,
+                                title: val,
+                                slug: editingReport ? prev.slug : slug,
+                              }));
                             }}
-                            placeholder="Section Heading"
-                            style={{ width: "80%", padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: "4px", fontSize: "12px", fontWeight: "600" }}
+                            placeholder="e.g. Power equipment: following the capacity cycle"
+                            style={{ width: "100%", padding: "9px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none" }}
                           />
-                          {reportForm.sections.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setReportForm((prev) => ({
-                                  ...prev,
-                                  sections: prev.sections.filter((_, i) => i !== idx),
-                                }))
-                              }
-                              style={{ fontSize: "11px", color: "#ef4444", background: "none", border: "none", cursor: "pointer" }}
-                            >
-                              Remove
-                            </button>
-                          )}
                         </div>
-                        <textarea
-                          rows={3}
-                          value={sec.body}
-                          onChange={(e) => {
-                            const newSecs = [...reportForm.sections];
-                            newSecs[idx].body = e.target.value;
-                            setReportForm((prev) => ({ ...prev, sections: newSecs }));
-                          }}
-                          placeholder="Section narrative..."
-                          style={{ width: "100%", padding: "6px 8px", border: "1px solid #cbd5e1", borderRadius: "4px", fontSize: "12px", marginTop: "4px" }}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Drawer Sticky Footer Actions */}
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "14px", marginTop: "auto" }}>
-                  <button
-                    type="button"
-                    onClick={() => setActiveDrawer(null)}
-                    style={{ padding: "8px 16px", background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", fontWeight: "500", color: "#475569", cursor: "pointer" }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    style={{ padding: "8px 18px", background: "#0f172a", border: "none", borderRadius: "6px", fontSize: "13px", fontWeight: "600", color: "#ffffff", cursor: "pointer" }}
-                  >
-                    {editingReport ? "Save Changes" : "Create Report"}
-                  </button>
-                </div>
-              </form>
+                        {/* Slug & Company */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                          <div>
+                            <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                              URL Slug
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={reportForm.slug}
+                              onChange={(e) => setReportForm((prev) => ({ ...prev, slug: e.target.value }))}
+                              placeholder="power-equipment-capacity-cycle"
+                              style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12.5px", outline: "none" }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                              Company / Target Focus
+                            </label>
+                            <input
+                              type="text"
+                              value={reportForm.company}
+                              onChange={(e) => setReportForm((prev) => ({ ...prev, company: e.target.value }))}
+                              placeholder="e.g. Power Grid Corp"
+                              style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12.5px", outline: "none" }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Research Type & Sector */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                          <div>
+                            <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                              Research Type
+                            </label>
+                            <select
+                              value={reportForm.researchType}
+                              onChange={(e) => setReportForm((prev) => ({ ...prev, researchType: e.target.value }))}
+                              style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12.5px", background: "#ffffff", outline: "none" }}
+                            >
+                              {RESEARCH_TYPES.map((t) => (
+                                <option key={t} value={t}>{t}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                              Sector
+                            </label>
+                            <select
+                              value={reportForm.sector}
+                              onChange={(e) => setReportForm((prev) => ({ ...prev, sector: e.target.value }))}
+                              style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12.5px", background: "#ffffff", outline: "none" }}
+                            >
+                              {SECTORS.map((s) => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Summary Deck */}
+                        <div>
+                          <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                            Summary Deck
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={reportForm.deck}
+                            onChange={(e) => setReportForm((prev) => ({ ...prev, deck: e.target.value }))}
+                            placeholder="Demand visibility meets execution reality."
+                            style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none" }}
+                          />
+                        </div>
+
+                        {/* Cover Picture */}
+                        <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                          <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "6px" }}>
+                            Cover Picture
+                          </label>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 90px", gap: "10px", alignItems: "center", marginBottom: "8px" }}>
+                            <input
+                              type="text"
+                              value={reportForm.imageUrl}
+                              onChange={(e) => setReportForm((prev) => ({ ...prev, imageUrl: e.target.value }))}
+                              placeholder="https://images.unsplash.com/..."
+                              style={{ width: "100%", padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px", outline: "none" }}
+                            />
+                            <div style={{ height: "54px", borderRadius: "6px", overflow: "hidden", background: "#e2e8f0", border: "1px solid #cbd5e1" }}>
+                              {reportForm.imageUrl ? (
+                                <img src={reportForm.imageUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              ) : (
+                                <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", color: "#94a3b8" }}>No image</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Toggles */}
+                        <div style={{ display: "flex", gap: "14px", alignItems: "center", paddingTop: "2px", flexWrap: "wrap" }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#334155", cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={reportForm.free}
+                              onChange={(e) => setReportForm((prev) => ({ ...prev, free: e.target.checked }))}
+                            />
+                            <span>Free</span>
+                          </label>
+                          <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#334155", cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={reportForm.isNew}
+                              onChange={(e) => setReportForm((prev) => ({ ...prev, isNew: e.target.checked }))}
+                            />
+                            <span>New</span>
+                          </label>
+                          <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#334155", cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={reportForm.isSaved}
+                              onChange={(e) => setReportForm((prev) => ({ ...prev, isSaved: e.target.checked }))}
+                            />
+                            <span>Saved</span>
+                          </label>
+                        </div>
+
+                        {/* Sections JSON Editor */}
+                        <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "14px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "4px" }}>
+                            <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155" }}>
+                              JSON Sections
+                            </label>
+                            <div style={{ display: "flex", gap: "4px" }}>
+                              <button
+                                type="button"
+                                onClick={() => jsonFileInputRef.current?.click()}
+                                style={{ display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "11px", color: "#0f172a", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "2px 6px", cursor: "pointer" }}
+                              >
+                                <IconUpload />
+                                Upload
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleLoadTemplate}
+                                style={{ fontSize: "11px", color: "#475569", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "2px 6px", cursor: "pointer" }}
+                              >
+                                Template
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleFormatJson}
+                                style={{ fontSize: "11px", color: "#0f172a", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "2px 6px", cursor: "pointer" }}
+                              >
+                                Format
+                              </button>
+                            </div>
+                          </div>
+
+                          <div
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              setIsDraggingJson(true);
+                            }}
+                            onDragLeave={() => setIsDraggingJson(false)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setIsDraggingJson(false);
+                              const file = e.dataTransfer.files?.[0];
+                              if (file) handleJsonFileUpload(file);
+                            }}
+                            style={{
+                              position: "relative",
+                              border: isDraggingJson ? "2px dashed #3b82f6" : "1px solid #cbd5e1",
+                              borderRadius: "6px",
+                              background: isDraggingJson ? "rgba(59, 130, 246, 0.08)" : "#0f172a",
+                              overflow: "hidden",
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            {isDraggingJson && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  inset: 0,
+                                  zIndex: 10,
+                                  background: "rgba(15, 23, 42, 0.88)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: "6px",
+                                  color: "#60a5fa",
+                                  fontSize: "12px",
+                                  fontWeight: "600",
+                                  pointerEvents: "none",
+                                }}
+                              >
+                                <IconUpload />
+                                <span>Drop .json file here</span>
+                              </div>
+                            )}
+
+                            <textarea
+                              rows={10}
+                              value={reportForm.sectionsJson}
+                              onChange={(e) => setReportForm((prev) => ({ ...prev, sectionsJson: e.target.value }))}
+                              placeholder="Paste JSON sections here, or drag & drop .json file..."
+                              spellCheck={false}
+                              style={{
+                                width: "100%",
+                                padding: "8px 10px",
+                                border: "none",
+                                fontSize: "11.5px",
+                                fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                                lineHeight: "1.45",
+                                background: "transparent",
+                                color: "#f8fafc",
+                                outline: "none",
+                                resize: "vertical",
+                                display: "block",
+                              }}
+                            />
+
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                padding: "4px 8px",
+                                background: "#080c14",
+                                borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+                                fontSize: "10.5px",
+                                color: "#94a3b8",
+                              }}
+                            >
+                              <span>Drag &amp; drop .json</span>
+                              <button
+                                type="button"
+                                onClick={() => jsonFileInputRef.current?.click()}
+                                style={{ background: "transparent", border: "none", color: "#60a5fa", cursor: "pointer", padding: 0, fontSize: "10.5px", textDecoration: "underline" }}
+                              >
+                                Browse
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Sticky Footer */}
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", borderTop: "1px solid #e2e8f0", paddingTop: "12px", marginTop: "auto" }}>
+                          <button
+                            type="button"
+                            onClick={() => setActiveDrawer(null)}
+                            style={{ padding: "7px 14px", background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12.5px", color: "#475569", cursor: "pointer" }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            style={{ padding: "7px 16px", background: "#0f172a", border: "none", borderRadius: "6px", fontSize: "12.5px", fontWeight: "600", color: "#ffffff", cursor: "pointer" }}
+                          >
+                            {editingReport ? "Save" : "Create"}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+
+                    {/* Right Preview Column */}
+                    <div style={{ flex: 1, overflowY: "auto", background: "#05080e" }}>
+                      <ReportView report={adaptReportToRichView(getPreviewReport())} libraryHref="#" />
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Drawer Body - Stock Idea Form */}

@@ -9,11 +9,14 @@ export type Report = {
   readTime: string;
   date: string;
   sections: { heading: string; body: string }[];
+  sectionsJson?: string;
+  richSections?: any[];
   pdfUrl?: string;
   tabCategory?: "company" | "sectoral" | "thematic";
   researchType?: "Stock deep dives" | "Sector studies" | "Thematic research" | "IPO notes" | "Results analysis" | "Company updates";
   sector?: "Electrical equipment" | "Pharmaceuticals" | "Industrials" | "Consumer" | "Auto components" | "Building materials" | "Chemicals" | string;
   company?: string;
+  ticker?: string;
   imageUrl?: string;
   isNew?: boolean;
   isSaved?: boolean;

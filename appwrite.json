@@ -1,0 +1,164 @@
+{
+  "projectId": "aethos-wealth",
+  "projectName": "Aethos",
+  "endpoint": "https://sgp.cloud.appwrite.io/v1",
+  "databases": [
+    {
+      "$id": "aethos_db",
+      "name": "Aethos Core Database",
+      "enabled": true,
+      "collections": [
+        {
+          "$id": "reports",
+          "name": "Research Reports",
+          "$permissions": [
+            "read(\"any\")",
+            "create(\"users\")",
+            "update(\"users\")",
+            "delete(\"users\")"
+          ],
+          "documentSecurity": false,
+          "enabled": true,
+          "attributes": [
+            { "key": "slug", "type": "string", "size": 255, "required": true },
+            { "key": "title", "type": "string", "size": 500, "required": true },
+            { "key": "tag", "type": "string", "size": 100, "required": true },
+            { "key": "deck", "type": "string", "size": 2000, "required": true },
+            { "key": "readTime", "type": "string", "size": 50, "required": true },
+            { "key": "date", "type": "string", "size": 50, "required": true },
+            { "key": "free", "type": "boolean", "required": true, "default": false },
+            { "key": "className", "type": "string", "size": 100, "required": false },
+            { "key": "sections", "type": "string", "size": 65535, "required": false },
+            { "key": "pdfUrl", "type": "string", "size": 1000, "required": false }
+          ],
+          "indexes": [
+            { "key": "slug_idx", "type": "unique", "attributes": ["slug"] }
+          ]
+        },
+        {
+          "$id": "ideas",
+          "name": "Aethos Ideas",
+          "$permissions": [
+            "read(\"any\")",
+            "create(\"users\")",
+            "update(\"users\")",
+            "delete(\"users\")"
+          ],
+          "documentSecurity": false,
+          "enabled": true,
+          "attributes": [
+            { "key": "ticker", "type": "string", "size": 50, "required": true },
+            { "key": "company", "type": "string", "size": 255, "required": true },
+            { "key": "sector", "type": "string", "size": 100, "required": true },
+            { "key": "mcap", "type": "string", "size": 50, "required": true },
+            { "key": "sharedPrice", "type": "double", "required": true },
+            { "key": "currentPrice", "type": "double", "required": true },
+            { "key": "sharedDate", "type": "string", "size": 50, "required": true },
+            { "key": "pdfUrl", "type": "string", "size": 1000, "required": false },
+            { "key": "thesis", "type": "string", "size": 65535, "required": false }
+          ],
+          "indexes": [
+            { "key": "ticker_idx", "type": "key", "attributes": ["ticker"] }
+          ]
+        },
+        {
+          "$id": "ipos",
+          "name": "IPO Intelligence",
+          "$permissions": [
+            "read(\"any\")",
+            "create(\"users\")",
+            "update(\"users\")",
+            "delete(\"users\")"
+          ],
+          "documentSecurity": false,
+          "enabled": true,
+          "attributes": [
+            { "key": "slug", "type": "string", "size": 255, "required": true },
+            { "key": "company", "type": "string", "size": 255, "required": true },
+            { "key": "sector", "type": "string", "size": 100, "required": true },
+            { "key": "period", "type": "string", "size": 100, "required": true },
+            { "key": "price", "type": "string", "size": 100, "required": true },
+            { "key": "type", "type": "string", "size": 50, "required": true },
+            { "key": "deepDive", "type": "boolean", "required": true, "default": true },
+            { "key": "deck", "type": "string", "size": 2000, "required": false },
+            { "key": "issueSize", "type": "string", "size": 100, "required": false },
+            { "key": "lotSize", "type": "string", "size": 100, "required": false },
+            { "key": "listing", "type": "string", "size": 100, "required": false },
+            { "key": "pdfUrl", "type": "string", "size": 1000, "required": false },
+            { "key": "htmlUrl", "type": "string", "size": 1000, "required": false },
+            { "key": "sections", "type": "string", "size": 65535, "required": false }
+          ],
+          "indexes": [
+            { "key": "ipo_slug_idx", "type": "unique", "attributes": ["slug"] }
+          ]
+        },
+        {
+          "$id": "journal",
+          "name": "Journal and Memos",
+          "$permissions": [
+            "read(\"any\")",
+            "create(\"users\")",
+            "update(\"users\")",
+            "delete(\"users\")"
+          ],
+          "documentSecurity": false,
+          "enabled": true,
+          "attributes": [
+            { "key": "slug", "type": "string", "size": 255, "required": true },
+            { "key": "category", "type": "string", "size": 100, "required": true },
+            { "key": "title", "type": "string", "size": 500, "required": true },
+            { "key": "date", "type": "string", "size": 50, "required": true },
+            { "key": "className", "type": "string", "size": 100, "required": false },
+            { "key": "deck", "type": "string", "size": 2000, "required": true },
+            { "key": "sections", "type": "string", "size": 65535, "required": false }
+          ],
+          "indexes": [
+            { "key": "journal_slug_idx", "type": "unique", "attributes": ["slug"] }
+          ]
+        },
+        {
+          "$id": "users_meta",
+          "name": "User Profiles and Roles",
+          "$permissions": [
+            "read(\"users\")",
+            "create(\"users\")",
+            "update(\"users\")",
+            "delete(\"users\")"
+          ],
+          "documentSecurity": false,
+          "enabled": true,
+          "attributes": [
+            { "key": "userId", "type": "string", "size": 255, "required": true },
+            { "key": "email", "type": "string", "size": 255, "required": true },
+            { "key": "name", "type": "string", "size": 255, "required": false },
+            { "key": "role", "type": "string", "size": 50, "required": true, "default": "Institutional" },
+            { "key": "status", "type": "string", "size": 50, "required": true, "default": "active" },
+            { "key": "joinedAt", "type": "string", "size": 50, "required": false }
+          ],
+          "indexes": [
+            { "key": "user_id_idx", "type": "unique", "attributes": ["userId"] }
+          ]
+        }
+      ]
+    }
+  ],
+  "buckets": [
+    {
+      "$id": "aethos_pdfs",
+      "name": "Aethos Research PDFs and Media",
+      "$permissions": [
+        "read(\"any\")",
+        "create(\"users\")",
+        "update(\"users\")",
+        "delete(\"users\")"
+      ],
+      "fileSecurity": false,
+      "enabled": true,
+      "maximumFileSize": 50000000,
+      "allowedFileExtensions": ["pdf", "png", "jpg", "jpeg", "svg", "html", "md", "txt"],
+      "compression": "none",
+      "encryption": true,
+      "antivirus": true
+    }
+  ]
+}

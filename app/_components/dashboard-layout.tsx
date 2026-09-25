@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../_context/auth-context";
 import { AuthGate } from "./auth-gate";
 
@@ -111,6 +111,29 @@ export function IconChevronRight() {
   );
 }
 
+export function IconAdmin() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="dash-icon">
+      <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+export function IconSidebarToggle({ collapsed }: { collapsed?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="dash-icon" style={{ width: "16px", height: "16px" }}>
+      <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M9 3v18" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      {collapsed ? (
+        <path d="m13 10 2 2-2 2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      ) : (
+        <path d="m16 10-2 2 2 2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      )}
+    </svg>
+  );
+}
+
 export function IconMenu() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="dash-icon">
@@ -119,25 +142,78 @@ export function IconMenu() {
   );
 }
 
-const navItems = [
+export function IconPulse() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="dash-icon">
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconStar() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="dash-icon">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconChat() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="dash-icon">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  badge?: string;
+  badgeType?: string;
+}
+
+const navItems: NavItem[] = [
   { label: "Overview", href: "/", icon: IconOverview },
-  { label: "Research Library", href: "/research", icon: IconResearch, badge: "120+" },
-  { label: "Aethos Ideas", href: "/ideas", icon: IconIdeas, badge: "New", badgeType: "live" },
-  { label: "IPO Intelligence", href: "/ipos", icon: IconIpos, badge: "Live", badgeType: "live" },
-  { label: "Journal & Memos", href: "/journal", icon: IconJournal },
-  { label: "Features", href: "/features", icon: IconFeatures },
+  { label: "Aethos Ideas", href: "/ideas", icon: IconIdeas },
+  { label: "IPO Tracker", href: "/ipos", icon: IconIpos },
+  { label: "Research Library", href: "/research", icon: IconResearch },
+  { label: "Market Pulse", href: "/journal", icon: IconPulse },
 ];
 
-const secondaryItems = [
-  { label: "My Dashboard", href: "/dashboard", icon: IconOverview },
-  { label: "Membership Plan", href: "/membership", icon: IconMembership },
+const secondaryItems: NavItem[] = [
+  { label: "Features", href: "/features", icon: IconFeatures },
+  { label: "Membership", href: "/membership", icon: IconMembership },
   { label: "About Aethos", href: "/about", icon: IconAbout },
+  { label: "Admin Studio", href: "/admin", icon: IconAdmin, badge: "Admin", badgeType: "live" },
 ];
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { user, signOut } = useAuth();
+
+  // Load user sidebar preference from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("aethos_main_sidebar_collapsed");
+      if (saved !== null) {
+        setSidebarCollapsed(saved === "true");
+      }
+    } catch {}
+  }, []);
+
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("aethos_main_sidebar_collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  };
 
   const isAuthRoute =
     pathname.startsWith("/auth") ||
@@ -209,9 +285,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Left Sidebar */}
-      <aside className={`dashboard-sidebar ${sidebarOpen ? "open" : ""}`}>
+      <aside className={`dashboard-sidebar ${sidebarOpen ? "open" : ""} ${sidebarCollapsed ? "collapsed" : ""}`}>
         <div className="sidebar-brand-area">
-          <Link href="/" className="sidebar-brand" onClick={() => setSidebarOpen(false)}>
+          <Link href="/" className="sidebar-brand" onClick={() => setSidebarOpen(false)} title="Aethos Investment Research">
             <Image
               className="brand-logo"
               src="/aethos-eagle-logo.jpeg"
@@ -222,10 +298,20 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               priority
             />
             <div className="brand-text">
-              <span className="brand-title">AETHOS</span>
-              <span className="brand-subtitle">INVESTMENT RESEARCH</span>
+              <span className="brand-title">AETHOS WEALTH</span>
+              <span className="brand-subtitle">Perspective that creates value</span>
             </div>
           </Link>
+          <button 
+            className="sidebar-minimize-btn"
+            onClick={toggleSidebarCollapsed}
+            aria-label={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
+            title={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
+          >
+            <span style={{ fontSize: "11px", fontWeight: "bold", lineHeight: 1 }}>
+              {sidebarCollapsed ? "▶" : "◀"}
+            </span>
+          </button>
           <button 
             className="sidebar-close-btn"
             onClick={() => setSidebarOpen(false)}
@@ -237,7 +323,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
         <div className="sidebar-nav-container">
           <div className="nav-group">
-            <span className="nav-group-title">MAIN NAVIGATION</span>
             <nav className="nav-list">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -251,6 +336,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     href={item.href}
                     className={`sidebar-link ${isActive ? "active" : ""}`}
                     onClick={() => setSidebarOpen(false)}
+                    title={item.label}
                   >
                     <Icon />
                     <span className="sidebar-link-text">{item.label}</span>
@@ -264,85 +350,98 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               })}
             </nav>
           </div>
-
-          <div className="nav-group">
-            <span className="nav-group-title">PLATFORM</span>
-            <nav className="nav-list">
-              {secondaryItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname.startsWith(item.href);
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`sidebar-link ${isActive ? "active" : ""}`}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <Icon />
-                    <span className="sidebar-link-text">{item.label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
         </div>
 
-        <Link href="/dashboard" className="sidebar-user-card" style={{ textDecoration: "none" }}>
-          <div className="user-avatar">{initials}</div>
-          <div className="user-info">
-            <span className="user-name">{displayName}</span>
-            <span className="user-status">{user ? "Active Member • View" : "Guest Access"}</span>
-          </div>
-        </Link>
+        {/* User Profile in Bottom Sidebar */}
+        <div className="sidebar-footer-area">
+          <Link href="/dashboard" className="sidebar-user-card" style={{ textDecoration: "none" }} title={displayName}>
+            <div className="user-avatar">{user ? initials : "SA"}</div>
+            <div className="user-info">
+              <span className="user-name">{user?.name || "Sibesh Agrawal"}</span>
+              <span className="user-status">{user ? "Active Member" : "Member"}</span>
+            </div>
+            <span className="user-chevron">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="m9 18 6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          </Link>
+        </div>
       </aside>
 
       {/* Main Container */}
-      <div className="dashboard-main-wrap">
+      <div className={`dashboard-main-wrap ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
         {/* Top Header Bar */}
         <header className="dashboard-header">
-          <button 
-            className="mobile-toggle-btn"
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Open sidebar"
-          >
-            <IconMenu />
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <button 
+              className="mobile-toggle-btn"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open sidebar"
+            >
+              <IconMenu />
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleSidebarCollapsed}
+              className="header-sidebar-toggle-btn"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: "8px",
+                padding: "6px 10px",
+                fontSize: "12px",
+                fontWeight: "600",
+                color: "#475569",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+              title={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
+            >
+              <IconSidebarToggle collapsed={sidebarCollapsed} />
+              <span className="sidebar-toggle-text" style={{ fontSize: "11px" }}>
+                {sidebarCollapsed ? "Expand" : "Collapse"}
+              </span>
+            </button>
+          </div>
 
           <div className="header-search-bar">
             <IconSearch />
             <input 
               type="text" 
-              placeholder="Search companies, sectors, IPOs, or tickers..." 
+              placeholder="Search companies, sectors, IPOs or research..." 
             />
             <span className="kbd-shortcut">⌘K</span>
           </div>
 
           <div className="header-actions">
-            <div className="live-status-pill">
-              <span className="pulse-dot" />
-              <span>BSE / NSE Live</span>
-            </div>
-            
-            <button className="header-icon-btn" aria-label="Notifications">
+            <button className="header-icon-btn" aria-label="Notifications" title="Notifications">
               <IconBell />
               <span className="notif-dot" />
             </button>
+
+            <div className="header-avatar-circle" title="Sibesh Agrawal">
+              {user ? initials : "SA"}
+            </div>
+
+            <div className="header-illustrative-tag">
+              Illustrative data
+            </div>
 
             {user ? (
               <button
                 type="button"
                 onClick={signOut}
                 className="button button-gold header-cta"
-                style={{ fontSize: "12px", padding: "0 16px", height: "36px", cursor: "pointer" }}
+                style={{ fontSize: "11px", padding: "0 12px", height: "32px", cursor: "pointer" }}
               >
                 Sign Out
               </button>
-            ) : (
-              <Link href="/auth" className="button button-gold header-cta">
-                Sign In
-              </Link>
-            )}
+            ) : null}
           </div>
         </header>
 

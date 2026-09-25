@@ -123,7 +123,7 @@ export default function Home() {
                       <th>Title & Focus</th>
                       <th>Category</th>
                       <th>Access</th>
-                      <th>Meta</th>
+                      <th>Published</th>
                       <th>Action</th>
                     </tr>
                   </thead>
@@ -132,7 +132,9 @@ export default function Home() {
                       <tr key={report.slug}>
                         <td>
                           <div className="company-cell">
-                            <span className="company-name">{report.title}</span>
+                            <Link href={`/research/${report.slug}`} target="_blank" rel="noreferrer" className="company-name" style={{ textDecoration: 'none', color: 'inherit' }}>
+                              {report.title}
+                            </Link>
                             <span className="company-sector">{report.deck.slice(0, 75)}...</span>
                           </div>
                         </td>
@@ -154,10 +156,10 @@ export default function Home() {
                           </span>
                         </td>
                         <td style={{ color: 'var(--muted)', fontSize: '11px' }}>
-                          {report.readTime}
+                          {report.date}
                         </td>
                         <td>
-                          <Link href={`/research/${report.slug}`} className="dash-card-link">
+                          <Link href={`/research/${report.slug}`} target="_blank" rel="noreferrer" className="dash-card-link">
                             Open <ArrowUpRight />
                           </Link>
                         </td>

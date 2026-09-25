@@ -102,9 +102,9 @@ export default function ReportModal({
               >
                 {report.tag || "Institutional Research Report"}
               </span>
-              {(report.date || report.readTime) && (
+              {report.date && (
                 <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-                  {report.date} {report.date && report.readTime ? "·" : ""} {report.readTime}
+                  {report.date}
                 </span>
               )}
             </div>

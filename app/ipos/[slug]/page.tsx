@@ -1,35 +1,96 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { useParams } from "next/navigation";
 import { ArrowUpRight } from "../../_components/site-chrome";
-import { findIpo, ipos } from "../../_lib/content";
-import { getReportHtml } from "../../_lib/report-reader";
+import { findIpo, ipos as defaultIpos, Ipo } from "../../_lib/content";
+import { useAdminStore } from "../../_lib/admin-store";
 import DynamicReportView from "../../_components/dynamic-report-view";
 
-export async function generateStaticParams() {
-  return ipos.filter((ipo) => ipo.deepDive).map((ipo) => ({ slug: ipo.slug }));
-}
+export default function IpoDetailPage() {
+  const params = useParams();
+  const slug = typeof params?.slug === "string" ? params.slug : Array.isArray(params?.slug) ? params.slug[0] : "";
 
-export default async function IpoDetailPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params;
-  const ipo = findIpo(slug);
-  if (!ipo?.deepDive) notFound();
+  const { ipos: storeIpos } = useAdminStore();
+  const [ipo, setIpo] = useState<Ipo | null>(null);
+  const [rawReportHtml, setRawReportHtml] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Check if there is an automated .txt / .html report in public/
-  const rawReportHtml = getReportHtml(slug);
+  useEffect(() => {
+    if (!slug) return;
+
+    // 1. Resolve IPO from admin store or content defaults
+    const allIpos = storeIpos && storeIpos.length > 0 ? storeIpos : defaultIpos;
+    const found = allIpos.find((i) => i.slug === slug) || findIpo(slug);
+
+    if (found) {
+      setIpo(found);
+    }
+
+    // 2. Fetch raw HTML if available
+    fetch(`/api/reports/${slug}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.found && data.html) {
+          setRawReportHtml(data.html);
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to check raw HTML for IPO:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [slug, storeIpos]);
+
+  if (loading) {
+    return (
+      <div className="dash-overview-page" style={{ padding: "60px 20px", textAlign: "center" }}>
+        <div style={{ display: "inline-block", padding: "16px 28px", background: "#ffffff", borderRadius: "12px", border: "1px solid var(--gold-light)" }}>
+          <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--muted)" }}>
+            Loading IPO analysis...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (rawReportHtml) {
     return (
       <DynamicReportView
         htmlContent={rawReportHtml}
         backUrl="/ipos"
         backLabel="Back to IPO Intelligence"
-        pdfUrl={ipo.pdfUrl}
+        pdfUrl={ipo?.pdfUrl}
       />
+    );
+  }
+
+  if (!ipo) {
+    return (
+      <div className="dash-overview-page">
+        <div style={{ marginBottom: "16px" }}>
+          <Link href="/ipos" className="dash-card-link" style={{ fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+            ← Back to IPO Intelligence
+          </Link>
+        </div>
+        <div className="dash-card" style={{ padding: "48px 32px", textAlign: "center" }}>
+          <h2 style={{ fontSize: "20px", fontWeight: "700", marginBottom: "8px" }}>IPO Report Not Found</h2>
+          <p style={{ fontSize: "14px", color: "var(--muted)", marginBottom: "20px" }}>
+            No IPO note matches &quot;{slug}&quot;.
+          </p>
+          <Link href="/ipos" className="dash-card-link">
+            Return to IPO Intelligence
+          </Link>
+        </div>
+      </div>
     );
   }
 
   return (
     <div className="dash-overview-page">
-      <div style={{ marginBottom: "14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div style={{ marginBottom: "14px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
         <Link
           href="/ipos"
           className="dash-card-link"
@@ -130,16 +191,22 @@ export default async function IpoDetailPage({ params }: { params: Promise<{ slug
         {/* Report Content Body rendered directly as native text */}
         <div className="dash-card-body" style={{ padding: "32px 36px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "28px", maxWidth: "780px" }}>
-            {ipo.sections.map((section) => (
-              <section key={section.heading}>
-                <h2 style={{ fontSize: "17px", fontWeight: "700", margin: "0 0 12px", color: "var(--ink)" }}>
-                  {section.heading}
-                </h2>
-                <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.8", color: "#333333" }}>
-                  {section.body}
-                </p>
-              </section>
-            ))}
+            {ipo.sections && ipo.sections.length > 0 ? (
+              ipo.sections.map((section) => (
+                <section key={section.heading}>
+                  <h2 style={{ fontSize: "17px", fontWeight: "700", margin: "0 0 12px", color: "var(--ink)" }}>
+                    {section.heading}
+                  </h2>
+                  <p style={{ margin: 0, fontSize: "14px", lineHeight: "1.8", color: "#333333" }}>
+                    {section.body}
+                  </p>
+                </section>
+              ))
+            ) : (
+              <div style={{ color: "var(--muted)", fontSize: "14px" }}>
+                Underwriting note summary will appear here.
+              </div>
+            )}
           </div>
         </div>
       </div>

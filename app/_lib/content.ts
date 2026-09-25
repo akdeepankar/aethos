@@ -4,24 +4,224 @@ export type Report = {
   title: string;
   deck: string;
   meta: string;
-  className: string;
+  className?: string;
   free: boolean;
   readTime: string;
   date: string;
   sections: { heading: string; body: string }[];
+  pdfUrl?: string;
+  tabCategory?: "company" | "sectoral" | "thematic";
+  researchType?: "Stock deep dives" | "Sector studies" | "Thematic research" | "IPO notes" | "Results analysis" | "Company updates";
+  sector?: "Electrical equipment" | "Pharmaceuticals" | "Industrials" | "Consumer" | "Auto components" | "Building materials" | "Chemicals" | string;
+  company?: string;
+  imageUrl?: string;
+  isNew?: boolean;
+  isSaved?: boolean;
+  isUnread?: boolean;
 };
 
 export const reports: Report[] = [
   {
+    slug: "power-equipment-capacity-cycle",
+    tag: "SECTOR STUDY",
+    researchType: "Sector studies",
+    tabCategory: "sectoral",
+    sector: "Electrical equipment",
+    company: "Power Equipment Sector",
+    title: "Power equipment: following the capacity cycle",
+    deck: "Demand visibility meets execution reality.",
+    meta: "12 min read  ·  24 Sep 2026",
+    className: "report-power",
+    free: true,
+    readTime: "12 min read",
+    date: "24 Sep 2026",
+    isNew: true,
+    isSaved: false,
+    isUnread: true,
+    imageUrl: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
+    sections: [
+      {
+        heading: "1. The Multi-Decade Grid Bottleneck",
+        body: "Generation additions without synchronous transmission upgrades create massive curtailment risk. The current Indian power equipment cycle is structurally distinct from the 2008–2012 phase: balance sheets are clean, state DISCOMs have improved operational liquidity, and high-voltage transmission interconnects (765kV & HVDC) are mandatory to evacuate renewable energy corridors from Rajasthan and Gujarat."
+      },
+      {
+        heading: "2. Equipment Lead Times & Vendor Pricing Power",
+        body: "Lead times for high-capacity power transformers and substation GIS (Gas Insulated Switchgear) have stretched beyond 18 to 24 months globally. Domestic original equipment manufacturers are running at peak capacity utilization with robust order books extending 2.5x to 3.5x annual revenue run-rates, translating into structural gross margin expansion."
+      },
+      {
+        heading: "3. Execution Monitorables & Underwriting Verdict",
+        body: "Key variables to monitor include CRGO electrical steel pricing, copper pass-through contracts, and timely working capital disbursements from Power Grid Corporation and state transmission utilities. We remain structurally positive on tier-1 engineering and equipment suppliers with localized precision capabilities."
+      }
+    ]
+  },
+  {
+    slug: "racl-geartech-understanding-the-next-phase",
+    tag: "STOCK DEEP DIVE",
+    researchType: "Stock deep dives",
+    tabCategory: "company",
+    sector: "Auto components",
+    company: "RACL Geartech",
+    title: "RACL Geartech: understanding the next phase",
+    deck: "Capacity, product mix and cash conversion.",
+    meta: "10 min read  ·  22 Sep 2026",
+    className: "report-racl",
+    free: false,
+    readTime: "10 min read",
+    date: "22 Sep 2026",
+    isNew: false,
+    isSaved: true,
+    isUnread: false,
+    pdfUrl: "/RACL GEARTECH LIMITED.pdf",
+    imageUrl: "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80",
+    sections: [
+      {
+        heading: "1. Precision Transmission Engineering Moat",
+        body: "RACL Geartech has evolved from a domestic tier-2 supplier into a critical, sole-source precision transmission gear and shaft partner for global luxury motorcycle, passenger car, and agricultural OEM leaders including BMW Motorrad, KTM, Ducati, and MAN Trucks."
+      },
+      {
+        heading: "2. Capital Allocation & Expansion Trajectory",
+        body: "The commissioning of phase-3 manufacturing capacity in Gajraula unlocks high-margin sub-assemblies and EV drivetrain components. Operating leverage from automated CNC gear-grinding lines is expected to drive return on capital employed (ROCE) towards 24%+."
+      },
+      {
+        heading: "3. Risk Considerations & Valuation Framework",
+        body: "European macroeconomic softness and customer volume concentration remain primary sensitivities. However, multi-year program wins and content-per-vehicle growth provide resilient downside support at prevailing valuation bands."
+      }
+    ]
+  },
+  {
+    slug: "varmora-granito-beyond-the-offer-document",
+    tag: "IPO NOTE",
+    researchType: "IPO notes",
+    tabCategory: "thematic",
+    sector: "Building materials",
+    company: "Varmora Granito",
+    title: "Varmora Granito: beyond the offer document",
+    deck: "Scale, distribution and capital deployment.",
+    meta: "9 min read  ·  20 Sep 2026",
+    className: "report-varmora",
+    free: true,
+    readTime: "9 min read",
+    date: "20 Sep 2026",
+    isNew: false,
+    isSaved: false,
+    isUnread: true,
+    imageUrl: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+    sections: [
+      {
+        heading: "1. Large-Format Porcelain & Export Strategy",
+        body: "Varmora has established substantial distribution penetration across tier-2/3 Indian cities alongside rapid export footprint expansion into North America and the Middle East, capturing the structural shift towards high-value glazed vitrified and porcelain slab surfaces."
+      },
+      {
+        heading: "2. Balance Sheet Deleveraging via IPO Proceeds",
+        body: "Net proceeds allocated to debt retirement will compress interest burdens, expanding net profit margins and boosting free cash flow conversion across the medium-term capex holiday period."
+      }
+    ]
+  },
+  {
+    slug: "specialty-chemicals-reading-the-recovery",
+    tag: "THEMATIC RESEARCH",
+    researchType: "Thematic research",
+    tabCategory: "thematic",
+    sector: "Chemicals",
+    company: "Specialty Chemicals Sector",
+    title: "Specialty chemicals: reading the recovery",
+    deck: "What must change for a stronger cycle?",
+    meta: "14 min read  ·  18 Sep 2026",
+    className: "report-chemicals",
+    free: false,
+    readTime: "14 min read",
+    date: "18 Sep 2026",
+    isNew: false,
+    isSaved: true,
+    isUnread: false,
+    imageUrl: "https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?auto=format&fit=crop&w=800&q=80",
+    sections: [
+      {
+        heading: "1. Destocking Cycle Nearing Conclusion",
+        body: "Following six quarters of aggressive global inventory destocking across agrochemical and polymer additives channels, order inquiry velocity has started normalizing at domestic Indian synthesizers."
+      },
+      {
+        heading: "2. Chinese Dumping Dynamics & Margin Normalization",
+        body: "Margin stabilization will be uneven: commoditized basic chemicals face sustained price pressure, while complex multi-step custom synthesis (CSM/CDMO) players retain strong contractual price protection."
+      }
+    ]
+  },
+  {
+    slug: "jubilant-pharmova-quarterly-review",
+    tag: "RESULTS ANALYSIS",
+    researchType: "Results analysis",
+    tabCategory: "company",
+    sector: "Pharmaceuticals",
+    company: "Jubilant Pharmova",
+    title: "Jubilant Pharmova: the quarterly review",
+    deck: "Operating progress and the next monitorables.",
+    meta: "7 min read  ·  16 Sep 2026",
+    className: "report-pharma",
+    free: true,
+    readTime: "7 min read",
+    date: "16 Sep 2026",
+    isNew: false,
+    isSaved: false,
+    isUnread: true,
+    imageUrl: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=800&q=80",
+    sections: [
+      {
+        heading: "1. Radiopharma Turnaround & Ruby-Fill Growth",
+        body: "The radiopharmaceuticals vertical demonstrated sharp margin expansion led by higher Ruby-Fill generator placements across North American diagnostic hospital networks."
+      },
+      {
+        heading: "2. Sterile Injectables CDMO Ramp",
+        body: "Facility remediation investments and FDA clearance milestones at the Spokane unit pave the way for accelerated contract manufacturing batches in upcoming quarters."
+      }
+    ]
+  },
+  {
+    slug: "yash-highvoltage-expansion-in-focus",
+    tag: "COMPANY UPDATE",
+    researchType: "Company updates",
+    tabCategory: "company",
+    sector: "Electrical equipment",
+    company: "Yash Highvoltage",
+    title: "Yash Highvoltage: expansion in focus",
+    deck: "Connecting a new announcement to the thesis.",
+    meta: "5 min read  ·  14 Sep 2026",
+    className: "report-yash",
+    free: true,
+    readTime: "5 min read",
+    date: "14 Sep 2026",
+    isNew: false,
+    isSaved: false,
+    isUnread: false,
+    imageUrl: "https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=800&q=80",
+    sections: [
+      {
+        heading: "1. Transformer Bushing Capacity Ramp",
+        body: "Yash Highvoltage announced the completion of its brownfield expansion for OIP and RIP high-voltage transformer bushings, meeting unprecedented domestic demand."
+      },
+      {
+        heading: "2. Strategic Implications for Margins",
+        body: "Localization of high-grade insulating paper and automated winding machinery will insulate operating margins from global currency fluctuations and freight escalations."
+      }
+    ]
+  },
+  {
     slug: "logistics-stack",
-    tag: "Company deep dive",
+    tag: "STOCK DEEP DIVE",
+    researchType: "Stock deep dives",
+    tabCategory: "company",
+    sector: "Industrials",
+    company: "Logistics Stack",
     title: "The quality compounder hiding in India’s logistics stack.",
     deck: "A closer look at the systems, scale advantages, and operating discipline powering a quietly exceptional distribution business.",
     meta: "27 min read  ·  12 Jul 2026",
     className: "report-logistics",
     free: true,
     readTime: "27 min read",
-    date: "12 July 2026",
+    date: "12 Jul 2026",
+    isNew: false,
+    isSaved: false,
+    isUnread: false,
+    imageUrl: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=800&q=80",
     sections: [
       { heading: "The business beneath the movement", body: "Logistics is often treated as a cost centre. The better businesses treat it as an operating system: a compounding network of density, service quality, technology, and trust. The distinction is easy to miss in quarterly numbers and difficult to replicate over a decade." },
       { heading: "Scale is useful only when it is intelligent", body: "A growing network does not automatically create a moat. What matters is whether each new node improves route density, raises customer retention, and lowers the cost of the next shipment. The most interesting operators turn scale into an increasingly efficient flywheel." },
@@ -30,14 +230,22 @@ export const reports: Report[] = [
   },
   {
     slug: "indias-transmission-opportunity",
-    tag: "Sectoral deep dive",
+    tag: "SECTOR STUDY",
+    researchType: "Sector studies",
+    tabCategory: "sectoral",
+    sector: "Electrical equipment",
+    company: "Transmission Grid",
     title: "Powering the next decade: a map of India’s transmission opportunity.",
     deck: "India’s energy transition is not only about generation. We map the infrastructure and bottlenecks connecting new capacity to demand.",
     meta: "34 min read  ·  04 Jul 2026",
     className: "report-power",
     free: true,
     readTime: "34 min read",
-    date: "04 July 2026",
+    date: "04 Jul 2026",
+    isNew: false,
+    isSaved: false,
+    isUnread: false,
+    imageUrl: "https://images.unsplash.com/photo-1473341304170-971dccb5ac1e?auto=format&fit=crop&w=800&q=80",
     sections: [
       { heading: "The grid is the constraint", body: "Generation attracts the headlines, but transmission determines whether clean capacity can actually be useful. Renewable energy changes the grid’s physical needs, its location, and the reliability expected from each connection." },
       { heading: "A multi-year buildout", body: "The opportunity is defined by more than kilometres of line. It includes equipment, execution capability, policy visibility, and the ability to manage project complexity without compromising returns." },
@@ -46,14 +254,22 @@ export const reports: Report[] = [
   },
   {
     slug: "indian-affluent-consumer",
-    tag: "Thematic deep dive",
+    tag: "THEMATIC RESEARCH",
+    researchType: "Thematic research",
+    tabCategory: "thematic",
+    sector: "Consumer",
+    company: "Consumer Cohort",
     title: "The quiet rise of the Indian affluent consumer.",
     deck: "The next consumer cycle is not a single story. It is a changing mix of aspiration, access, and repeat purchase across India’s cities.",
     meta: "41 min read  ·  20 Jun 2026",
     className: "report-consumer",
     free: false,
     readTime: "41 min read",
-    date: "20 June 2026",
+    date: "20 Jun 2026",
+    isNew: false,
+    isSaved: false,
+    isUnread: false,
+    imageUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80",
     sections: [
       { heading: "A different kind of premiumisation", body: "Affluence is broadening beyond a narrow luxury cohort. The emerging consumer is selective, digitally informed, and willing to spend on visible quality—but only when a brand earns repeat consideration." },
       { heading: "Distribution is part of the proposition", body: "For many categories, access and discovery remain as important as the product. The winners will combine memorable brand cues with distribution models that reach consumers wherever intent is formed." },

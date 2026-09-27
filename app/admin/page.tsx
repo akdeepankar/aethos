@@ -530,7 +530,7 @@ ${report.sections
   };
 
   // Save report
-  const handleSaveReport = (e: React.FormEvent) => {
+  const handleSaveReport = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reportForm.title.trim()) {
       showNotification("Title is required", "error");
@@ -577,18 +577,26 @@ ${report.sections
 
     if (editingReport) {
       const updated = reports.map((r) => (r.slug === editingReport.slug ? reportObj : r));
-      updateReports(updated, { action: "save", report: reportObj });
-      showNotification(`Report "${reportForm.title}" saved`, "success");
+      const res = await updateReports(updated, { action: "save", report: reportObj });
+      if (!res.success) {
+        showNotification(`Failed saving report to cloud: ${res.error}`, "error");
+      } else {
+        showNotification(`Report "${reportForm.title}" saved successfully`, "success");
+      }
     } else {
-      updateReports([reportObj, ...reports], { action: "save", report: reportObj });
-      showNotification(`Report "${reportForm.title}" created`, "success");
+      const res = await updateReports([reportObj, ...reports], { action: "save", report: reportObj });
+      if (!res.success) {
+        showNotification(`Failed creating report in cloud: ${res.error}`, "error");
+      } else {
+        showNotification(`Report "${reportForm.title}" created & synced to Appwrite`, "success");
+      }
     }
 
     setActiveDrawer(null);
   };
 
   // Save idea
-  const handleSaveIdea = (e: React.FormEvent) => {
+  const handleSaveIdea = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ideaForm.company.trim() || !ideaForm.ticker.trim()) {
       showNotification("Company and ticker are required", "error");
@@ -622,18 +630,26 @@ ${report.sections
 
     if (editingIdea) {
       const updated = ideas.map((i) => (i.id === editingIdea.id ? ideaObj : i));
-      updateIdeas(updated, { action: "save", idea: ideaObj });
-      showNotification(`Idea "${ideaForm.company}" saved`, "success");
+      const res = await updateIdeas(updated, { action: "save", idea: ideaObj });
+      if (!res.success) {
+        showNotification(`Failed saving idea: ${res.error}`, "error");
+      } else {
+        showNotification(`Idea "${ideaForm.company}" saved`, "success");
+      }
     } else {
-      updateIdeas([ideaObj, ...ideas], { action: "save", idea: ideaObj });
-      showNotification(`Idea "${ideaForm.company}" created`, "success");
+      const res = await updateIdeas([ideaObj, ...ideas], { action: "save", idea: ideaObj });
+      if (!res.success) {
+        showNotification(`Failed creating idea: ${res.error}`, "error");
+      } else {
+        showNotification(`Idea "${ideaForm.company}" created`, "success");
+      }
     }
 
     setActiveDrawer(null);
   };
 
   // Save IPO
-  const handleSaveIpo = (e: React.FormEvent) => {
+  const handleSaveIpo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ipoForm.company.trim()) {
       showNotification("Company is required", "error");
@@ -674,11 +690,19 @@ ${report.sections
 
     if (editingIpo) {
       const updated = ipos.map((i) => (i.slug === editingIpo.slug ? ipoObj : i));
-      updateIpos(updated, { action: "save", ipo: ipoObj });
-      showNotification(`IPO "${ipoForm.company}" saved`, "success");
+      const res = await updateIpos(updated, { action: "save", ipo: ipoObj });
+      if (!res.success) {
+        showNotification(`Failed saving IPO: ${res.error}`, "error");
+      } else {
+        showNotification(`IPO "${ipoForm.company}" saved`, "success");
+      }
     } else {
-      updateIpos([ipoObj, ...ipos], { action: "save", ipo: ipoObj });
-      showNotification(`IPO "${ipoForm.company}" created`, "success");
+      const res = await updateIpos([ipoObj, ...ipos], { action: "save", ipo: ipoObj });
+      if (!res.success) {
+        showNotification(`Failed creating IPO: ${res.error}`, "error");
+      } else {
+        showNotification(`IPO "${ipoForm.company}" created`, "success");
+      }
     }
 
     setActiveDrawer(null);

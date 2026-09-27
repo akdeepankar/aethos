@@ -98,6 +98,72 @@ export async function GET(req: NextRequest) {
   }
 }
 
+const TABLE_SCHEMAS: Record<string, string[]> = {
+  reports: [
+    "slug",
+    "title",
+    "tag",
+    "tabCategory",
+    "deck",
+    "readTime",
+    "date",
+    "free",
+    "className",
+    "sections",
+    "pdfUrl",
+    "imageUrl",
+    "researchType",
+    "sector",
+    "company",
+    "isNew",
+    "htmlUrl",
+  ],
+  ideas: [
+    "ticker",
+    "company",
+    "sector",
+    "mcap",
+    "sharedPrice",
+    "currentPrice",
+    "sharedDate",
+    "pdfUrl",
+    "thesis",
+  ],
+  ipos: [
+    "slug",
+    "company",
+    "sector",
+    "period",
+    "price",
+    "type",
+    "deepDive",
+    "deck",
+    "issueSize",
+    "lotSize",
+    "listing",
+    "pdfUrl",
+    "htmlUrl",
+    "sections",
+  ],
+  journal: [
+    "slug",
+    "category",
+    "title",
+    "date",
+    "deck",
+    "className",
+    "sections",
+  ],
+  users_meta: [
+    "userId",
+    "email",
+    "name",
+    "role",
+    "status",
+    "joinedAt",
+  ],
+};
+
 function toSafeRowId(id: string): string {
   const cleaned = id.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/^[^a-zA-Z0-9]+/, "") || "doc";
   if (cleaned.length <= 36) return cleaned;
@@ -121,31 +187,31 @@ export async function POST(req: NextRequest) {
 
     const { tablesDB, storage, databaseId } = getAppwriteClient();
 
-    // Clean payload and serialize any complex nested objects
-    const payload: Record<string, unknown> = {};
+    // Clean raw payload
+    const rawPayload: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(data)) {
       if (v !== undefined) {
         if (k === "sections" && typeof v !== "string") {
-          payload[k] = JSON.stringify(v);
+          rawPayload[k] = JSON.stringify(v);
         } else {
-          payload[k] = v;
+          rawPayload[k] = v;
         }
       }
     }
 
     const rowId = toSafeRowId(id);
-    const slug = (typeof payload.slug === "string" && payload.slug.trim()) ? payload.slug.trim() : id;
+    const slug = (typeof rawPayload.slug === "string" && rawPayload.slug.trim()) ? rawPayload.slug.trim() : id;
 
-    // Handle large HTML content for reports or other entries
-    if (typeof payload.htmlContent === "string" && payload.htmlContent.trim()) {
-      const fullHtml = payload.htmlContent;
+    // Handle HTML content for reports or documents
+    if (typeof rawPayload.htmlContent === "string" && rawPayload.htmlContent.trim()) {
+      const fullHtml = rawPayload.htmlContent;
 
       // 1. Write the full HTML to public folder so it's always accessible with zero size limits
       try {
         const publicDir = path.join(process.cwd(), "public");
         const filePath = path.join(publicDir, `${slug}.html`);
         fs.writeFileSync(filePath, fullHtml, "utf-8");
-        payload.htmlUrl = `/${slug}.html`;
+        rawPayload.htmlUrl = `/${slug}.html`;
       } catch (fsErr) {
         console.warn("Failed to write HTML file to public directory:", fsErr);
       }
@@ -163,34 +229,55 @@ export async function POST(req: NextRequest) {
       } catch (storageErr) {
         console.warn("Supplementary upload to Appwrite Storage:", storageErr);
       }
+    }
 
-      // 3. Remove htmlContent from database row payload so it is not stored in DB columns
-      delete payload.htmlContent;
+    // Filter strictly to allowed table attributes to prevent Appwrite schema mismatch rejections
+    const allowedKeys = TABLE_SCHEMAS[table];
+    const payload: Record<string, unknown> = {};
+
+    if (allowedKeys) {
+      for (const key of allowedKeys) {
+        if (rawPayload[key] !== undefined) {
+          payload[key] = rawPayload[key];
+        }
+      }
     } else {
-      // Remove htmlContent if empty or null
-      delete payload.htmlContent;
+      Object.assign(payload, rawPayload);
     }
 
-    // Remove user-local preference fields from central database payload
-    delete payload.isSaved;
-    delete payload.isUnread;
-
-    // Safeguard other text column lengths
-    if (typeof payload.deck === "string" && payload.deck.length > 2000) {
-      payload.deck = payload.deck.slice(0, 2000);
-    }
-    if (typeof payload.sections === "string" && payload.sections.length > 50000) {
-      payload.sections = payload.sections.slice(0, 50000);
+    // Default required fields for table 'reports'
+    if (table === "reports") {
+      payload.slug = payload.slug || slug;
+      payload.title = payload.title || slug;
+      payload.tag = payload.tag || "RESEARCH NOTE";
+      payload.readTime = payload.readTime || "10 min read";
+      payload.date = payload.date || new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+      payload.free = Boolean(payload.free);
+      payload.isNew = Boolean(payload.isNew);
+      if (typeof payload.deck === "string" && payload.deck.length > 2000) {
+        payload.deck = payload.deck.slice(0, 2000);
+      }
+      if (typeof payload.sections === "string" && payload.sections.length > 50000) {
+        payload.sections = payload.sections.slice(0, 50000);
+      }
     }
 
     try {
       // Try to update existing row first
       const updated = await tablesDB.updateRow(databaseId, table, rowId, payload);
       return NextResponse.json({ success: true, action: "updated", row: updated });
-    } catch {
+    } catch (updateErr) {
       // Create new row
-      const created = await tablesDB.createRow(databaseId, table, rowId, payload);
-      return NextResponse.json({ success: true, action: "created", row: created });
+      try {
+        const created = await tablesDB.createRow(databaseId, table, rowId, payload);
+        return NextResponse.json({ success: true, action: "created", row: created });
+      } catch (createErr) {
+        console.error(`Error saving to Appwrite table [${table}] row [${rowId}]:`, createErr);
+        return NextResponse.json(
+          { success: false, error: createErr instanceof Error ? createErr.message : String(createErr) },
+          { status: 400 }
+        );
+      }
     }
   } catch (error: unknown) {
     console.error("Error saving to Appwrite DB:", error);

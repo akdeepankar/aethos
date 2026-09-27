@@ -147,7 +147,7 @@ export function setStoredData<T>(key: string, data: T): void {
 }
 
 // Background Appwrite Persister
-async function persistToAppwrite(table: string, id: string, data: Record<string, unknown>) {
+async function persistToAppwrite(table: string, id: string, data: Record<string, unknown>): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await fetch("/api/appwrite/records", {
       method: "POST",
@@ -156,24 +156,34 @@ async function persistToAppwrite(table: string, id: string, data: Record<string,
     });
     const json = await res.json().catch(() => null);
     if (!res.ok || json?.success === false) {
-      console.warn(`Appwrite sync to table [${table}] failed:`, json?.error || res.statusText);
+      const errMsg = json?.error || res.statusText || "Failed to persist to Appwrite";
+      console.warn(`Appwrite sync to table [${table}] failed:`, errMsg);
+      return { success: false, error: errMsg };
     }
+    return { success: true };
   } catch (err) {
-    console.warn(`Background sync to Appwrite table [${table}] failed:`, err);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.warn(`Background sync to Appwrite table [${table}] failed:`, errMsg);
+    return { success: false, error: errMsg };
   }
 }
 
-async function deleteFromAppwrite(table: string, id: string) {
+async function deleteFromAppwrite(table: string, id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await fetch(`/api/appwrite/records?table=${table}&id=${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
     const json = await res.json().catch(() => null);
     if (!res.ok || json?.success === false) {
-      console.warn(`Appwrite delete from table [${table}] failed:`, json?.error || res.statusText);
+      const errMsg = json?.error || res.statusText || "Failed to delete from Appwrite";
+      console.warn(`Appwrite delete from table [${table}] failed:`, errMsg);
+      return { success: false, error: errMsg };
     }
+    return { success: true };
   } catch (err) {
-    console.warn(`Background delete from Appwrite table [${table}] failed:`, err);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.warn(`Background delete from Appwrite table [${table}] failed:`, errMsg);
+    return { success: false, error: errMsg };
   }
 }
 
@@ -340,13 +350,13 @@ export function useAdminStore() {
   }, [syncFromAppwrite]);
 
   // Reactive updates + Appwrite persistence
-  const updateReports = (newReports: Report[], itemToPersist?: { action: "save" | "delete"; report: Report }) => {
+  const updateReports = async (newReports: Report[], itemToPersist?: { action: "save" | "delete"; report: Report }): Promise<{ success: boolean; error?: string }> => {
     setReports(newReports);
     setStoredData(STORAGE_KEYS.REPORTS, newReports);
 
     if (itemToPersist) {
       if (itemToPersist.action === "save") {
-        persistToAppwrite("reports", itemToPersist.report.slug, {
+        return await persistToAppwrite("reports", itemToPersist.report.slug, {
           slug: itemToPersist.report.slug,
           title: itemToPersist.report.title,
           tag: itemToPersist.report.tag,
@@ -367,18 +377,19 @@ export function useAdminStore() {
           isNew: Boolean(itemToPersist.report.isNew),
         });
       } else if (itemToPersist.action === "delete") {
-        deleteFromAppwrite("reports", itemToPersist.report.slug);
+        return await deleteFromAppwrite("reports", itemToPersist.report.slug);
       }
     }
+    return { success: true };
   };
 
-  const updateIdeas = (newIdeas: StockIdea[], itemToPersist?: { action: "save" | "delete"; idea: StockIdea }) => {
+  const updateIdeas = async (newIdeas: StockIdea[], itemToPersist?: { action: "save" | "delete"; idea: StockIdea }): Promise<{ success: boolean; error?: string }> => {
     setIdeas(newIdeas);
     setStoredData(STORAGE_KEYS.IDEAS, newIdeas);
 
     if (itemToPersist) {
       if (itemToPersist.action === "save") {
-        persistToAppwrite("ideas", itemToPersist.idea.id, {
+        return await persistToAppwrite("ideas", itemToPersist.idea.id, {
           ticker: itemToPersist.idea.ticker,
           company: itemToPersist.idea.company,
           sector: itemToPersist.idea.sector,
@@ -390,18 +401,19 @@ export function useAdminStore() {
           thesis: itemToPersist.idea.thesis || "",
         });
       } else if (itemToPersist.action === "delete") {
-        deleteFromAppwrite("ideas", itemToPersist.idea.id);
+        return await deleteFromAppwrite("ideas", itemToPersist.idea.id);
       }
     }
+    return { success: true };
   };
 
-  const updateIpos = (newIpos: Ipo[], itemToPersist?: { action: "save" | "delete"; ipo: Ipo }) => {
+  const updateIpos = async (newIpos: Ipo[], itemToPersist?: { action: "save" | "delete"; ipo: Ipo }): Promise<{ success: boolean; error?: string }> => {
     setIpos(newIpos);
     setStoredData(STORAGE_KEYS.IPOS, newIpos);
 
     if (itemToPersist) {
       if (itemToPersist.action === "save") {
-        persistToAppwrite("ipos", itemToPersist.ipo.slug, {
+        return await persistToAppwrite("ipos", itemToPersist.ipo.slug, {
           slug: itemToPersist.ipo.slug,
           company: itemToPersist.ipo.company,
           sector: itemToPersist.ipo.sector,
@@ -418,18 +430,19 @@ export function useAdminStore() {
           sections: JSON.stringify(itemToPersist.ipo.sections || []),
         });
       } else if (itemToPersist.action === "delete") {
-        deleteFromAppwrite("ipos", itemToPersist.ipo.slug);
+        return await deleteFromAppwrite("ipos", itemToPersist.ipo.slug);
       }
     }
+    return { success: true };
   };
 
-  const updateJournal = (newJournal: Post[], itemToPersist?: { action: "save" | "delete"; post: Post }) => {
+  const updateJournal = async (newJournal: Post[], itemToPersist?: { action: "save" | "delete"; post: Post }): Promise<{ success: boolean; error?: string }> => {
     setJournal(newJournal);
     setStoredData(STORAGE_KEYS.JOURNAL, newJournal);
 
     if (itemToPersist) {
       if (itemToPersist.action === "save") {
-        persistToAppwrite("journal", itemToPersist.post.slug, {
+        return await persistToAppwrite("journal", itemToPersist.post.slug, {
           slug: itemToPersist.post.slug,
           category: itemToPersist.post.category,
           title: itemToPersist.post.title,
@@ -439,9 +452,10 @@ export function useAdminStore() {
           sections: JSON.stringify(itemToPersist.post.sections || []),
         });
       } else if (itemToPersist.action === "delete") {
-        deleteFromAppwrite("journal", itemToPersist.post.slug);
+        return await deleteFromAppwrite("journal", itemToPersist.post.slug);
       }
     }
+    return { success: true };
   };
 
   const updateUsers = async (newUsers: AdminUser[], itemToPersist?: { action: "save" | "delete"; user: AdminUser }) => {

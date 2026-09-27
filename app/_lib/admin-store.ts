@@ -224,8 +224,6 @@ export function useAdminStore() {
                 sector: r.sector || undefined,
                 company: r.company || undefined,
                 isNew: Boolean(r.isNew),
-                isSaved: Boolean(r.isSaved),
-                isUnread: r.isUnread !== undefined ? Boolean(r.isUnread) : true,
               });
             }
           }
@@ -367,8 +365,6 @@ export function useAdminStore() {
           sector: itemToPersist.report.sector || "",
           company: itemToPersist.report.company || "",
           isNew: Boolean(itemToPersist.report.isNew),
-          isSaved: Boolean(itemToPersist.report.isSaved),
-          isUnread: itemToPersist.report.isUnread !== undefined ? Boolean(itemToPersist.report.isUnread) : true,
         });
       } else if (itemToPersist.action === "delete") {
         deleteFromAppwrite("reports", itemToPersist.report.slug);

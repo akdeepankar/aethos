@@ -21,8 +21,6 @@ export type Report = {
   ticker?: string;
   imageUrl?: string;
   isNew?: boolean;
-  isSaved?: boolean;
-  isUnread?: boolean;
 };
 
 export const reports: Report[] = [];

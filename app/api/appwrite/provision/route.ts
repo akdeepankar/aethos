@@ -211,9 +211,21 @@ export async function POST(req: NextRequest) {
     await addStringCol("reports", "sector", 150, false);
     await addStringCol("reports", "company", 255, false);
     await addBoolCol("reports", "isNew", false, false);
-    await addBoolCol("reports", "isSaved", false, false);
-    await addBoolCol("reports", "isUnread", false, true);
     await addStringCol("reports", "tabCategory", 50, false);
+
+    // Clean up deprecated user-local columns if they exist
+    try {
+      await tablesDB.deleteColumn(databaseId, "reports", "isSaved");
+    } catch {}
+    try {
+      await databases.deleteAttribute(databaseId, "reports", "isSaved");
+    } catch {}
+    try {
+      await tablesDB.deleteColumn(databaseId, "reports", "isUnread");
+    } catch {}
+    try {
+      await databases.deleteAttribute(databaseId, "reports", "isUnread");
+    } catch {}
 
     // --- Table: ideas ---
     await getOrCreateTable("ideas", "Aethos Ideas");
@@ -330,8 +342,6 @@ export async function POST(req: NextRequest) {
         sector: r.sector || "",
         company: r.company || "",
         isNew: r.isNew || false,
-        isSaved: r.isSaved || false,
-        isUnread: r.isUnread ?? true,
         tabCategory: r.tabCategory || "company",
       });
     }

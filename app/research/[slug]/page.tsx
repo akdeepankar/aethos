@@ -31,7 +31,23 @@ export default function ResearchDetailPage() {
 
     if (found) {
       setReport(found);
-      setIsSaved(Boolean(found.isSaved));
+    }
+
+    // Load isSaved state and mark as read in localStorage
+    if (typeof window !== "undefined") {
+      try {
+        const savedRaw = localStorage.getItem("aethos_user_saved_reports");
+        if (savedRaw) {
+          const savedMap = JSON.parse(savedRaw);
+          setIsSaved(Boolean(savedMap[slug]));
+        }
+        const readRaw = localStorage.getItem("aethos_user_read_reports");
+        const readMap = readRaw ? JSON.parse(readRaw) : {};
+        readMap[slug] = true;
+        localStorage.setItem("aethos_user_read_reports", JSON.stringify(readMap));
+      } catch (e) {
+        console.warn("Failed to sync localStorage for report:", e);
+      }
     }
 
     // 2. Fetch raw report HTML from htmlUrl if available, or from /api/reports/${slug}
@@ -144,6 +160,27 @@ export default function ResearchDetailPage() {
     }
   };
 
+  const handleToggleSave = () => {
+    setIsSaved((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined" && slug) {
+        try {
+          const savedRaw = localStorage.getItem("aethos_user_saved_reports");
+          const savedMap = savedRaw ? JSON.parse(savedRaw) : {};
+          if (next) {
+            savedMap[slug] = true;
+          } else {
+            delete savedMap[slug];
+          }
+          localStorage.setItem("aethos_user_saved_reports", JSON.stringify(savedMap));
+        } catch (e) {
+          console.warn("Failed to update saved reports in localStorage:", e);
+        }
+      }
+      return next;
+    });
+  };
+
   // Header Actions Slot for Bookmark, Share, and PDF toggles
   const headerActions = (
     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -179,7 +216,7 @@ export default function ResearchDetailPage() {
       {/* Bookmark button */}
       <button
         type="button"
-        onClick={() => setIsSaved((prev) => !prev)}
+        onClick={handleToggleSave}
         title={isSaved ? "Saved to reading list" : "Save report"}
         style={{
           display: "inline-flex",

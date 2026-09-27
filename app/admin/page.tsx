@@ -274,7 +274,6 @@ export default function AdminPage() {
     imageUrl: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
     pdfUrl: "",
     isNew: true,
-    isSaved: false,
     tabCategory: "company" as "company" | "sectoral" | "thematic",
     htmlContent: "",
   });
@@ -437,7 +436,6 @@ ${report.sections
         imageUrl: report.imageUrl || "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
         pdfUrl: report.pdfUrl || "",
         isNew: Boolean(report.isNew),
-        isSaved: Boolean(report.isSaved),
         tabCategory: report.tabCategory || "company",
         htmlContent: initialHtml,
       });
@@ -456,7 +454,6 @@ ${report.sections
         imageUrl: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
         pdfUrl: "",
         isNew: true,
-        isSaved: false,
         tabCategory: "company",
         htmlContent: "",
       });
@@ -574,8 +571,6 @@ ${report.sections
       pdfUrl: reportForm.pdfUrl.trim() || undefined,
       htmlUrl: `/${slug}.html`,
       isNew: reportForm.isNew,
-      isSaved: reportForm.isSaved,
-      isUnread: true,
       htmlContent: reportForm.htmlContent,
       sections: editingReport?.sections && editingReport.sections.length > 0 ? editingReport.sections : [{ heading: "Thesis", body: reportForm.deck.trim() }],
     };
@@ -1814,15 +1809,6 @@ ${report.sections
                         />
                         <span>Show &quot;NEW&quot; Tag</span>
                       </label>
-
-                      <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#334155", cursor: "pointer" }}>
-                        <input
-                          type="checkbox"
-                          checked={reportForm.isSaved}
-                          onChange={(e) => setReportForm((prev) => ({ ...prev, isSaved: e.target.checked }))}
-                        />
-                        <span>Saved by Default</span>
-                      </label>
                     </div>
 
                     {/* HTML Content Editor */}
@@ -2305,14 +2291,6 @@ ${report.sections
                               onChange={(e) => setReportForm((prev) => ({ ...prev, isNew: e.target.checked }))}
                             />
                             <span>New</span>
-                          </label>
-                          <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#334155", cursor: "pointer" }}>
-                            <input
-                              type="checkbox"
-                              checked={reportForm.isSaved}
-                              onChange={(e) => setReportForm((prev) => ({ ...prev, isSaved: e.target.checked }))}
-                            />
-                            <span>Saved</span>
                           </label>
                         </div>
 

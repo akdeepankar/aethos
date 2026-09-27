@@ -23,17 +23,49 @@ export default function ResearchPage() {
   const [publishedFilter, setPublishedFilter] = useState("any");
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [savedSlugs, setSavedSlugs] = useState<Record<string, boolean>>({});
+  const [savedSlugs, setSavedSlugs] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const stored = localStorage.getItem("aethos_user_saved_reports");
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [readSlugs, setReadSlugs] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      const stored = localStorage.getItem("aethos_user_read_reports");
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Toggle bookmark / saved
+  // Toggle bookmark / saved in user's browser storage
   const toggleSave = (slug: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setSavedSlugs((prev) => ({
-      ...prev,
-      [slug]: !prev[slug],
-    }));
+    setSavedSlugs((prev) => {
+      const next = { ...prev, [slug]: !prev[slug] };
+      try {
+        localStorage.setItem("aethos_user_saved_reports", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  // Mark report as read in user's browser storage
+  const markAsRead = (slug: string) => {
+    setReadSlugs((prev) => {
+      if (prev[slug]) return prev;
+      const next = { ...prev, [slug]: true };
+      try {
+        localStorage.setItem("aethos_user_read_reports", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
   };
 
   // Reset filters
@@ -69,8 +101,8 @@ export default function ResearchPage() {
   // Filtering
   const filteredReports = useMemo(() => {
     return allReports.filter((report) => {
-      const isSaved = savedSlugs[report.slug] ?? report.isSaved ?? false;
-      const isUnread = report.isUnread ?? true;
+      const isSaved = Boolean(savedSlugs[report.slug]);
+      const isUnread = !readSlugs[report.slug];
 
       // Tab filter
       if (activeTab === "saved" && !isSaved) return false;
@@ -374,7 +406,8 @@ export default function ResearchPage() {
           {paginatedReports.length > 0 ? (
             <div className={viewMode === "grid" ? "rl-grid" : "rl-list"}>
               {paginatedReports.map((report) => {
-                const isSaved = savedSlugs[report.slug] ?? report.isSaved ?? false;
+                const isSaved = Boolean(savedSlugs[report.slug]);
+                const isUnread = !readSlugs[report.slug];
                 const imageSource =
                   report.imageUrl ||
                   "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80";
@@ -414,10 +447,11 @@ export default function ResearchPage() {
                       <div className="rl-card-topline">
                         <span className="rl-category-tag">{report.tag || "RESEARCH REPORT"}</span>
                         {report.isNew && <span className="rl-new-badge">NEW</span>}
+                        {isUnread && <span style={{ fontSize: "9px", fontWeight: "700", padding: "2px 6px", borderRadius: "4px", background: "#eff6ff", color: "#2563eb", letterSpacing: "0.04em" }}>UNREAD</span>}
                       </div>
 
                       <h2 className="rl-card-title">
-                        <Link href={`/research/${report.slug}`} target="_blank" rel="noreferrer">
+                        <Link href={`/research/${report.slug}`} target="_blank" rel="noreferrer" onClick={() => markAsRead(report.slug)}>
                           {report.title}
                         </Link>
                       </h2>
@@ -434,7 +468,7 @@ export default function ResearchPage() {
                         <span className="rl-card-meta">
                           {report.date}
                         </span>
-                        <Link href={`/research/${report.slug}`} target="_blank" rel="noreferrer" className="rl-read-btn">
+                        <Link href={`/research/${report.slug}`} target="_blank" rel="noreferrer" onClick={() => markAsRead(report.slug)} className="rl-read-btn">
                           Read <span className="rl-read-arrow">→</span>
                         </Link>
                       </div>

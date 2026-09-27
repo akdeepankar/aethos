@@ -171,6 +171,10 @@ export async function POST(req: NextRequest) {
       delete payload.htmlContent;
     }
 
+    // Remove user-local preference fields from central database payload
+    delete payload.isSaved;
+    delete payload.isUnread;
+
     // Safeguard other text column lengths
     if (typeof payload.deck === "string" && payload.deck.length > 2000) {
       payload.deck = payload.deck.slice(0, 2000);

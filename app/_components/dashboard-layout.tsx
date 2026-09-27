@@ -193,7 +193,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, signOut, signInWithGoogle } = useAuth();
 
   // Load user sidebar preference from localStorage
   useEffect(() => {
@@ -356,18 +356,43 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
         {/* User Profile in Bottom Sidebar */}
         <div className="sidebar-footer-area">
-          <Link href="/dashboard" className="sidebar-user-card" style={{ textDecoration: "none" }} title={displayName}>
-            <div className="user-avatar">{user ? initials : "SA"}</div>
-            <div className="user-info">
-              <span className="user-name">{user?.name || "Sibesh Agrawal"}</span>
-              <span className="user-status">{user ? "Active Member" : "Member"}</span>
+          {user ? (
+            <Link href="/dashboard" className="sidebar-user-card" style={{ textDecoration: "none" }} title={displayName}>
+              <div className="user-avatar">{initials}</div>
+              <div className="user-info">
+                <span className="user-name">{user.name || user.email}</span>
+                <span className="user-status">Active Member</span>
+              </div>
+              <span className="user-chevron">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="m9 18 6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+            </Link>
+          ) : (
+            <div
+              className="sidebar-user-card"
+              onClick={() => signInWithGoogle(pathname)}
+              style={{ textDecoration: "none", cursor: "pointer" }}
+              title="Sign In to Aethos Wealth"
+            >
+              <div className="user-avatar" style={{ background: "#e2e8f0", color: "#64748b" }}>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </div>
+              <div className="user-info">
+                <span className="user-name">Guest Member</span>
+                <span className="user-status" style={{ color: "#b45309" }}>Sign In to Unlock</span>
+              </div>
+              <span className="user-chevron">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="m9 18 6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
             </div>
-            <span className="user-chevron">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="m9 18 6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-          </Link>
+          )}
         </div>
       </aside>
 
@@ -427,8 +452,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <span className="notif-dot" />
               </button>
 
-              <div className="header-avatar-circle" title="Sibesh Agrawal">
-                {user ? initials : "SA"}
+              <div
+                className="header-avatar-circle"
+                title={user ? displayName : "Guest Member"}
+                style={!user ? { background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0" } : undefined}
+              >
+                {user ? initials : (
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                )}
               </div>
 
               <div className="header-illustrative-tag">
@@ -444,7 +478,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 >
                   Sign Out
                 </button>
-              ) : null}
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => signInWithGoogle(pathname)}
+                  className="button button-gold header-cta"
+                  style={{ fontSize: "11px", padding: "0 12px", height: "32px", cursor: "pointer" }}
+                >
+                  Sign In
+                </button>
+              )}
             </div>
           </header>
         )}

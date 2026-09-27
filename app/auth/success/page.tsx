@@ -26,8 +26,12 @@ export default function AuthSuccessPage() {
 
         if (!isCancelled) {
           setStatusText("Redirecting to Aethos Wealth...");
-          const redirectUrl = sessionStorage.getItem("aethos_auth_redirect") || "/";
+          const redirectUrl =
+            sessionStorage.getItem("aethos_auth_redirect") ||
+            localStorage.getItem("aethos_auth_redirect") ||
+            "/";
           sessionStorage.removeItem("aethos_auth_redirect");
+          localStorage.removeItem("aethos_auth_redirect");
           window.location.assign(redirectUrl);
         }
       } catch (err: unknown) {

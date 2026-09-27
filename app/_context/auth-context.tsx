@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (typeof window !== "undefined") {
         sessionStorage.setItem("aethos_auth_redirect", redirectUrl);
+        localStorage.setItem("aethos_auth_redirect", redirectUrl);
         const origin = window.location.origin;
         await account.createOAuth2Token({
           provider: OAuthProvider.Google,

@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { reports, ipos, posts } from "./_lib/content";
+import { useAdminStore } from "./_lib/admin-store";
 import { 
   IconResearch, 
   IconIpos, 
@@ -14,7 +16,8 @@ const ArrowUpRight = () => (
 );
 
 export default function Home() {
-  const featuredReport = reports[0];
+  const { reports, ipos, journal: posts } = useAdminStore();
+  const featuredReport = reports && reports.length > 0 ? reports[0] : null;
 
   return (
     <div className="dash-overview-page">
@@ -38,8 +41,8 @@ export default function Home() {
             <IconResearch />
           </div>
           <div className="metric-body">
-            <span className="metric-value">124</span>
-            <span className="metric-trend up">+3 this wk</span>
+            <span className="metric-value">{reports.length}</span>
+            <span className="metric-trend up">Live</span>
           </div>
           <div className="metric-footer">Deep dives & sector notes</div>
         </div>
@@ -50,8 +53,8 @@ export default function Home() {
             <IconIpos />
           </div>
           <div className="metric-body">
-            <span className="metric-value">8</span>
-            <span className="metric-trend neutral">2 Open</span>
+            <span className="metric-value">{ipos.length}</span>
+            <span className="metric-trend neutral">Active</span>
           </div>
           <div className="metric-footer">Mainboard & SME offers</div>
         </div>
@@ -62,8 +65,8 @@ export default function Home() {
             <IconJournal />
           </div>
           <div className="metric-body">
-            <span className="metric-value">48</span>
-            <span className="metric-trend up">+1 today</span>
+            <span className="metric-value">{posts.length}</span>
+            <span className="metric-trend up">Published</span>
           </div>
           <div className="metric-footer">Market insights & commentary</div>
         </div>
@@ -84,26 +87,28 @@ export default function Home() {
       <div className="dash-grid-layout">
         <div className="dash-main-column">
           {/* Featured Research Hero Banner */}
-          <div className="featured-research-hero">
-            <div>
-              <div className="featured-kicker-badge">
-                <span>★ Featured Deep Dive</span>
-                <span>•</span>
-                <span>27 Min Read</span>
+          {featuredReport && (
+            <div className="featured-research-hero">
+              <div>
+                <div className="featured-kicker-badge">
+                  <span>★ Featured Deep Dive</span>
+                  <span>•</span>
+                  <span>{featuredReport.readTime || "10 Min Read"}</span>
+                </div>
+                <div className="featured-content-wrap">
+                  <h2>{featuredReport.title}</h2>
+                  <p>{featuredReport.deck}</p>
+                </div>
               </div>
-              <div className="featured-content-wrap">
-                <h2>{featuredReport.title}</h2>
-                <p>{featuredReport.deck}</p>
-              </div>
-            </div>
 
-            <div className="featured-action-bar">
-              <span className="featured-meta-info">Published {featuredReport.date}  ·  Logistics & Supply Chain</span>
-              <Link href={`/research/${featuredReport.slug}`} className="button button-gold" style={{ height: '36px', padding: '0 16px', fontSize: '11px', borderRadius: '6px' }}>
-                Read Deep Dive <ArrowUpRight />
-              </Link>
+              <div className="featured-action-bar">
+                <span className="featured-meta-info">Published {featuredReport.date}  ·  {featuredReport.sector || featuredReport.tag}</span>
+                <Link href={`/research/${featuredReport.slug}`} className="button button-gold" style={{ height: '36px', padding: '0 16px', fontSize: '11px', borderRadius: '6px' }}>
+                  Read Deep Dive <ArrowUpRight />
+                </Link>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Recent Research Library */}
           <div className="dash-card">
@@ -116,58 +121,64 @@ export default function Home() {
               </Link>
             </div>
             <div className="dash-card-body" style={{ padding: 0 }}>
-              <div className="dash-table-wrap">
-                <table className="dash-table">
-                  <thead>
-                    <tr>
-                      <th>Title & Focus</th>
-                      <th>Category</th>
-                      <th>Access</th>
-                      <th>Published</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reports.map((report) => (
-                      <tr key={report.slug}>
-                        <td>
-                          <div className="company-cell">
-                            <Link href={`/research/${report.slug}`} target="_blank" rel="noreferrer" className="company-name" style={{ textDecoration: 'none', color: 'inherit' }}>
-                              {report.title}
-                            </Link>
-                            <span className="company-sector">{report.deck.slice(0, 75)}...</span>
-                          </div>
-                        </td>
-                        <td>
-                          <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--muted)' }}>
-                            {report.tag}
-                          </span>
-                        </td>
-                        <td>
-                          <span style={{ 
-                            fontSize: '9px', 
-                            fontWeight: '700', 
-                            padding: '3px 8px', 
-                            borderRadius: '4px',
-                            background: report.free ? '#ecfdf5' : '#fef3c7',
-                            color: report.free ? '#047857' : '#b45309'
-                          }}>
-                            {report.free ? 'FREE' : 'PRO'}
-                          </span>
-                        </td>
-                        <td style={{ color: 'var(--muted)', fontSize: '11px' }}>
-                          {report.date}
-                        </td>
-                        <td>
-                          <Link href={`/research/${report.slug}`} target="_blank" rel="noreferrer" className="dash-card-link">
-                            Open <ArrowUpRight />
-                          </Link>
-                        </td>
+              {reports.length > 0 ? (
+                <div className="dash-table-wrap">
+                  <table className="dash-table">
+                    <thead>
+                      <tr>
+                        <th>Title & Focus</th>
+                        <th>Category</th>
+                        <th>Access</th>
+                        <th>Published</th>
+                        <th>Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {reports.map((report) => (
+                        <tr key={report.slug}>
+                          <td>
+                            <div className="company-cell">
+                              <Link href={`/research/${report.slug}`} target="_blank" rel="noreferrer" className="company-name" style={{ textDecoration: 'none', color: 'inherit' }}>
+                                {report.title}
+                              </Link>
+                              <span className="company-sector">{report.deck ? (report.deck.length > 75 ? `${report.deck.slice(0, 75)}...` : report.deck) : ""}</span>
+                            </div>
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--muted)' }}>
+                              {report.tag}
+                            </span>
+                          </td>
+                          <td>
+                            <span style={{ 
+                              fontSize: '9px', 
+                              fontWeight: '700', 
+                              padding: '3px 8px', 
+                              borderRadius: '4px',
+                              background: report.free ? '#ecfdf5' : '#fef3c7',
+                              color: report.free ? '#047857' : '#b45309'
+                            }}>
+                              {report.free ? 'FREE' : 'PRO'}
+                            </span>
+                          </td>
+                          <td style={{ color: 'var(--muted)', fontSize: '11px' }}>
+                            {report.date}
+                          </td>
+                          <td>
+                            <Link href={`/research/${report.slug}`} target="_blank" rel="noreferrer" className="dash-card-link">
+                              Open <ArrowUpRight />
+                            </Link>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div style={{ padding: '32px 20px', textAlign: 'center', color: '#64748b' }}>
+                  <p style={{ fontSize: '13px', margin: 0 }}>No research reports published yet.</p>
+                </div>
+              )}
             </div>
           </div>
 

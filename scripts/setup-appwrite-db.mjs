@@ -310,6 +310,8 @@ async function main() {
     await addBoolCol("reports", "free", true, false);
     await addStringCol("reports", "className", 100, false);
     await addStringCol("reports", "sections", 65535, false);
+    await addStringCol("reports", "htmlContent", 65535, false);
+    await addStringCol("reports", "htmlUrl", 1000, false);
     await addStringCol("reports", "pdfUrl", 1000, false);
 
     // Table: ideas

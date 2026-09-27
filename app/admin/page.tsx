@@ -13,6 +13,8 @@ import { Report, Ipo, Post } from "../_lib/content";
 import ReportView from "../_components/ReportView";
 import { adaptReportToRichView } from "../_lib/report-adapter";
 
+import DynamicReportFrame from "../_components/dynamic-report-frame";
+
 type TabType = "reports" | "ideas" | "ipos" | "journal" | "media" | "database";
 type DrawerType = "report" | "idea" | "ipo" | "journal" | "file" | null;
 
@@ -38,91 +40,71 @@ const RESEARCH_TYPES = [
   "Company updates",
 ];
 
-const DEFAULT_SECTIONS_JSON = JSON.stringify(
-  [
-    {
-      id: "thesis",
-      title: "Investment Thesis & Operating Moat",
-      nav: "Thesis",
-      blocks: [
-        {
-          type: "p",
-          text: "Core investment thesis outlining the multi-year revenue visibility, unit economics, and operational moat.",
-        },
-        {
-          type: "kpis",
-          items: [
-            { label: "Market Cap", value: "₹2,450 Cr", tone: "neutral" },
-            { label: "Revenue Growth", value: "24.5%", note: "YoY", tone: "good" },
-            { label: "EBITDA Margin", value: "25.0%", tone: "good" },
-            { label: "ROCE", value: "28.6%", tone: "good" },
-          ],
-        },
-        {
-          type: "callout",
-          tone: "copper",
-          title: "Institutional Conviction Factor",
-          text: "Proprietary high-barrier manufacturing capabilities combined with sole-source OEM supply agreements across premium export platforms.",
-        },
-      ],
-    },
-    {
-      id: "triggers",
-      title: "Growth Triggers & Milestones",
-      nav: "Growth Triggers",
-      blocks: [
-        {
-          type: "p",
-          text: "Key operational milestones and production ramps scheduled over the FY27-FY29 horizon.",
-        },
-        {
-          type: "triggers",
-          items: [
-            {
-              id: "trig-1",
-              category: "Capacity Expansion",
-              title: "Automated Machining Facility Commissioning",
-              tagline: "Doubling precision capacity to meet European OEM export contracts.",
-              timeline: "Q3 FY27 – FY28",
-              fields: [
-                {
-                  label: "Capex Scope",
-                  text: "₹85 crore dedicated high-precision facility currently completing installation and validation.",
-                },
-                {
-                  label: "Management Commentary",
-                  text: "“Trial batches are completed and initial commercial production is slated to ramp to peak run rates by Q3.”",
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    {
-      id: "risks",
-      title: "Downside Risks & Key Monitors",
-      nav: "Risks",
-      blocks: [
-        {
-          type: "risks",
-          items: [
-            {
-              title: "Export Market Macro Headwinds",
-              text: "Prolonged slowdown across key European automotive or industrial markets could moderate delivery timelines.",
-            },
-            {
-              title: "Raw Material Price Volatility",
-              text: "Specialty alloy steel price fluctuations are partially protected by quarterly indexation clauses.",
-            },
-          ],
-        },
-      ],
-    },
-  ],
-  null,
-  2
-);
+const DEFAULT_REPORT_HTML = `<article class="report-content" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; line-height: 1.65; max-width: 900px; margin: 0 auto; padding: 20px 0;">
+  <header style="border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 28px;">
+    <h2 style="font-size: 24px; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;">Executive Summary &amp; Investment Thesis</h2>
+    <p style="font-size: 15px; color: #475569; margin: 0; line-height: 1.6;">Detailed institutional breakdown of operating capabilities, capacity cycles, market dynamics, and competitive moats driving multi-year compounding.</p>
+  </header>
+
+  <section style="margin-bottom: 32px;">
+    <h3 style="font-size: 18px; font-weight: 600; color: #0f172a; margin-bottom: 12px; border-left: 3px solid #2563eb; padding-left: 10px;">1. Market Opportunity &amp; Industry Tailwinds</h3>
+    <p style="font-size: 14.5px; color: #334155; line-height: 1.7; margin-bottom: 14px;">
+      Structural expansion across domestic manufacturing, increased localization demands, and high engineering barriers are creating sustainable pricing power.
+    </p>
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0;">
+      <h4 style="font-size: 13px; font-weight: 700; text-transform: uppercase; color: #64748b; margin: 0 0 10px 0;">Key Thesis Pillars</h4>
+      <ul style="margin: 0; padding-left: 20px; font-size: 14px; color: #334155;">
+        <li style="margin-bottom: 6px;">Multi-year order book visibility with key tier-1 OEM clients.</li>
+        <li style="margin-bottom: 6px;">Operating leverage unfolding with upcoming phase expansion.</li>
+        <li>Clean balance sheet with robust free cash conversion.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section style="margin-bottom: 32px;">
+    <h3 style="font-size: 18px; font-weight: 600; color: #0f172a; margin-bottom: 12px; border-left: 3px solid #2563eb; padding-left: 10px;">2. Financial Metrics &amp; Operational Moat</h3>
+    <p style="font-size: 14.5px; color: #334155; line-height: 1.7; margin-bottom: 14px;">
+      Consistent return on capital employed (ROCE &gt; 22%), disciplined working capital management, and resilient gross margin realization across market cycles.
+    </p>
+    <table style="width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13.5px;">
+      <thead>
+        <tr style="background: #0f172a; color: #ffffff;">
+          <th style="padding: 10px 14px; text-align: left; font-size: 12px;">Metric</th>
+          <th style="padding: 10px 14px; text-align: right; font-size: 12px;">FY24</th>
+          <th style="padding: 10px 14px; text-align: right; font-size: 12px;">FY25E</th>
+          <th style="padding: 10px 14px; text-align: right; font-size: 12px;">FY26E</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 10px 14px; font-weight: 600; color: #1e293b;">Revenue (₹ Cr)</td>
+          <td style="padding: 10px 14px; text-align: right; color: #475569;">420</td>
+          <td style="padding: 10px 14px; text-align: right; color: #475569;">530</td>
+          <td style="padding: 10px 14px; text-align: right; color: #475569;">670</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #e2e8f0; background: #f8fafc;">
+          <td style="padding: 10px 14px; font-weight: 600; color: #1e293b;">EBITDA Margin (%)</td>
+          <td style="padding: 10px 14px; text-align: right; color: #475569;">21.4%</td>
+          <td style="padding: 10px 14px; text-align: right; color: #475569;">22.8%</td>
+          <td style="padding: 10px 14px; text-align: right; color: #475569;">24.2%</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #e2e8f0;">
+          <td style="padding: 10px 14px; font-weight: 600; color: #1e293b;">ROCE (%)</td>
+          <td style="padding: 10px 14px; text-align: right; color: #475569;">23.5%</td>
+          <td style="padding: 10px 14px; text-align: right; color: #475569;">25.0%</td>
+          <td style="padding: 10px 14px; text-align: right; color: #475569;">27.2%</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h3 style="font-size: 18px; font-weight: 600; color: #0f172a; margin-bottom: 12px; border-left: 3px solid #2563eb; padding-left: 10px;">3. Key Risks &amp; Monitorables</h3>
+    <p style="font-size: 14.5px; color: #334155; line-height: 1.7;">
+      Primary risk factors include raw material volatility, macroeconomic cyclicality in major export markets, and program ramp-up schedules.
+    </p>
+  </section>
+</article>`;
 
 // Clean minimalist SVG icons (No emojis)
 function IconEye() {
@@ -274,8 +256,8 @@ export default function AdminPage() {
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [reportDrawerMode, setReportDrawerMode] = useState<"edit" | "preview" | "split">("edit");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const jsonFileInputRef = useRef<HTMLInputElement>(null);
-  const [isDraggingJson, setIsDraggingJson] = useState(false);
+  const htmlFileInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingHtml, setIsDraggingHtml] = useState(false);
 
   // Report Form State
   const [editingReport, setEditingReport] = useState<Report | null>(null);
@@ -294,7 +276,7 @@ export default function AdminPage() {
     isNew: true,
     isSaved: false,
     tabCategory: "company" as "company" | "sectoral" | "thematic",
-    sectionsJson: DEFAULT_SECTIONS_JSON,
+    htmlContent: "",
   });
 
   // Idea Form State
@@ -334,31 +316,26 @@ export default function AdminPage() {
     setTimeout(() => setNotification(null), 3500);
   };
 
-  // Format / Beautify JSON
-  const handleFormatJson = () => {
-    try {
-      const parsed = JSON.parse(reportForm.sectionsJson);
-      setReportForm((prev) => ({
-        ...prev,
-        sectionsJson: JSON.stringify(parsed, null, 2),
-      }));
-      showNotification("JSON formatted and validated", "success");
-    } catch (err) {
-      showNotification("Invalid JSON syntax: " + (err as Error).message, "error");
-    }
-  };
-
-  // Load standard template
+  // Load standard HTML template
   const handleLoadTemplate = () => {
     setReportForm((prev) => ({
       ...prev,
-      sectionsJson: DEFAULT_SECTIONS_JSON,
+      htmlContent: DEFAULT_REPORT_HTML,
     }));
-    showNotification("Loaded standard report template", "info");
+    showNotification("Loaded standard HTML report template", "info");
   };
 
-  // Upload or Drag-and-Drop JSON file
-  const handleJsonFileUpload = (file: File) => {
+  // Clear HTML content
+  const handleClearHtml = () => {
+    setReportForm((prev) => ({
+      ...prev,
+      htmlContent: "",
+    }));
+    showNotification("Cleared HTML editor", "info");
+  };
+
+  // Upload or Drag-and-Drop HTML file
+  const handleHtmlFileUpload = (file: File) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -368,108 +345,49 @@ export default function AdminPage() {
           showNotification("Uploaded file is empty", "error");
           return;
         }
-        const parsed = JSON.parse(text);
 
-        if (Array.isArray(parsed)) {
-          setReportForm((prev) => ({
-            ...prev,
-            sectionsJson: JSON.stringify(parsed, null, 2),
-          }));
-          showNotification(`Loaded ${parsed.length} sections from "${file.name}"`, "success");
-        } else if (typeof parsed === "object" && parsed !== null) {
-          // If it's a full report object with sections or blocks
-          let extractedJson = DEFAULT_SECTIONS_JSON;
-          if (parsed.sectionsJson) {
-            extractedJson = typeof parsed.sectionsJson === "string" ? parsed.sectionsJson : JSON.stringify(parsed.sectionsJson, null, 2);
-          } else if (parsed.sections && Array.isArray(parsed.sections)) {
-            extractedJson = JSON.stringify(parsed.sections, null, 2);
-          } else if (parsed.richSections && Array.isArray(parsed.richSections)) {
-            extractedJson = JSON.stringify(parsed.richSections, null, 2);
-          } else if (parsed.blocks && Array.isArray(parsed.blocks)) {
-            extractedJson = JSON.stringify([{ id: "main", title: parsed.title || "Overview", nav: "Overview", blocks: parsed.blocks }], null, 2);
-          } else {
-            extractedJson = JSON.stringify(parsed, null, 2);
+        // If user uploaded a json specification containing htmlContent
+        if (file.name.endsWith(".json")) {
+          try {
+            const parsed = JSON.parse(text);
+            if (parsed.htmlContent) {
+              setReportForm((prev) => ({
+                ...prev,
+                title: parsed.title || prev.title,
+                slug: parsed.slug || prev.slug,
+                deck: parsed.deck || prev.deck,
+                sector: parsed.sector || prev.sector,
+                researchType: parsed.researchType || prev.researchType,
+                company: parsed.company || prev.company,
+                imageUrl: parsed.imageUrl || prev.imageUrl,
+                pdfUrl: parsed.pdfUrl || prev.pdfUrl,
+                htmlContent: parsed.htmlContent,
+              }));
+              showNotification(`Imported HTML report specification from "${file.name}"`, "success");
+              return;
+            }
+          } catch {
+            // treat as regular text
           }
-
-          setReportForm((prev) => ({
-            ...prev,
-            title: parsed.title || prev.title,
-            slug: parsed.slug || prev.slug,
-            deck: parsed.deck || prev.deck,
-            sector: parsed.sector || prev.sector,
-            researchType: parsed.researchType || prev.researchType,
-            company: parsed.company || prev.company,
-            imageUrl: parsed.imageUrl || prev.imageUrl,
-            pdfUrl: parsed.pdfUrl || prev.pdfUrl,
-            sectionsJson: extractedJson,
-          }));
-          showNotification(`Imported report specification from "${file.name}"`, "success");
-        } else {
-          showNotification("JSON must be an array of sections or a report object", "error");
         }
+
+        setReportForm((prev) => ({
+          ...prev,
+          htmlContent: text,
+        }));
+        showNotification(`Loaded HTML content from "${file.name}"`, "success");
       } catch (err) {
-        showNotification("Failed to parse JSON file: " + (err as Error).message, "error");
+        showNotification("Failed to read HTML file: " + (err as Error).message, "error");
       }
     };
     reader.onerror = () => {
-      showNotification("Error reading JSON file", "error");
+      showNotification("Error reading HTML file", "error");
     };
     reader.readAsText(file);
   };
 
-  // Generate preview report object for live preview modal
-  const getPreviewReport = (): Report => {
-    const slug = reportForm.slug.trim() || "preview-report";
-    const autoDate = editingReport?.date || new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-
-    let parsedSections: any[] = [];
-    try {
-      if (reportForm.sectionsJson.trim()) {
-        const parsed = JSON.parse(reportForm.sectionsJson);
-        if (Array.isArray(parsed)) parsedSections = parsed;
-      }
-    } catch {
-      // fallback
-    }
-
-    const legacySections = parsedSections.map((sec) => ({
-      heading: sec.title || sec.heading || "Section",
-      body: sec.blocks?.[0]?.text || sec.body || "",
-    }));
-
-    return {
-      slug,
-      title: reportForm.title.trim() || "Untitled Research Report",
-      tag: reportForm.researchType.toUpperCase(),
-      researchType: reportForm.researchType as any,
-      sector: reportForm.sector,
-      company: reportForm.company.trim() || reportForm.title.trim() || "Target Company",
-      ticker: reportForm.company ? reportForm.company.split(" ")[0].toUpperCase() : "STOCK",
-      tabCategory: reportForm.tabCategory,
-      deck: reportForm.deck.trim() || "Research analysis and core thesis.",
-      readTime: "10 min read",
-      date: autoDate,
-      meta: autoDate,
-      free: reportForm.free,
-      imageUrl: reportForm.imageUrl.trim(),
-      pdfUrl: reportForm.pdfUrl.trim() || undefined,
-      isNew: reportForm.isNew,
-      isSaved: reportForm.isSaved,
-      isUnread: true,
-      sections: legacySections,
-      sectionsJson: reportForm.sectionsJson,
-    };
-  };
-
   const handleOpenPreview = (mode: "preview" | "split" = "preview") => {
-    try {
-      if (reportForm.sectionsJson.trim()) {
-        JSON.parse(reportForm.sectionsJson);
-      }
-      setReportDrawerMode(mode);
-    } catch (err) {
-      showNotification("Please fix JSON syntax before previewing: " + (err as Error).message, "error");
-    }
+    setReportDrawerMode(mode);
   };
 
   // Open report editor drawer
@@ -477,24 +395,34 @@ export default function AdminPage() {
     setReportDrawerMode("edit");
     if (report) {
       setEditingReport(report);
-      let initialJson = DEFAULT_SECTIONS_JSON;
-      if (report.sectionsJson) {
-        try {
-          initialJson = JSON.stringify(JSON.parse(report.sectionsJson), null, 2);
-        } catch {
-          initialJson = report.sectionsJson;
-        }
+      let initialHtml = "";
+      if (report.htmlContent) {
+        initialHtml = report.htmlContent;
       } else if (report.sections && report.sections.length > 0) {
-        initialJson = JSON.stringify(
-          report.sections.map((s, idx) => ({
-            id: `sec-${idx + 1}-${s.heading.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
-            title: s.heading,
-            nav: s.heading.slice(0, 24),
-            blocks: [{ type: "p", text: s.body }],
-          })),
-          null,
-          2
-        );
+        initialHtml = `<article class="report-content" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; line-height: 1.65; max-width: 900px; margin: 0 auto; padding: 20px 0;">
+  <header style="border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 28px;">
+    <h2 style="font-size: 24px; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;">${report.title}</h2>
+    <p style="font-size: 15px; color: #475569; margin: 0; line-height: 1.6;">${report.deck || ""}</p>
+  </header>
+${report.sections
+  .map(
+    (s, idx) => `  <section style="margin-bottom: 28px;">
+    <h3 style="font-size: 18px; font-weight: 600; color: #0f172a; margin-bottom: 10px; border-left: 3px solid #2563eb; padding-left: 10px;">${idx + 1}. ${s.heading}</h3>
+    <p style="font-size: 14.5px; color: #334155; line-height: 1.7;">${s.body}</p>
+  </section>`
+  )
+  .join("\n")}
+</article>`;
+      }
+      if (report.htmlUrl || report.slug) {
+        fetch(`/api/reports/${report.slug}`)
+          .then((res) => res.json())
+          .then((d) => {
+            if (d.found && d.html) {
+              setReportForm((prev) => ({ ...prev, htmlContent: d.html }));
+            }
+          })
+          .catch(() => {});
       }
       setReportForm({
         title: report.title,
@@ -511,7 +439,7 @@ export default function AdminPage() {
         isNew: Boolean(report.isNew),
         isSaved: Boolean(report.isSaved),
         tabCategory: report.tabCategory || "company",
-        sectionsJson: initialJson,
+        htmlContent: initialHtml,
       });
     } else {
       setEditingReport(null);
@@ -530,7 +458,7 @@ export default function AdminPage() {
         isNew: true,
         isSaved: false,
         tabCategory: "company",
-        sectionsJson: DEFAULT_SECTIONS_JSON,
+        htmlContent: "",
       });
     }
     setActiveDrawer("report");
@@ -612,25 +540,22 @@ export default function AdminPage() {
       return;
     }
 
-    let parsedSections: any[] = [];
-    try {
-      if (reportForm.sectionsJson.trim()) {
-        const parsed = JSON.parse(reportForm.sectionsJson);
-        if (Array.isArray(parsed)) {
-          parsedSections = parsed;
-        }
-      }
-    } catch {
-      showNotification("Invalid JSON in report sections. Please check syntax.", "error");
+    const slug = (reportForm.slug.trim() || reportForm.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")).slice(0, 60);
+    if (!slug) {
+      showNotification("A valid URL slug is required", "error");
       return;
     }
 
-    const legacySections = parsedSections.map((sec) => ({
-      heading: sec.title || sec.heading || "Section",
-      body: sec.blocks?.[0]?.text || sec.body || "",
-    }));
+    // Check if slug already exists (excluding current report if editing)
+    const isDuplicate = reports.some(
+      (r) => r.slug.toLowerCase() === slug.toLowerCase() && (!editingReport || editingReport.slug.toLowerCase() !== slug.toLowerCase())
+    );
 
-    const slug = reportForm.slug.trim() || reportForm.title.toLowerCase().replace(/[^a-z0-9]/g, "-").slice(0, 60);
+    if (isDuplicate) {
+      showNotification(`A report with URL slug "${slug}" already exists. Please update the slug.`, "error");
+      return;
+    }
+
     const autoDate = editingReport?.date || new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
     const reportObj: Report = {
       slug,
@@ -647,11 +572,12 @@ export default function AdminPage() {
       free: reportForm.free,
       imageUrl: reportForm.imageUrl.trim(),
       pdfUrl: reportForm.pdfUrl.trim() || undefined,
+      htmlUrl: `/${slug}.html`,
       isNew: reportForm.isNew,
       isSaved: reportForm.isSaved,
       isUnread: true,
-      sections: legacySections.length > 0 ? legacySections : [{ heading: "Thesis", body: reportForm.deck.trim() }],
-      sectionsJson: reportForm.sectionsJson,
+      htmlContent: reportForm.htmlContent,
+      sections: editingReport?.sections && editingReport.sections.length > 0 ? editingReport.sections : [{ heading: "Thesis", body: reportForm.deck.trim() }],
     };
 
     if (editingReport) {
@@ -674,7 +600,18 @@ export default function AdminPage() {
       return;
     }
 
-    const id = editingIdea?.id || ideaForm.ticker.toLowerCase();
+    const id = (editingIdea?.id || ideaForm.ticker.toLowerCase().replace(/[^a-z0-9]+/g, "-")).trim();
+
+    // Check if idea id already exists
+    const isDuplicate = ideas.some(
+      (i) => i.id.toLowerCase() === id.toLowerCase() && (!editingIdea || editingIdea.id.toLowerCase() !== id.toLowerCase())
+    );
+
+    if (isDuplicate) {
+      showNotification(`A stock idea with ticker "${ideaForm.ticker}" already exists.`, "error");
+      return;
+    }
+
     const ideaObj: StockIdea = {
       id,
       company: ideaForm.company.trim(),
@@ -708,7 +645,23 @@ export default function AdminPage() {
       return;
     }
 
-    const slug = ipoForm.slug.trim() || ipoForm.company.toLowerCase().replace(/[^a-z0-9]/g, "-").slice(0, 60);
+    const slug = (ipoForm.slug.trim() || ipoForm.company.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")).slice(0, 60);
+
+    if (!slug) {
+      showNotification("A valid URL slug is required", "error");
+      return;
+    }
+
+    // Check if IPO slug already exists
+    const isDuplicate = ipos.some(
+      (i) => i.slug.toLowerCase() === slug.toLowerCase() && (!editingIpo || editingIpo.slug.toLowerCase() !== slug.toLowerCase())
+    );
+
+    if (isDuplicate) {
+      showNotification(`An IPO note with URL slug "${slug}" already exists. Please update the slug.`, "error");
+      return;
+    }
+
     const ipoObj: Ipo = {
       slug,
       company: ipoForm.company.trim(),
@@ -752,12 +705,19 @@ export default function AdminPage() {
   };
 
   // Delete stored file
-  const handleDeleteFile = (fileId: string) => {
+  const handleDeleteFile = async (fileId: string) => {
     const target = media.find((m) => m.id === fileId);
     if (!target) return;
     if (confirm(`Are you sure you want to permanently delete "${target.name}"?`)) {
       const remaining = media.filter((m) => m.id !== fileId);
       updateMedia(remaining);
+      try {
+        await fetch(`/api/appwrite/records?table=media&id=${encodeURIComponent(fileId)}`, {
+          method: "DELETE",
+        });
+      } catch (err) {
+        console.warn("Error deleting file from Appwrite storage:", err);
+      }
       if (selectedFile?.id === fileId) {
         setSelectedFile(null);
         setActiveDrawer(null);
@@ -1032,8 +992,8 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredReports.map((report) => (
-                  <tr key={report.slug} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                {filteredReports.map((report, idx) => (
+                  <tr key={`${report.slug}-${idx}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
                     <td style={{ padding: "12px 16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                         <div style={{ width: "44px", height: "34px", borderRadius: "4px", overflow: "hidden", background: "#f1f5f9", flexShrink: 0 }}>
@@ -1147,8 +1107,8 @@ export default function AdminPage() {
             <span style={{ fontSize: "12px", color: "#64748b" }}>{ideas.length} ideas published</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {ideas.map((idea) => (
-              <div key={idea.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", border: "1px solid #f1f5f9", borderRadius: "6px" }}>
+            {ideas.map((idea, idx) => (
+              <div key={`${idea.id}-${idx}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", border: "1px solid #f1f5f9", borderRadius: "6px" }}>
                 <div>
                   <Link
                     href={`/ideas/${idea.id}`}
@@ -1199,8 +1159,8 @@ export default function AdminPage() {
             <span style={{ fontSize: "12px", color: "#64748b" }}>{ipos.length} companies tracked</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {ipos.map((ipo) => (
-              <div key={ipo.slug} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", border: "1px solid #f1f5f9", borderRadius: "6px" }}>
+            {ipos.map((ipo, idx) => (
+              <div key={`${ipo.slug}-${idx}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", border: "1px solid #f1f5f9", borderRadius: "6px" }}>
                 <div>
                   <Link
                     href={`/ipos/${ipo.slug}`}
@@ -1251,8 +1211,8 @@ export default function AdminPage() {
             <span style={{ fontSize: "12px", color: "#64748b" }}>{journal.length} articles</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {journal.map((post) => (
-              <div key={post.slug} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", border: "1px solid #f1f5f9", borderRadius: "6px" }}>
+            {journal.map((post, idx) => (
+              <div key={`${post.slug}-${idx}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", border: "1px solid #f1f5f9", borderRadius: "6px" }}>
                 <div>
                   <Link
                     href={`/journal/${post.slug}`}
@@ -1325,106 +1285,132 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {media.map((file) => {
-              const isPdf = file.type.includes("pdf") || file.url.endsWith(".pdf");
-              const isImg = file.type.startsWith("image/") || file.url.match(/\.(jpeg|jpg|png|webp|gif|svg)(\?.*)?$/i);
-              return (
-                <div
-                  key={file.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "14px 18px",
-                    border: "1px solid #f1f5f9",
-                    borderRadius: "6px",
-                    background: "#ffffff",
-                    transition: "all 0.15s ease",
-                  }}
-                >
+          {media.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {media.map((file, idx) => {
+                const isPdf = file.type.includes("pdf") || file.url.endsWith(".pdf");
+                const isImg = file.type.startsWith("image/") || file.url.match(/\.(jpeg|jpg|png|webp|gif|svg)(\?.*)?$/i);
+                return (
                   <div
-                    onClick={() => handleOpenFileDrawer(file)}
-                    style={{ display: "flex", alignItems: "center", gap: "14px", cursor: "pointer", flex: 1 }}
+                    key={`${file.id}-${idx}`}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "14px 18px",
+                      border: "1px solid #f1f5f9",
+                      borderRadius: "6px",
+                      background: "#ffffff",
+                      transition: "all 0.15s ease",
+                    }}
                   >
                     <div
-                      style={{
-                        width: "36px",
-                        height: "36px",
-                        borderRadius: "6px",
-                        background: isPdf ? "#fef2f2" : isImg ? "#eff6ff" : "#f8fafc",
-                        color: isPdf ? "#dc2626" : isImg ? "#2563eb" : "#64748b",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {isImg ? <IconSparkles /> : <IconFileText />}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: "13.5px", fontWeight: "600", color: "#0f172a" }}>
-                        {file.name}
-                      </div>
-                      <div style={{ fontSize: "11.5px", color: "#64748b", marginTop: "2px", display: "flex", gap: "10px" }}>
-                        <span>
-                          {file.size > 1048576
-                            ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
-                            : `${(file.size / 1024).toFixed(0)} KB`}
-                        </span>
-                        <span>•</span>
-                        <span>{file.uploadedAt || "Stored"}</span>
-                        {file.category && (
-                          <>
-                            <span>•</span>
-                            <span style={{ fontWeight: "600", color: "#475569" }}>{file.category}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <button
-                      type="button"
                       onClick={() => handleOpenFileDrawer(file)}
-                      style={{
-                        padding: "6px 12px",
-                        background: "#f8fafc",
-                        border: "1px solid #e2e8f0",
-                        borderRadius: "5px",
-                        fontSize: "12px",
-                        fontWeight: "500",
-                        color: "#0f172a",
-                        cursor: "pointer",
-                      }}
+                      style={{ display: "flex", alignItems: "center", gap: "14px", cursor: "pointer", flex: 1 }}
                     >
-                      View & Details
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteFile(file.id)}
-                      title="Delete file"
-                      style={{
-                        padding: "6px 10px",
-                        background: "#fff",
-                        border: "1px solid #fee2e2",
-                        borderRadius: "5px",
-                        fontSize: "12px",
-                        color: "#dc2626",
-                        cursor: "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <IconTrash />
-                    </button>
+                      <div
+                        style={{
+                          width: "36px",
+                          height: "36px",
+                          borderRadius: "6px",
+                          background: isPdf ? "#fef2f2" : isImg ? "#eff6ff" : "#f8fafc",
+                          color: isPdf ? "#dc2626" : isImg ? "#2563eb" : "#64748b",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {isImg ? <IconSparkles /> : <IconFileText />}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: "13.5px", fontWeight: "600", color: "#0f172a" }}>
+                          {file.name}
+                        </div>
+                        <div style={{ fontSize: "11.5px", color: "#64748b", marginTop: "2px", display: "flex", gap: "10px" }}>
+                          <span>
+                            {file.size > 1048576
+                              ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+                              : `${(file.size / 1024).toFixed(0)} KB`}
+                          </span>
+                          <span>•</span>
+                          <span>{file.uploadedAt || "Stored"}</span>
+                          {file.category && (
+                            <>
+                              <span>•</span>
+                              <span style={{ fontWeight: "600", color: "#475569" }}>{file.category}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenFileDrawer(file)}
+                        style={{
+                          padding: "6px 12px",
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "5px",
+                          fontSize: "12px",
+                          fontWeight: "500",
+                          color: "#0f172a",
+                          cursor: "pointer",
+                        }}
+                      >
+                        View & Details
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteFile(file.id)}
+                        title="Delete file"
+                        style={{
+                          padding: "6px 10px",
+                          background: "#fff",
+                          border: "1px solid #fee2e2",
+                          borderRadius: "5px",
+                          fontSize: "12px",
+                          color: "#dc2626",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <IconTrash />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: "48px 20px", color: "#64748b", background: "#f8fafc", borderRadius: "8px", border: "1px dashed #e2e8f0" }}>
+              <div style={{ fontSize: "28px", marginBottom: "8px" }}>📁</div>
+              <h4 style={{ fontSize: "14px", fontWeight: "600", color: "#0f172a", margin: "0 0 6px 0" }}>No stored files found in Appwrite bucket</h4>
+              <p style={{ fontSize: "12px", margin: "0 0 16px 0", color: "#64748b" }}>
+                Files uploaded to the storage bucket or attached to reports will be synchronized here in real time.
+              </p>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  padding: "7px 16px",
+                  background: "#0f172a",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+              >
+                Upload First File
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1554,9 +1540,9 @@ export default function AdminPage() {
                   <span style={{ fontSize: "12px", color: "#64748b" }}>
                     {activeDrawer === "report"
                       ? reportDrawerMode === "preview"
-                        ? "Live Preview in full ReportView institutional layout"
+                        ? "Live preview of formatted HTML report"
                         : reportDrawerMode === "split"
-                        ? "Side-by-side JSON editor and live ReportView"
+                        ? "Side-by-side HTML editor and live preview"
                         : "Directly saved to database & displayed across platform"
                       : activeDrawer === "file"
                       ? "Stored File Inspection & Asset Management"
@@ -1839,16 +1825,16 @@ export default function AdminPage() {
                       </label>
                     </div>
 
-                    {/* Sections JSON Editor */}
+                    {/* HTML Content Editor */}
                     <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "14px" }}>
                       <input
                         type="file"
-                        ref={jsonFileInputRef}
-                        accept=".json,application/json,text/plain"
+                        ref={htmlFileInputRef}
+                        accept=".html,.htm,text/html,text/plain"
                         style={{ display: "none" }}
                         onChange={(e) => {
                           const f = e.target.files?.[0];
-                          if (f) handleJsonFileUpload(f);
+                          if (f) handleHtmlFileUpload(f);
                           e.target.value = "";
                         }}
                       />
@@ -1856,16 +1842,16 @@ export default function AdminPage() {
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "6px" }}>
                         <div>
                           <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block" }}>
-                            Report Content (JSON Specification)
+                            Report Content (HTML Code)
                           </label>
                           <span style={{ fontSize: "11px", color: "#64748b" }}>
-                            Drag &amp; drop .json file, paste blocks, or load template
+                            Paste HTML code, drag &amp; drop .html file, or load template
                           </span>
                         </div>
                         <div style={{ display: "flex", gap: "6px" }}>
                           <button
                             type="button"
-                            onClick={() => jsonFileInputRef.current?.click()}
+                            onClick={() => htmlFileInputRef.current?.click()}
                             style={{
                               display: "inline-flex",
                               alignItems: "center",
@@ -1881,7 +1867,7 @@ export default function AdminPage() {
                             }}
                           >
                             <IconUpload />
-                            Upload JSON
+                            Upload HTML
                           </button>
                           <button
                             type="button"
@@ -1901,19 +1887,19 @@ export default function AdminPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={handleFormatJson}
+                            onClick={handleClearHtml}
                             style={{
                               fontSize: "11px",
                               fontWeight: "500",
-                              color: "#0f172a",
-                              background: "#f1f5f9",
-                              border: "1px solid #cbd5e1",
+                              color: "#ef4444",
+                              background: "#fef2f2",
+                              border: "1px solid #fecaca",
                               borderRadius: "4px",
                               padding: "3px 8px",
                               cursor: "pointer",
                             }}
                           >
-                            Format
+                            Clear
                           </button>
                           <button
                             type="button"
@@ -1942,25 +1928,25 @@ export default function AdminPage() {
                       <div
                         onDragOver={(e) => {
                           e.preventDefault();
-                          setIsDraggingJson(true);
+                          setIsDraggingHtml(true);
                         }}
-                        onDragLeave={() => setIsDraggingJson(false)}
+                        onDragLeave={() => setIsDraggingHtml(false)}
                         onDrop={(e) => {
                           e.preventDefault();
-                          setIsDraggingJson(false);
+                          setIsDraggingHtml(false);
                           const file = e.dataTransfer.files?.[0];
-                          if (file) handleJsonFileUpload(file);
+                          if (file) handleHtmlFileUpload(file);
                         }}
                         style={{
                           position: "relative",
-                          border: isDraggingJson ? "2px dashed #3b82f6" : "1px solid #cbd5e1",
+                          border: isDraggingHtml ? "2px dashed #3b82f6" : "1px solid #cbd5e1",
                           borderRadius: "6px",
-                          background: isDraggingJson ? "rgba(59, 130, 246, 0.08)" : "#0f172a",
+                          background: isDraggingHtml ? "rgba(59, 130, 246, 0.08)" : "#0f172a",
                           overflow: "hidden",
                           transition: "all 0.15s ease",
                         }}
                       >
-                        {isDraggingJson && (
+                        {isDraggingHtml && (
                           <div
                             style={{
                               position: "absolute",
@@ -1979,19 +1965,19 @@ export default function AdminPage() {
                             }}
                           >
                             <IconUpload />
-                            <span>Drop .json file here to load specification</span>
+                            <span>Drop .html file here to load content</span>
                           </div>
                         )}
 
                         <textarea
-                          rows={12}
-                          value={reportForm.sectionsJson}
-                          onChange={(e) => setReportForm((prev) => ({ ...prev, sectionsJson: e.target.value }))}
-                          placeholder="Paste JSON sections here, or drag & drop a .json file..."
+                          rows={14}
+                          value={reportForm.htmlContent}
+                          onChange={(e) => setReportForm((prev) => ({ ...prev, htmlContent: e.target.value }))}
+                          placeholder="Paste HTML code here, or drag & drop a .html file..."
                           spellCheck={false}
                           style={{
                             width: "100%",
-                            padding: "10px 12px",
+                            padding: "12px 14px",
                             border: "none",
                             fontSize: "12px",
                             fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
@@ -2016,10 +2002,10 @@ export default function AdminPage() {
                             color: "#94a3b8",
                           }}
                         >
-                          <span>Drag &amp; drop .json file or click Upload JSON</span>
+                          <span>Drag &amp; drop .html file or click Upload HTML</span>
                           <button
                             type="button"
-                            onClick={() => jsonFileInputRef.current?.click()}
+                            onClick={() => htmlFileInputRef.current?.click()}
                             style={{
                               background: "transparent",
                               border: "none",
@@ -2081,9 +2067,15 @@ export default function AdminPage() {
 
                 {/* 2. Full Live Preview Mode inside Expanded Drawer */}
                 {reportDrawerMode === "preview" && (
-                  <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", background: "#05080e" }}>
-                    <div style={{ flex: 1, overflowY: "auto" }}>
-                      <ReportView report={adaptReportToRichView(getPreviewReport())} libraryHref="#" />
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, overflow: "hidden", background: "#f8fafc" }}>
+                    <div style={{ flex: 1, padding: "20px 24px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                      <div style={{ maxWidth: "1000px", width: "100%", height: "100%", margin: "0 auto", background: "#ffffff", borderRadius: "10px", border: "1px solid #e2e8f0", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column" }}>
+                        <DynamicReportFrame
+                          htmlContent={reportForm.htmlContent || "<p style='color:#64748b; padding: 24px;'>No HTML content provided.</p>"}
+                          height="100%"
+                          minHeight="100%"
+                        />
+                      </div>
                     </div>
                     <div
                       style={{
@@ -2091,8 +2083,8 @@ export default function AdminPage() {
                         justifyContent: "space-between",
                         alignItems: "center",
                         padding: "14px 24px",
-                        background: "#0d131f",
-                        borderTop: "1px solid rgba(255, 255, 255, 0.1)",
+                        background: "#ffffff",
+                        borderTop: "1px solid #e2e8f0",
                         flexShrink: 0,
                       }}
                     >
@@ -2102,12 +2094,12 @@ export default function AdminPage() {
                           onClick={() => setReportDrawerMode("edit")}
                           style={{
                             padding: "7px 14px",
-                            background: "rgba(255, 255, 255, 0.08)",
-                            border: "1px solid rgba(255, 255, 255, 0.15)",
+                            background: "#ffffff",
+                            border: "1px solid #cbd5e1",
                             borderRadius: "6px",
                             fontSize: "12.5px",
-                            fontWeight: "500",
-                            color: "#f8fafc",
+                            fontWeight: "600",
+                            color: "#334155",
                             cursor: "pointer",
                           }}
                         >
@@ -2118,16 +2110,16 @@ export default function AdminPage() {
                           onClick={() => setReportDrawerMode("split")}
                           style={{
                             padding: "7px 14px",
-                            background: "rgba(255, 255, 255, 0.08)",
-                            border: "1px solid rgba(255, 255, 255, 0.15)",
+                            background: "#ffffff",
+                            border: "1px solid #cbd5e1",
                             borderRadius: "6px",
                             fontSize: "12.5px",
-                            fontWeight: "500",
-                            color: "#f8fafc",
+                            fontWeight: "600",
+                            color: "#334155",
                             cursor: "pointer",
                           }}
                         >
-                          Switch to Split View
+                          Split View
                         </button>
                       </div>
 
@@ -2137,12 +2129,12 @@ export default function AdminPage() {
                           onClick={() => setActiveDrawer(null)}
                           style={{
                             padding: "7px 16px",
-                            background: "transparent",
-                            border: "1px solid rgba(255, 255, 255, 0.2)",
+                            background: "#ffffff",
+                            border: "1px solid #cbd5e1",
                             borderRadius: "6px",
                             fontSize: "12.5px",
                             fontWeight: "500",
-                            color: "#cbd5e1",
+                            color: "#64748b",
                             cursor: "pointer",
                           }}
                         >
@@ -2153,7 +2145,7 @@ export default function AdminPage() {
                           onClick={(e) => handleSaveReport(e as any)}
                           style={{
                             padding: "7px 18px",
-                            background: "#3b82f6",
+                            background: "#0f172a",
                             border: "none",
                             borderRadius: "6px",
                             fontSize: "12.5px",
@@ -2324,16 +2316,16 @@ export default function AdminPage() {
                           </label>
                         </div>
 
-                        {/* Sections JSON Editor */}
+                        {/* HTML Content Editor */}
                         <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "14px" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "4px" }}>
                             <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155" }}>
-                              JSON Sections
+                              HTML Content
                             </label>
                             <div style={{ display: "flex", gap: "4px" }}>
                               <button
                                 type="button"
-                                onClick={() => jsonFileInputRef.current?.click()}
+                                onClick={() => htmlFileInputRef.current?.click()}
                                 style={{ display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "11px", color: "#0f172a", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "2px 6px", cursor: "pointer" }}
                               >
                                 <IconUpload />
@@ -2348,10 +2340,10 @@ export default function AdminPage() {
                               </button>
                               <button
                                 type="button"
-                                onClick={handleFormatJson}
-                                style={{ fontSize: "11px", color: "#0f172a", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "2px 6px", cursor: "pointer" }}
+                                onClick={handleClearHtml}
+                                style={{ fontSize: "11px", color: "#ef4444", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "4px", padding: "2px 6px", cursor: "pointer" }}
                               >
-                                Format
+                                Clear
                               </button>
                             </div>
                           </div>
@@ -2359,25 +2351,25 @@ export default function AdminPage() {
                           <div
                             onDragOver={(e) => {
                               e.preventDefault();
-                              setIsDraggingJson(true);
+                              setIsDraggingHtml(true);
                             }}
-                            onDragLeave={() => setIsDraggingJson(false)}
+                            onDragLeave={() => setIsDraggingHtml(false)}
                             onDrop={(e) => {
                               e.preventDefault();
-                              setIsDraggingJson(false);
+                              setIsDraggingHtml(false);
                               const file = e.dataTransfer.files?.[0];
-                              if (file) handleJsonFileUpload(file);
+                              if (file) handleHtmlFileUpload(file);
                             }}
                             style={{
                               position: "relative",
-                              border: isDraggingJson ? "2px dashed #3b82f6" : "1px solid #cbd5e1",
+                              border: isDraggingHtml ? "2px dashed #3b82f6" : "1px solid #cbd5e1",
                               borderRadius: "6px",
-                              background: isDraggingJson ? "rgba(59, 130, 246, 0.08)" : "#0f172a",
+                              background: isDraggingHtml ? "rgba(59, 130, 246, 0.08)" : "#0f172a",
                               overflow: "hidden",
                               transition: "all 0.15s ease",
                             }}
                           >
-                            {isDraggingJson && (
+                            {isDraggingHtml && (
                               <div
                                 style={{
                                   position: "absolute",
@@ -2395,19 +2387,19 @@ export default function AdminPage() {
                                 }}
                               >
                                 <IconUpload />
-                                <span>Drop .json file here</span>
+                                <span>Drop .html file here</span>
                               </div>
                             )}
 
                             <textarea
-                              rows={10}
-                              value={reportForm.sectionsJson}
-                              onChange={(e) => setReportForm((prev) => ({ ...prev, sectionsJson: e.target.value }))}
-                              placeholder="Paste JSON sections here, or drag & drop .json file..."
+                              rows={12}
+                              value={reportForm.htmlContent}
+                              onChange={(e) => setReportForm((prev) => ({ ...prev, htmlContent: e.target.value }))}
+                              placeholder="Paste HTML code here, or drag & drop .html file..."
                               spellCheck={false}
                               style={{
                                 width: "100%",
-                                padding: "8px 10px",
+                                padding: "10px 12px",
                                 border: "none",
                                 fontSize: "11.5px",
                                 fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
@@ -2432,10 +2424,10 @@ export default function AdminPage() {
                                 color: "#94a3b8",
                               }}
                             >
-                              <span>Drag &amp; drop .json</span>
+                              <span>Drag &amp; drop .html</span>
                               <button
                                 type="button"
-                                onClick={() => jsonFileInputRef.current?.click()}
+                                onClick={() => htmlFileInputRef.current?.click()}
                                 style={{ background: "transparent", border: "none", color: "#60a5fa", cursor: "pointer", padding: 0, fontSize: "10.5px", textDecoration: "underline" }}
                               >
                                 Browse
@@ -2464,8 +2456,19 @@ export default function AdminPage() {
                     </div>
 
                     {/* Right Preview Column */}
-                    <div style={{ flex: 1, overflowY: "auto", background: "#05080e" }}>
-                      <ReportView report={adaptReportToRichView(getPreviewReport())} libraryHref="#" />
+                    <div style={{ flex: 1, background: "#f8fafc", padding: "16px 20px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                      <div style={{ background: "#ffffff", borderRadius: "8px", border: "1px solid #e2e8f0", overflow: "hidden", height: "100%", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column" }}>
+                        <div style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", color: "#64748b", padding: "10px 16px", borderBottom: "1px solid #f1f5f9", background: "#ffffff", flexShrink: 0 }}>
+                          Live HTML Preview
+                        </div>
+                        <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+                          <DynamicReportFrame
+                            htmlContent={reportForm.htmlContent || "<p style='color:#64748b; padding: 16px;'>No HTML content provided.</p>"}
+                            height="100%"
+                            minHeight="100%"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}

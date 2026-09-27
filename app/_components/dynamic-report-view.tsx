@@ -240,14 +240,20 @@ export default function DynamicReportView({
           overflow: "hidden",
           background: "#ffffff",
           border: "1px solid var(--gold-light)",
+          height: "calc(100vh - 130px)",
+          minHeight: "650px",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         {activeFormat === "markdown" ? (
-          <DynamicReportFrame htmlContent={htmlContent} zoom={zoomLevel} />
+          <DynamicReportFrame htmlContent={htmlContent} zoom={zoomLevel} height="100%" minHeight="100%" />
         ) : pdfUrl ? (
-          <CleanPdfRenderer pdfUrl={pdfUrl} zoom={zoomLevel} />
+          <div style={{ flex: 1, overflowY: "auto", height: "100%" }}>
+            <CleanPdfRenderer pdfUrl={pdfUrl} zoom={zoomLevel} />
+          </div>
         ) : (
-          <DynamicReportFrame htmlContent={htmlContent} zoom={zoomLevel} />
+          <DynamicReportFrame htmlContent={htmlContent} zoom={zoomLevel} height="100%" minHeight="100%" />
         )}
       </div>
     </div>

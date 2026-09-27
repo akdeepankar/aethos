@@ -119,12 +119,12 @@ const initialMediaFiles: StoredMediaFile[] = [
 ];
 
 const STORAGE_KEYS = {
-  REPORTS: "aethos_admin_reports_v3",
+  REPORTS: "aethos_admin_reports_v4",
   IDEAS: "aethos_admin_ideas_v3",
   IPOS: "aethos_admin_ipos_v3",
   JOURNAL: "aethos_admin_journal_v3",
   USERS: "aethos_admin_users_v3",
-  MEDIA: "aethos_admin_media_v3",
+  MEDIA: "aethos_admin_media_v4",
 };
 
 export function getStoredData<T>(key: string, fallback: T): T {
@@ -149,11 +149,15 @@ export function setStoredData<T>(key: string, data: T): void {
 // Background Appwrite Persister
 async function persistToAppwrite(table: string, id: string, data: Record<string, unknown>) {
   try {
-    await fetch("/api/appwrite/records", {
+    const res = await fetch("/api/appwrite/records", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ table, id, data }),
     });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || json?.success === false) {
+      console.warn(`Appwrite sync to table [${table}] failed:`, json?.error || res.statusText);
+    }
   } catch (err) {
     console.warn(`Background sync to Appwrite table [${table}] failed:`, err);
   }
@@ -161,21 +165,25 @@ async function persistToAppwrite(table: string, id: string, data: Record<string,
 
 async function deleteFromAppwrite(table: string, id: string) {
   try {
-    await fetch(`/api/appwrite/records?table=${table}&id=${encodeURIComponent(id)}`, {
+    const res = await fetch(`/api/appwrite/records?table=${table}&id=${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || json?.success === false) {
+      console.warn(`Appwrite delete from table [${table}] failed:`, json?.error || res.statusText);
+    }
   } catch (err) {
     console.warn(`Background delete from Appwrite table [${table}] failed:`, err);
   }
 }
 
 export function useAdminStore() {
-  const [reports, setReports] = useState<Report[]>(() => getStoredData(STORAGE_KEYS.REPORTS, initialReports));
+  const [reports, setReports] = useState<Report[]>(() => getStoredData(STORAGE_KEYS.REPORTS, []));
   const [ideas, setIdeas] = useState<StockIdea[]>(() => getStoredData(STORAGE_KEYS.IDEAS, initialIdeas));
   const [ipos, setIpos] = useState<Ipo[]>(() => getStoredData(STORAGE_KEYS.IPOS, initialIpos));
   const [journal, setJournal] = useState<Post[]>(() => getStoredData(STORAGE_KEYS.JOURNAL, initialPosts));
   const [users, setUsers] = useState<AdminUser[]>(() => getStoredData(STORAGE_KEYS.USERS, initialAdminUsers));
-  const [media, setMedia] = useState<StoredMediaFile[]>(() => getStoredData(STORAGE_KEYS.MEDIA, initialMediaFiles));
+  const [media, setMedia] = useState<StoredMediaFile[]>(() => getStoredData(STORAGE_KEYS.MEDIA, []));
   const [isSynced, setIsSynced] = useState(false);
 
   // Sync from Appwrite DB on mount
@@ -189,84 +197,125 @@ export function useAdminStore() {
         const d = json.data;
 
         // Reports
-        if (Array.isArray(d.reports) && d.reports.length > 0) {
-          const parsedReports: Report[] = d.reports.map((r: any) => ({
-            slug: r.slug || r.$id,
-            title: r.title,
-            tag: r.tag,
-            tabCategory: r.tabCategory || (r.tag?.toLowerCase().includes("sector") ? "sectoral" : r.tag?.toLowerCase().includes("themat") ? "thematic" : "company"),
-            deck: r.deck,
-            readTime: r.readTime,
-            date: r.date,
-            free: Boolean(r.free),
-            className: r.className || "badge-neutral",
-            sections: typeof r.sections === "string" ? JSON.parse(r.sections || "[]") : (r.sections || []),
-            pdfUrl: r.pdfUrl || undefined,
-            imageUrl: r.imageUrl || undefined,
-            researchType: r.researchType || undefined,
-            sector: r.sector || undefined,
-            company: r.company || undefined,
-            isNew: Boolean(r.isNew),
-            isSaved: Boolean(r.isSaved),
-            isUnread: r.isUnread !== undefined ? Boolean(r.isUnread) : true,
-          }));
+        if (Array.isArray(d.reports)) {
+          const seen = new Set<string>();
+          const parsedReports: Report[] = [];
+          for (const r of d.reports) {
+            const s = (r.slug || r.$id || "").trim();
+            if (s && !seen.has(s.toLowerCase())) {
+              seen.add(s.toLowerCase());
+              parsedReports.push({
+                slug: s,
+                title: r.title,
+                tag: r.tag,
+                tabCategory: r.tabCategory || (r.tag?.toLowerCase().includes("sector") ? "sectoral" : r.tag?.toLowerCase().includes("themat") ? "thematic" : "company"),
+                deck: r.deck,
+                readTime: r.readTime,
+                date: r.date,
+                meta: r.meta || r.date || "Published",
+                free: Boolean(r.free),
+                className: r.className || "badge-neutral",
+                sections: typeof r.sections === "string" ? JSON.parse(r.sections || "[]") : (r.sections || []),
+                htmlUrl: r.htmlUrl || (s ? `/${s}.html` : undefined),
+                htmlContent: r.htmlContent || undefined,
+                pdfUrl: r.pdfUrl || undefined,
+                imageUrl: r.imageUrl || undefined,
+                researchType: r.researchType || undefined,
+                sector: r.sector || undefined,
+                company: r.company || undefined,
+                isNew: Boolean(r.isNew),
+                isSaved: Boolean(r.isSaved),
+                isUnread: r.isUnread !== undefined ? Boolean(r.isUnread) : true,
+              });
+            }
+          }
           setReports(parsedReports);
           setStoredData(STORAGE_KEYS.REPORTS, parsedReports);
         }
 
         // Ideas
         if (Array.isArray(d.ideas) && d.ideas.length > 0) {
-          const parsedIdeas: StockIdea[] = d.ideas.map((i: any) => ({
-            id: i.$id || i.ticker.toLowerCase(),
-            ticker: i.ticker,
-            company: i.company,
-            sector: i.sector,
-            mcap: i.mcap,
-            sharedPrice: Number(i.sharedPrice),
-            currentPrice: Number(i.currentPrice),
-            sharedDate: i.sharedDate,
-            pdfUrl: i.pdfUrl || undefined,
-            thesis: i.thesis || undefined,
-          }));
+          const seen = new Set<string>();
+          const parsedIdeas: StockIdea[] = [];
+          for (const i of d.ideas) {
+            const id = (i.$id || i.ticker || "").toLowerCase().trim();
+            if (id && !seen.has(id)) {
+              seen.add(id);
+              parsedIdeas.push({
+                id,
+                ticker: i.ticker,
+                company: i.company,
+                sector: i.sector,
+                mcap: i.mcap,
+                sharedPrice: Number(i.sharedPrice),
+                currentPrice: Number(i.currentPrice),
+                sharedDate: i.sharedDate,
+                pdfUrl: i.pdfUrl || undefined,
+                thesis: i.thesis || undefined,
+              });
+            }
+          }
           setIdeas(parsedIdeas);
           setStoredData(STORAGE_KEYS.IDEAS, parsedIdeas);
         }
 
         // IPOs
         if (Array.isArray(d.ipos) && d.ipos.length > 0) {
-          const parsedIpos: Ipo[] = d.ipos.map((ipo: any) => ({
-            slug: ipo.slug || ipo.$id,
-            company: ipo.company,
-            sector: ipo.sector,
-            period: ipo.period,
-            price: ipo.price,
-            type: ipo.type,
-            deepDive: Boolean(ipo.deepDive),
-            deck: ipo.deck,
-            issueSize: ipo.issueSize,
-            lotSize: ipo.lotSize,
-            listing: ipo.listing,
-            pdfUrl: ipo.pdfUrl,
-            htmlUrl: ipo.htmlUrl,
-            sections: typeof ipo.sections === "string" ? JSON.parse(ipo.sections || "[]") : (ipo.sections || []),
-          }));
+          const seen = new Set<string>();
+          const parsedIpos: Ipo[] = [];
+          for (const ipo of d.ipos) {
+            const s = (ipo.slug || ipo.$id || "").trim();
+            if (s && !seen.has(s.toLowerCase())) {
+              seen.add(s.toLowerCase());
+              parsedIpos.push({
+                slug: s,
+                company: ipo.company,
+                sector: ipo.sector,
+                period: ipo.period,
+                price: ipo.price,
+                type: ipo.type,
+                deepDive: Boolean(ipo.deepDive),
+                deck: ipo.deck,
+                issueSize: ipo.issueSize,
+                lotSize: ipo.lotSize,
+                listing: ipo.listing,
+                pdfUrl: ipo.pdfUrl,
+                htmlUrl: ipo.htmlUrl,
+                sections: typeof ipo.sections === "string" ? JSON.parse(ipo.sections || "[]") : (ipo.sections || []),
+              });
+            }
+          }
           setIpos(parsedIpos);
           setStoredData(STORAGE_KEYS.IPOS, parsedIpos);
         }
 
         // Journal
         if (Array.isArray(d.journal) && d.journal.length > 0) {
-          const parsedJournal: Post[] = d.journal.map((j: any) => ({
-            slug: j.slug || j.$id,
-            category: j.category,
-            title: j.title,
-            date: j.date,
-            deck: j.deck,
-            className: j.className,
-            sections: typeof j.sections === "string" ? JSON.parse(j.sections || "[]") : (j.sections || []),
-          }));
+          const seen = new Set<string>();
+          const parsedJournal: Post[] = [];
+          for (const j of d.journal) {
+            const s = (j.slug || j.$id || "").trim();
+            if (s && !seen.has(s.toLowerCase())) {
+              seen.add(s.toLowerCase());
+              parsedJournal.push({
+                slug: s,
+                category: j.category,
+                title: j.title,
+                date: j.date,
+                deck: j.deck,
+                className: j.className,
+                sections: typeof j.sections === "string" ? JSON.parse(j.sections || "[]") : (j.sections || []),
+              });
+            }
+          }
           setJournal(parsedJournal);
           setStoredData(STORAGE_KEYS.JOURNAL, parsedJournal);
+        }
+
+        // Media Files from Appwrite Storage
+        if (Array.isArray(d.media)) {
+          setMedia(d.media);
+          setStoredData(STORAGE_KEYS.MEDIA, d.media);
         }
       }
 
@@ -310,6 +359,8 @@ export function useAdminStore() {
           free: Boolean(itemToPersist.report.free),
           className: itemToPersist.report.className || "badge-neutral",
           sections: JSON.stringify(itemToPersist.report.sections || []),
+          htmlUrl: itemToPersist.report.htmlUrl || (itemToPersist.report.slug ? `/${itemToPersist.report.slug}.html` : ""),
+          htmlContent: itemToPersist.report.htmlContent || "",
           pdfUrl: itemToPersist.report.pdfUrl || "",
           imageUrl: itemToPersist.report.imageUrl || "",
           researchType: itemToPersist.report.researchType || "",
@@ -459,37 +510,39 @@ export function useAdminStore() {
 
   // Upload file to Appwrite Storage Bucket
   const uploadPdfFile = async (file: File, category: StoredMediaFile["category"] = "General"): Promise<StoredMediaFile> => {
-    const fileId = "file_" + Math.random().toString(36).substring(2, 9);
-    let targetUrl = `/uploads/${file.name}`;
-
     try {
-      const response = await storage.createFile({
-        bucketId: "aethos_pdfs",
-        fileId: fileId,
-        file: file,
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("category", category);
+
+      const res = await fetch("/api/appwrite/media", {
+        method: "POST",
+        body: formData,
       });
-      const fileViewUrl = storage.getFileView({
-        bucketId: "aethos_pdfs",
-        fileId: response.$id,
-      });
-      targetUrl = fileViewUrl.toString();
-    } catch {
-      targetUrl = URL.createObjectURL(file);
+
+      const json = await res.json();
+      if (json.success && json.file) {
+        const updated = [json.file, ...media.filter((m) => m.id !== json.file.id)];
+        updateMedia(updated);
+        return json.file;
+      }
+    } catch (err) {
+      console.warn("Server-side Appwrite upload failed:", err);
     }
 
-    const newMediaFile: StoredMediaFile = {
+    const fileId = "file_" + Math.random().toString(36).substring(2, 9);
+    const fallbackFile: StoredMediaFile = {
       id: fileId,
       name: file.name,
       size: file.size,
-      type: file.type || "application/pdf",
-      url: targetUrl,
+      type: file.type || "application/octet-stream",
+      url: URL.createObjectURL(file),
       uploadedAt: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
       category,
     };
-
-    const updated = [newMediaFile, ...media];
+    const updated = [fallbackFile, ...media];
     updateMedia(updated);
-    return newMediaFile;
+    return fallbackFile;
   };
 
   const resetToDefaults = () => {

@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { reports as defaultReports, Report } from "../../_lib/content";
 import { useAdminStore } from "../../_lib/admin-store";
 import ReportView from "../../_components/ReportView";
+import DynamicReportView from "../../_components/dynamic-report-view";
 import CleanPdfRenderer from "../../_components/clean-pdf-renderer";
 import { adaptReportToRichView } from "../../_lib/report-adapter";
 
@@ -33,12 +34,32 @@ export default function ResearchDetailPage() {
       setIsSaved(Boolean(found.isSaved));
     }
 
-    // 2. Fetch raw report HTML/Markdown from API if available in public/
-    fetch(`/api/reports/${slug}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.found && data.html) {
-          setRawHtml(data.html);
+    // 2. Fetch raw report HTML from htmlUrl if available, or from /api/reports/${slug}
+    const targetUrl = found?.htmlUrl || `/api/reports/${slug}`;
+    fetch(targetUrl)
+      .then(async (res) => {
+        if (!res.ok) {
+          if (targetUrl !== `/api/reports/${slug}`) {
+            const apiRes = await fetch(`/api/reports/${slug}`);
+            const apiData = await apiRes.json();
+            if (apiData.found && apiData.html) {
+              setRawHtml(apiData.html);
+            }
+          }
+          return;
+        }
+
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const data = await res.json();
+          if (data.found && data.html) {
+            setRawHtml(data.html);
+          }
+        } else {
+          const text = await res.text();
+          if (text && text.trim()) {
+            setRawHtml(text);
+          }
         }
       })
       .catch((err) => {
@@ -208,6 +229,17 @@ export default function ResearchDetailPage() {
       )}
     </div>
   );
+
+  if (rawHtml || report?.htmlUrl || report?.htmlContent) {
+    return (
+      <DynamicReportView
+        htmlContent={rawHtml || report?.htmlContent || ""}
+        backUrl="/research"
+        backLabel="Back to Research Library"
+        pdfUrl={effectiveReport.pdfUrl}
+      />
+    );
+  }
 
   return (
     <div>

@@ -12,7 +12,7 @@ type ViewMode = "grid" | "list";
 
 export default function ResearchPage() {
   const { reports: storeReports } = useAdminStore();
-  const allReports = storeReports?.length > 0 ? storeReports : defaultReports;
+  const allReports = storeReports ?? [];
 
   // State management
   const [activeTab, setActiveTab] = useState<TabFilter>("all");
@@ -23,10 +23,7 @@ export default function ResearchPage() {
   const [publishedFilter, setPublishedFilter] = useState("any");
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
-  const [savedSlugs, setSavedSlugs] = useState<Record<string, boolean>>({
-    "racl-geartech-understanding-the-next-phase": true,
-    "specialty-chemicals-reading-the-recovery": true,
-  });
+  const [savedSlugs, setSavedSlugs] = useState<Record<string, boolean>>({});
   const [currentPage, setCurrentPage] = useState(1);
 
   // Toggle bookmark / saved

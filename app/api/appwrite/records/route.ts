@@ -51,6 +51,13 @@ export async function GET(req: NextRequest) {
       }
 
       const res = await tablesDB.listRows(databaseId, table);
+      if (table === "ideas") {
+        const rowsWithHtml = res.rows.map((r: any) => ({
+          ...r,
+          htmlUrl: r.htmlUrl || (r.slug ? `/${r.slug}.html` : (r.$id ? `/${r.$id}.html` : `/${r.ticker?.toLowerCase()}.html`)),
+        }));
+        return NextResponse.json({ success: true, table, total: res.total, rows: rowsWithHtml });
+      }
       return NextResponse.json({ success: true, table, total: res.total, rows: res.rows });
     }
 
@@ -61,7 +68,14 @@ export async function GET(req: NextRequest) {
     for (const t of allTables) {
       try {
         const res = await tablesDB.listRows(databaseId, t);
-        results[t] = res.rows;
+        if (t === "ideas") {
+          results[t] = res.rows.map((r: any) => ({
+            ...r,
+            htmlUrl: r.htmlUrl || (r.slug ? `/${r.slug}.html` : (r.$id ? `/${r.$id}.html` : `/${r.ticker?.toLowerCase()}.html`)),
+          }));
+        } else {
+          results[t] = res.rows;
+        }
       } catch (err) {
         console.warn(`Could not list rows for table ${t}:`, err);
         results[t] = [];
@@ -119,26 +133,16 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
     "htmlUrl",
   ],
   ideas: [
-    "id",
     "ticker",
     "company",
     "sector",
     "mcap",
-    "published",
     "sharedPrice",
-    "refPrice",
     "currentPrice",
-    "latestPrice",
     "sharedDate",
-    "returnPct",
-    "coverage",
     "pdfUrl",
     "htmlUrl",
-    "htmlContent",
     "thesis",
-    "studying",
-    "challenge",
-    "watchNext",
   ],
   ipos: [
     "slug",
@@ -196,7 +200,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { tablesDB, storage, databaseId } = getAppwriteClient();
+    const { tablesDB, databases, storage, databaseId } = getAppwriteClient();
 
     // Clean raw payload
     const rawPayload: Record<string, unknown> = {};
@@ -213,21 +217,9 @@ export async function POST(req: NextRequest) {
     const rowId = toSafeRowId(id);
     const slug = (typeof rawPayload.slug === "string" && rawPayload.slug.trim()) ? rawPayload.slug.trim() : id;
 
-    // Handle HTML content for reports or documents
+    // Handle HTML content for reports or documents - Persist exclusively to Appwrite Storage
     if (typeof rawPayload.htmlContent === "string" && rawPayload.htmlContent.trim()) {
       const fullHtml = rawPayload.htmlContent;
-
-      // 1. Write the full HTML to public folder so it's always accessible with zero size limits
-      try {
-        const publicDir = path.join(process.cwd(), "public");
-        const filePath = path.join(publicDir, `${slug}.html`);
-        fs.writeFileSync(filePath, fullHtml, "utf-8");
-        rawPayload.htmlUrl = `/${slug}.html`;
-      } catch (fsErr) {
-        console.warn("Failed to write HTML file to public directory:", fsErr);
-      }
-
-      // 2. Also persist to Appwrite Storage bucket (aethos_pdfs) for cloud backups
       try {
         const fileId = toSafeRowId(`${slug}-html`);
         const { InputFile } = await import("node-appwrite/file");
@@ -237,8 +229,11 @@ export async function POST(req: NextRequest) {
           // ignore if doesn't exist
         }
         await storage.createFile("aethos_pdfs", fileId, InputFile.fromBuffer(Buffer.from(fullHtml, "utf-8"), `${slug}.html`));
+        const endpoint = process.env.APPWRITE_ENDPOINT || "https://sgp.cloud.appwrite.io/v1";
+        const projectId = process.env.APPWRITE_PROJECT_ID || "aethos-wealth";
+        rawPayload.htmlUrl = `${endpoint}/storage/buckets/aethos_pdfs/files/${fileId}/view?project=${projectId}`;
       } catch (storageErr) {
-        console.warn("Supplementary upload to Appwrite Storage:", storageErr);
+        console.warn("Upload to Appwrite Storage failed:", storageErr);
       }
     }
 
@@ -273,19 +268,50 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    try {
-      // Try to update existing row first
-      const updated = await tablesDB.updateRow(databaseId, table, rowId, payload);
-      return NextResponse.json({ success: true, action: "updated", row: updated });
-    } catch (updateErr) {
-      // Create new row
+    // Default required fields for table 'ideas'
+    if (table === "ideas") {
+      payload.ticker = payload.ticker || rawPayload.ticker || "";
+      payload.company = payload.company || rawPayload.company || "";
+      payload.sector = payload.sector || rawPayload.sector || "Auto components";
+      payload.mcap = payload.mcap || rawPayload.mcap || "";
+      payload.sharedPrice = Number(payload.sharedPrice ?? rawPayload.sharedPrice ?? rawPayload.refPrice ?? 0);
+      payload.currentPrice = Number(payload.currentPrice ?? rawPayload.currentPrice ?? rawPayload.latestPrice ?? 0);
+      payload.sharedDate = payload.sharedDate || rawPayload.sharedDate || rawPayload.published || new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+      payload.htmlUrl = payload.htmlUrl || rawPayload.htmlUrl || `/${slug}.html`;
+      payload.thesis = payload.thesis || rawPayload.thesis || rawPayload.studying || "";
+    }
+
+    const activePayload = { ...payload };
+
+    for (let attempt = 0; attempt < 6; attempt++) {
       try {
-        const created = await tablesDB.createRow(databaseId, table, rowId, payload);
-        return NextResponse.json({ success: true, action: "created", row: created });
-      } catch (createErr) {
-        console.error(`Error saving to Appwrite table [${table}] row [${rowId}]:`, createErr);
+        try {
+          const updated = await tablesDB.updateRow(databaseId, table, rowId, activePayload);
+          return NextResponse.json({ success: true, action: "updated", row: updated });
+        } catch (updateErr: any) {
+          const updateMsg = updateErr?.message || String(updateErr);
+          if (updateMsg.includes("Unknown attribute")) {
+            throw updateErr;
+          }
+          const created = await tablesDB.createRow(databaseId, table, rowId, activePayload);
+          return NextResponse.json({ success: true, action: "created", row: created });
+        }
+      } catch (err: any) {
+        const errMsg = err?.message || String(err);
+        const match = errMsg.match(/Unknown attribute: ["'\\]*([^"'\s\\/]+)["'\\]*/i);
+        if (match && match[1] && activePayload[match[1]] !== undefined) {
+          const unknownAttr = match[1];
+          delete activePayload[unknownAttr];
+          // Try to create the missing attribute in Appwrite database for future writes
+          try {
+            databases.createStringAttribute(databaseId, table, unknownAttr, 1000, false).catch(() => {});
+          } catch {}
+          continue;
+        }
+
+        console.error(`Error saving to Appwrite table [${table}] row [${rowId}]:`, err);
         return NextResponse.json(
-          { success: false, error: createErr instanceof Error ? createErr.message : String(createErr) },
+          { success: false, error: errMsg },
           { status: 400 }
         );
       }
@@ -336,7 +362,11 @@ export async function DELETE(req: NextRequest) {
     }
 
     // 3. Delete associated files from Appwrite Storage (aethos_pdfs bucket)
-    const slug = existingRow?.slug || id;
+    const paramHtmlUrl = searchParams.get("htmlUrl");
+    const paramPdfUrl = searchParams.get("pdfUrl");
+    const paramSlug = searchParams.get("slug");
+
+    const slug = existingRow?.slug || paramSlug || id;
     const storageFileIds = new Set<string>();
 
     if (table === "media") {
@@ -349,11 +379,51 @@ export async function DELETE(req: NextRequest) {
       storageFileIds.add(toSafeRowId(id));
 
       // Check if htmlUrl has a file ID
-      if (existingRow?.htmlUrl && typeof existingRow.htmlUrl === "string") {
-        const match = existingRow.htmlUrl.match(/files\/([^/?]+)/);
-        if (match && match[1]) {
-          storageFileIds.add(match[1]);
+      const htmlUrls = [existingRow?.htmlUrl, paramHtmlUrl].filter(Boolean);
+      for (const hUrl of htmlUrls) {
+        if (typeof hUrl === "string") {
+          const match = hUrl.match(/files\/([^/?]+)/);
+          if (match && match[1]) {
+            storageFileIds.add(match[1]);
+          }
         }
+      }
+
+      // Check if pdfUrl has a file ID
+      const pdfUrls = [existingRow?.pdfUrl, paramPdfUrl].filter(Boolean);
+      for (const pUrl of pdfUrls) {
+        if (typeof pUrl === "string") {
+          const match = pUrl.match(/files\/([^/?]+)/);
+          if (match && match[1]) {
+            storageFileIds.add(match[1]);
+          }
+        }
+      }
+
+      // Scan bucket files to find matching files by name
+      try {
+        const listRes = await storage.listFiles("aethos_pdfs");
+        if (listRes && Array.isArray(listRes.files)) {
+          const targetSlug = slug.toLowerCase();
+          const targetId = id.toLowerCase();
+          for (const file of listRes.files) {
+            const fn = file.name.toLowerCase();
+            if (
+              fn === `${targetSlug}.html` ||
+              fn === `${targetId}.html` ||
+              fn === `${targetSlug}.pdf` ||
+              fn === `${targetId}.pdf` ||
+              file.$id === targetSlug ||
+              file.$id === targetId ||
+              file.$id === `${targetSlug}-html` ||
+              file.$id === `${targetId}-html`
+            ) {
+              storageFileIds.add(file.$id);
+            }
+          }
+        }
+      } catch (listErr) {
+        console.warn("Could not list files for deletion scan:", listErr);
       }
     }
 

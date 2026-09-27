@@ -297,7 +297,6 @@ export default function AdminPage() {
     challenge: "",
     watchNext: "",
     thesis: "",
-    pdfUrl: "",
     htmlUrl: "",
     htmlContent: "",
   });
@@ -449,7 +448,6 @@ export default function AdminPage() {
                 challenge: parsed.challenge || prev.challenge,
                 watchNext: parsed.watchNext || prev.watchNext,
                 thesis: parsed.thesis || prev.thesis,
-                pdfUrl: parsed.pdfUrl || prev.pdfUrl,
                 htmlContent: parsed.htmlContent || text,
               }));
               showNotification(`Imported Aethos idea specification from "${file.name}"`, "success");
@@ -550,10 +548,11 @@ ${report.sections
     setIdeaDrawerMode("edit");
     if (idea) {
       setEditingIdea(idea);
+      const ideaSlug = idea.slug || idea.id || "";
       setIdeaForm({
         company: idea.company || "",
         ticker: idea.ticker || "",
-        slug: idea.slug || idea.id || "",
+        slug: ideaSlug,
         sector: idea.sector || "Auto components",
         coverage: (idea.coverage as string) || "Coverage ongoing",
         published: idea.published || idea.sharedDate || "",
@@ -564,8 +563,7 @@ ${report.sections
         challenge: idea.challenge || "",
         watchNext: idea.watchNext || "",
         thesis: idea.thesis || "",
-        pdfUrl: idea.pdfUrl || "",
-        htmlUrl: idea.htmlUrl || "",
+        htmlUrl: idea.htmlUrl || (ideaSlug ? `/${ideaSlug}.html` : ""),
         htmlContent: idea.htmlContent || "",
       });
     } else {
@@ -584,7 +582,6 @@ ${report.sections
         challenge: "",
         watchNext: "",
         thesis: "",
-        pdfUrl: "",
         htmlUrl: "",
         htmlContent: "",
       });
@@ -694,6 +691,22 @@ ${report.sections
     setActiveDrawer(null);
   };
 
+  // Check duplicate idea slug
+  const isIdeaSlugDuplicate = (slugToCheck: string) => {
+    const clean = slugToCheck.trim().toLowerCase();
+    if (!clean) return false;
+    return ideas.some((i) => {
+      const itemSlug = (i.slug || i.id || "").toLowerCase();
+      if (editingIdea) {
+        const editingSlug = (editingIdea.slug || editingIdea.id || "").toLowerCase();
+        if (itemSlug === editingSlug || i.id.toLowerCase() === editingIdea.id.toLowerCase()) {
+          return false;
+        }
+      }
+      return itemSlug === clean || i.id.toLowerCase() === clean;
+    });
+  };
+
   // Save idea
   const handleSaveIdea = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -708,27 +721,11 @@ ${report.sections
     ).slice(0, 60);
 
     if (!slug) {
-      alert("A valid URL slug is required");
       showNotification("A valid URL slug is required", "error");
       return;
     }
 
-    const id = (editingIdea?.id || slug).trim();
-
-    // Check if idea slug or id already exists
-    const isDuplicate = ideas.some((i) => {
-      if (editingIdea && (i.id === editingIdea.id || (editingIdea.slug && i.slug === editingIdea.slug))) {
-        return false;
-      }
-      return (
-        i.id.toLowerCase() === slug.toLowerCase() ||
-        (i.slug && i.slug.toLowerCase() === slug.toLowerCase()) ||
-        i.ticker.toLowerCase() === ideaForm.ticker.trim().toLowerCase()
-      );
-    });
-
-    if (isDuplicate) {
-      alert(`An Aethos idea with URL slug "${slug}" already exists. Please choose a different slug.`);
+    if (isIdeaSlugDuplicate(slug)) {
       showNotification(`An Aethos idea with URL slug "${slug}" already exists. Please choose a different slug.`, "error");
       return;
     }
@@ -740,25 +737,13 @@ ${report.sections
 
     const autoPublished = editingIdea?.published || editingIdea?.sharedDate || new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
-    let finalHtmlUrl = ideaForm.htmlUrl.trim();
+    const finalHtmlUrl = ideaForm.htmlUrl.trim() || `/${slug}.html`;
 
-    // If HTML content is provided, upload it to Appwrite Storage and use the link
-    if (ideaForm.htmlContent && ideaForm.htmlContent.trim()) {
-      try {
-        const htmlBlob = new Blob([ideaForm.htmlContent.trim()], { type: "text/html;charset=utf-8" });
-        const htmlFile = new File([htmlBlob], `${id}.html`, { type: "text/html" });
-        const storedFile = await uploadPdfFile(htmlFile, "Idea");
-        if (storedFile && storedFile.url) {
-          finalHtmlUrl = storedFile.url;
-        }
-      } catch (uploadErr) {
-        console.warn("Failed uploading HTML report to Appwrite Storage:", uploadErr);
-      }
-    }
+    const existingIndex = ideas.findIndex(
+      (i) => i.id.toLowerCase() === slug.toLowerCase() || (i.slug && i.slug.toLowerCase() === slug.toLowerCase())
+    );
 
-    if (!finalHtmlUrl) {
-      finalHtmlUrl = `/${id}.html`;
-    }
+    const id = (editingIdea?.id || (existingIndex >= 0 ? ideas[existingIndex].id : slug)).trim();
 
     const ideaObj: StockIdea = {
       id,
@@ -779,14 +764,17 @@ ${report.sections
       challenge: ideaForm.challenge.trim(),
       watchNext: ideaForm.watchNext.trim(),
       thesis: ideaForm.thesis.trim(),
-      pdfUrl: ideaForm.pdfUrl.trim() || undefined,
       htmlUrl: finalHtmlUrl,
       htmlContent: ideaForm.htmlContent.trim() || undefined,
     };
 
-    if (editingIdea) {
-      const updated = ideas.map((i) => (i.id === editingIdea.id ? ideaObj : i));
-      const res = await updateIdeas(updated, { action: "save", idea: ideaObj });
+    setActiveDrawer(null);
+
+    if (editingIdea || existingIndex >= 0) {
+      const targetId = editingIdea ? editingIdea.id : ideas[existingIndex].id;
+      const updatedIdeaObj = { ...ideaObj, id: targetId };
+      const updated = ideas.map((i) => (i.id === targetId ? updatedIdeaObj : i));
+      const res = await updateIdeas(updated, { action: "save", idea: updatedIdeaObj });
       if (!res.success) {
         showNotification(`Failed saving Aethos idea: ${res.error}`, "error");
       } else {
@@ -800,8 +788,6 @@ ${report.sections
         showNotification(`Aethos idea "${ideaForm.company}" created & synced to Appwrite`, "success");
       }
     }
-
-    setActiveDrawer(null);
   };
 
   // Save IPO
@@ -1276,34 +1262,11 @@ ${report.sections
       {activeTab === "ideas" && (
         <div>
           {/* Header Action Bar */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", flexWrap: "wrap", gap: "12px" }}>
-            <div>
-              <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#0f172a", margin: "0 0 4px 0" }}>Aethos Ideas</h2>
-              <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>
-                Manage high-conviction investment ideas, thesis pillars, and formatted HTML research reports.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleOpenIdeaDrawer()}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                background: "#0f172a",
-                color: "#ffffff",
-                border: "none",
-                borderRadius: "6px",
-                padding: "9px 16px",
-                fontSize: "13px",
-                fontWeight: "600",
-                cursor: "pointer",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-              }}
-            >
-              <IconPlus />
-              Add New Aethos Idea
-            </button>
+          <div style={{ marginBottom: "18px" }}>
+            <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#0f172a", margin: "0 0 4px 0" }}>Aethos Ideas</h2>
+            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>
+              Manage high-conviction investment ideas, thesis pillars, and formatted HTML research reports.
+            </p>
           </div>
 
           {/* Ideas Table */}
@@ -1389,11 +1352,6 @@ ${report.sections
                           {hasHtml && (
                             <span style={{ fontSize: "9px", fontWeight: "700", background: "#eff6ff", color: "#2563eb", padding: "2px 5px", borderRadius: "4px" }}>
                               HTML
-                            </span>
-                          )}
-                          {idea.pdfUrl && (
-                            <span style={{ fontSize: "9px", fontWeight: "700", background: "#fef2f2", color: "#dc2626", padding: "2px 5px", borderRadius: "4px" }}>
-                              PDF
                             </span>
                           )}
                         </div>
@@ -2926,7 +2884,7 @@ ${report.sections
                           style={{
                             width: "100%",
                             padding: "8px 12px",
-                            border: ideas.some((i) => (i.id.toLowerCase() === ideaForm.slug.trim().toLowerCase() || (i.slug && i.slug.toLowerCase() === ideaForm.slug.trim().toLowerCase())) && (!editingIdea || (editingIdea.id !== i.id && editingIdea.slug !== i.slug))) && ideaForm.slug.trim()
+                            border: isIdeaSlugDuplicate(ideaForm.slug)
                               ? "1px solid #dc2626"
                               : "1px solid #cbd5e1",
                             borderRadius: "6px",
@@ -2934,9 +2892,9 @@ ${report.sections
                             background: "#ffffff",
                           }}
                         />
-                        {ideas.some((i) => (i.id.toLowerCase() === ideaForm.slug.trim().toLowerCase() || (i.slug && i.slug.toLowerCase() === ideaForm.slug.trim().toLowerCase())) && (!editingIdea || (editingIdea.id !== i.id && editingIdea.slug !== i.slug))) && ideaForm.slug.trim() && (
+                        {isIdeaSlugDuplicate(ideaForm.slug) && (
                           <span style={{ fontSize: "11px", color: "#dc2626", marginTop: "3px", display: "block", fontWeight: "500" }}>
-                            ⚠️ An idea with URL slug "{ideaForm.slug.trim()}" already exists.
+                            ⚠️ An idea with URL slug &quot;{ideaForm.slug.trim()}&quot; already exists.
                           </span>
                         )}
                       </div>
@@ -3131,31 +3089,17 @@ ${report.sections
                       </div>
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                      <div>
-                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                          PDF File URL (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={ideaForm.pdfUrl}
-                          onChange={(e) => setIdeaForm((prev) => ({ ...prev, pdfUrl: e.target.value }))}
-                          placeholder="/RACL GEARTECH LIMITED.pdf"
-                          style={{ width: "100%", padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px" }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                          HTML Report URL (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={ideaForm.htmlUrl}
-                          onChange={(e) => setIdeaForm((prev) => ({ ...prev, htmlUrl: e.target.value }))}
-                          placeholder="/racl-geartech.html"
-                          style={{ width: "100%", padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px" }}
-                        />
-                      </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        HTML Report URL (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={ideaForm.htmlUrl}
+                        onChange={(e) => setIdeaForm((prev) => ({ ...prev, htmlUrl: e.target.value }))}
+                        placeholder="/racl-geartech.html"
+                        style={{ width: "100%", padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px" }}
+                      />
                     </div>
 
                     {/* Sticky Footer Actions */}
@@ -3169,7 +3113,18 @@ ${report.sections
                       </button>
                       <button
                         type="submit"
-                        style={{ padding: "8px 18px", background: "#0f172a", border: "none", borderRadius: "6px", fontSize: "13px", fontWeight: "600", color: "#ffffff", cursor: "pointer" }}
+                        disabled={isIdeaSlugDuplicate(ideaForm.slug)}
+                        style={{
+                          padding: "8px 18px",
+                          background: isIdeaSlugDuplicate(ideaForm.slug) ? "#94a3b8" : "#0f172a",
+                          border: "none",
+                          borderRadius: "6px",
+                          fontSize: "13px",
+                          fontWeight: "600",
+                          color: "#ffffff",
+                          cursor: isIdeaSlugDuplicate(ideaForm.slug) ? "not-allowed" : "pointer",
+                          opacity: isIdeaSlugDuplicate(ideaForm.slug) ? 0.7 : 1,
+                        }}
                       >
                         {editingIdea ? "Save Aethos Idea" : "Create Aethos Idea"}
                       </button>
@@ -3242,7 +3197,7 @@ ${report.sections
                               style={{
                                 width: "100%",
                                 padding: "6px 10px",
-                                border: ideas.some((i) => (i.id.toLowerCase() === ideaForm.slug.trim().toLowerCase() || (i.slug && i.slug.toLowerCase() === ideaForm.slug.trim().toLowerCase())) && (!editingIdea || (editingIdea.id !== i.id && editingIdea.slug !== i.slug))) && ideaForm.slug.trim()
+                                border: isIdeaSlugDuplicate(ideaForm.slug)
                                   ? "1px solid #dc2626"
                                   : "1px solid #cbd5e1",
                                 borderRadius: "5px",
@@ -3250,7 +3205,7 @@ ${report.sections
                                 background: "#ffffff",
                               }}
                             />
-                            {ideas.some((i) => (i.id.toLowerCase() === ideaForm.slug.trim().toLowerCase() || (i.slug && i.slug.toLowerCase() === ideaForm.slug.trim().toLowerCase())) && (!editingIdea || (editingIdea.id !== i.id && editingIdea.slug !== i.slug))) && ideaForm.slug.trim() && (
+                            {isIdeaSlugDuplicate(ideaForm.slug) && (
                               <span style={{ fontSize: "10.5px", color: "#dc2626", marginTop: "2px", display: "block", fontWeight: "500" }}>
                                 ⚠️ URL slug already in use
                               </span>
@@ -3457,7 +3412,18 @@ ${report.sections
                           </button>
                           <button
                             type="submit"
-                            style={{ padding: "7px 16px", background: "#0f172a", border: "none", borderRadius: "6px", fontSize: "12.5px", fontWeight: "600", color: "#ffffff", cursor: "pointer" }}
+                            disabled={isIdeaSlugDuplicate(ideaForm.slug)}
+                            style={{
+                              padding: "7px 16px",
+                              background: isIdeaSlugDuplicate(ideaForm.slug) ? "#94a3b8" : "#0f172a",
+                              border: "none",
+                              borderRadius: "6px",
+                              fontSize: "12.5px",
+                              fontWeight: "600",
+                              color: "#ffffff",
+                              cursor: isIdeaSlugDuplicate(ideaForm.slug) ? "not-allowed" : "pointer",
+                              opacity: isIdeaSlugDuplicate(ideaForm.slug) ? 0.7 : 1,
+                            }}
                           >
                             {editingIdea ? "Save" : "Create"}
                           </button>

@@ -237,6 +237,7 @@ export async function POST(req: NextRequest) {
     await addFloatCol("ideas", "currentPrice", true);
     await addStringCol("ideas", "sharedDate", 50, true);
     await addStringCol("ideas", "pdfUrl", 1000, false);
+    await addStringCol("ideas", "htmlUrl", 1000, false);
     await addStringCol("ideas", "thesis", 65535, false);
 
     // --- Table: ipos ---

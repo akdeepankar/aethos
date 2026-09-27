@@ -154,9 +154,20 @@ async function persistToAppwrite(table: string, id: string, data: Record<string,
   }
 }
 
-async function deleteFromAppwrite(table: string, id: string): Promise<{ success: boolean; error?: string }> {
+async function deleteFromAppwrite(
+  table: string,
+  id: string,
+  extraParams?: { htmlUrl?: string; pdfUrl?: string; slug?: string }
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await fetch(`/api/appwrite/records?table=${table}&id=${encodeURIComponent(id)}`, {
+    const params = new URLSearchParams({
+      table,
+      id,
+      ...(extraParams?.htmlUrl ? { htmlUrl: extraParams.htmlUrl } : {}),
+      ...(extraParams?.pdfUrl ? { pdfUrl: extraParams.pdfUrl } : {}),
+      ...(extraParams?.slug ? { slug: extraParams.slug } : {}),
+    });
+    const res = await fetch(`/api/appwrite/records?${params.toString()}`, {
       method: "DELETE",
     });
     const json = await res.json().catch(() => null);
@@ -235,23 +246,26 @@ export function useAdminStore() {
             const id = (i.id || i.$id || i.ticker || "").toLowerCase().trim();
             if (id && !seen.has(id)) {
               seen.add(id);
+              const ideaSlug = (i.slug && !i.slug.startsWith("http") ? i.slug : id || (i.ticker ? i.ticker.toLowerCase() : "")).toLowerCase().trim();
+              const ideaHtmlUrl = i.htmlUrl || (ideaSlug ? `/${ideaSlug}.html` : `/${id}.html`);
               parsedIdeas.push({
                 id,
-                ticker: i.ticker || "",
-                company: i.company || "",
-                sector: i.sector || "Auto components",
-                mcap: i.mcap || "2,000",
-                published: i.published || i.sharedDate || "Today",
-                sharedPrice: Number(i.sharedPrice || i.refPrice || 0),
-                refPrice: Number(i.refPrice || i.sharedPrice || 0),
-                currentPrice: Number(i.currentPrice || i.latestPrice || 0),
-                latestPrice: Number(i.latestPrice || i.currentPrice || 0),
-                sharedDate: i.sharedDate || i.published || "Today",
-                returnPct: i.returnPct || undefined,
-                coverage: i.coverage || "Coverage ongoing",
-                pdfUrl: i.pdfUrl || undefined,
-                htmlUrl: i.htmlUrl || (id ? `/${id}.html` : undefined),
-                htmlContent: i.htmlContent || undefined,
+                slug: ideaSlug || id,
+                  ticker: i.ticker || "",
+                  company: i.company || "",
+                  sector: i.sector || "Auto components",
+                  mcap: i.mcap || "2,000",
+                  published: i.published || i.sharedDate || "Today",
+                  sharedPrice: Number(i.sharedPrice || i.refPrice || 0),
+                  refPrice: Number(i.refPrice || i.sharedPrice || 0),
+                  currentPrice: Number(i.currentPrice || i.latestPrice || 0),
+                  latestPrice: Number(i.latestPrice || i.currentPrice || 0),
+                  sharedDate: i.sharedDate || i.published || "Today",
+                  returnPct: i.returnPct || undefined,
+                  coverage: i.coverage || "Coverage ongoing",
+                  pdfUrl: i.pdfUrl || undefined,
+                  htmlUrl: ideaHtmlUrl,
+                  htmlContent: i.htmlContent || undefined,
                 thesis: i.thesis || undefined,
                 studying: i.studying || undefined,
                 challenge: i.challenge || undefined,
@@ -373,40 +387,91 @@ export function useAdminStore() {
           isNew: Boolean(itemToPersist.report.isNew),
         });
       } else if (itemToPersist.action === "delete") {
-        return await deleteFromAppwrite("reports", itemToPersist.report.slug);
+        const report = itemToPersist.report;
+        const htmlFileId = report.htmlUrl?.match(/files\/([^/?]+)/)?.[1];
+        const pdfFileId = report.pdfUrl?.match(/files\/([^/?]+)/)?.[1];
+
+        if (htmlFileId) {
+          fetch(`/api/appwrite/media?id=${encodeURIComponent(htmlFileId)}`, { method: "DELETE" }).catch(() => {});
+        }
+        if (pdfFileId) {
+          fetch(`/api/appwrite/media?id=${encodeURIComponent(pdfFileId)}`, { method: "DELETE" }).catch(() => {});
+        }
+
+        setMedia((prevMedia) =>
+          prevMedia.filter(
+            (m) =>
+              m.id !== htmlFileId &&
+              m.id !== pdfFileId &&
+              m.name !== `${report.slug}.html`
+          )
+        );
+
+        return await deleteFromAppwrite("reports", itemToPersist.report.slug, {
+          htmlUrl: itemToPersist.report.htmlUrl,
+          pdfUrl: itemToPersist.report.pdfUrl,
+          slug: itemToPersist.report.slug,
+        });
       }
     }
     return { success: true };
   };
 
   const updateIdeas = async (newIdeas: StockIdea[], itemToPersist?: { action: "save" | "delete"; idea: StockIdea }): Promise<{ success: boolean; error?: string }> => {
+    const prevIdeas = ideas;
     setIdeas(newIdeas);
     setStoredData(STORAGE_KEYS.IDEAS, newIdeas);
 
     if (itemToPersist) {
       if (itemToPersist.action === "save") {
-        return await persistToAppwrite("ideas", itemToPersist.idea.id, {
+        const res = await persistToAppwrite("ideas", itemToPersist.idea.id, {
+          slug: itemToPersist.idea.slug || itemToPersist.idea.id,
           ticker: itemToPersist.idea.ticker,
           company: itemToPersist.idea.company,
           sector: itemToPersist.idea.sector,
           mcap: itemToPersist.idea.mcap,
-          published: itemToPersist.idea.published || itemToPersist.idea.sharedDate || "",
           sharedDate: itemToPersist.idea.sharedDate || itemToPersist.idea.published || "",
           sharedPrice: itemToPersist.idea.sharedPrice || itemToPersist.idea.refPrice || 0,
-          refPrice: itemToPersist.idea.refPrice || itemToPersist.idea.sharedPrice || 0,
           currentPrice: itemToPersist.idea.currentPrice || itemToPersist.idea.latestPrice || 0,
-          latestPrice: itemToPersist.idea.latestPrice || itemToPersist.idea.currentPrice || 0,
-          coverage: itemToPersist.idea.coverage || "Coverage ongoing",
           pdfUrl: itemToPersist.idea.pdfUrl || "",
-          htmlUrl: itemToPersist.idea.htmlUrl || (itemToPersist.idea.id ? `/${itemToPersist.idea.id}.html` : ""),
+          htmlUrl: itemToPersist.idea.htmlUrl || (itemToPersist.idea.slug ? `/${itemToPersist.idea.slug}.html` : (itemToPersist.idea.id ? `/${itemToPersist.idea.id}.html` : "")),
           htmlContent: itemToPersist.idea.htmlContent || "",
-          thesis: itemToPersist.idea.thesis || "",
-          studying: itemToPersist.idea.studying || "",
-          challenge: itemToPersist.idea.challenge || "",
-          watchNext: itemToPersist.idea.watchNext || "",
+          thesis: itemToPersist.idea.thesis || itemToPersist.idea.studying || "",
         });
+        if (!res.success) {
+          setIdeas(prevIdeas);
+          setStoredData(STORAGE_KEYS.IDEAS, prevIdeas);
+        }
+        return res;
       } else if (itemToPersist.action === "delete") {
-        return await deleteFromAppwrite("ideas", itemToPersist.idea.id);
+        const idea = itemToPersist.idea;
+        const htmlFileId = idea.htmlUrl?.match(/files\/([^/?]+)/)?.[1];
+        const pdfFileId = idea.pdfUrl?.match(/files\/([^/?]+)/)?.[1];
+
+        // Also delete from media endpoint directly if file IDs exist
+        if (htmlFileId) {
+          fetch(`/api/appwrite/media?id=${encodeURIComponent(htmlFileId)}`, { method: "DELETE" }).catch(() => {});
+        }
+        if (pdfFileId) {
+          fetch(`/api/appwrite/media?id=${encodeURIComponent(pdfFileId)}`, { method: "DELETE" }).catch(() => {});
+        }
+
+        // Remove from local media state
+        setMedia((prevMedia) =>
+          prevMedia.filter(
+            (m) =>
+              m.id !== htmlFileId &&
+              m.id !== pdfFileId &&
+              m.name !== `${idea.id}.html` &&
+              m.name !== `${idea.slug}.html`
+          )
+        );
+
+        return await deleteFromAppwrite("ideas", itemToPersist.idea.id, {
+          htmlUrl: itemToPersist.idea.htmlUrl,
+          pdfUrl: itemToPersist.idea.pdfUrl,
+          slug: itemToPersist.idea.slug,
+        });
       }
     }
     return { success: true };

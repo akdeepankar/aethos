@@ -50,34 +50,40 @@ export default function ResearchDetailPage() {
       }
     }
 
-    // 2. Fetch raw report HTML from /api/reports/${slug} and fallback sources
-    fetch(`/api/reports/${slug}`)
-      .then(async (res) => {
-        if (res.ok) {
-          const data = await res.json();
-          if (data.found && data.html) {
-            setRawHtml(data.html);
-            return;
-          }
-        }
+    // 2. Fetch raw report HTML from Appwrite Cloud Storage URL or API
+    const fetchPromises: Promise<void>[] = [];
 
-        // Try direct external htmlUrl if available
-        if (found?.htmlUrl && found.htmlUrl.startsWith("http")) {
-          const directRes = await fetch(found.htmlUrl);
-          if (directRes.ok) {
-            const directText = await directRes.text();
-            if (directText && directText.trim()) {
-              setRawHtml(directText);
+    if (found?.htmlUrl && found.htmlUrl.startsWith("http")) {
+      fetchPromises.push(
+        fetch(found.htmlUrl)
+          .then((r) => r.text())
+          .then((html) => {
+            if (html && html.includes("<")) {
+              setRawHtml(html);
+            }
+          })
+          .catch(() => {})
+      );
+    }
+
+    fetchPromises.push(
+      fetch(`/api/reports/${slug}`)
+        .then(async (res) => {
+          if (res.ok) {
+            const data = await res.json();
+            if (data.found && data.html) {
+              setRawHtml(data.html);
             }
           }
-        }
-      })
-      .catch((err) => {
-        console.warn("Failed to fetch report HTML:", err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+        })
+        .catch((err) => {
+          console.warn("Failed to fetch report HTML:", err);
+        })
+    );
+
+    Promise.allSettled(fetchPromises).finally(() => {
+      setLoading(false);
+    });
   }, [slug, storeReports]);
 
   if (loading) {

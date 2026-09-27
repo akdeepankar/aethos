@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getReportHtml } from "../../../_lib/report-reader";
 import { Client, Storage, TablesDB } from "node-appwrite";
-import fs from "node:fs";
-import path from "node:path";
 
 function toSafeRowId(id: string): string {
   const cleaned = id.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/^[^a-zA-Z0-9]+/, "") || "doc";
@@ -61,11 +59,6 @@ export async function GET(
           if (fileBuffer) {
             const html = Buffer.from(fileBuffer).toString("utf-8");
             if (html && html.trim()) {
-              // Cache locally in public/
-              try {
-                const publicPath = path.join(process.cwd(), "public", `${slug}.html`);
-                fs.writeFileSync(publicPath, html, "utf-8");
-              } catch {}
               return NextResponse.json({ found: true, html });
             }
           }
@@ -93,10 +86,6 @@ export async function GET(
           if (fileBuffer) {
             const html = Buffer.from(fileBuffer).toString("utf-8");
             if (html && html.trim()) {
-              try {
-                const publicPath = path.join(process.cwd(), "public", `${slug}.html`);
-                fs.writeFileSync(publicPath, html, "utf-8");
-              } catch {}
               return NextResponse.json({ found: true, html });
             }
           }

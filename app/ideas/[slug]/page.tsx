@@ -82,29 +82,47 @@ export default function IdeaDetailPage() {
       }
     }
 
-    // 2. Fetch raw HTML from API or public HTML path if available
-    fetch(`/api/reports/${slug}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.found && data.html) {
-          setRawReportHtml(data.html);
-        } else if (storeItem?.htmlUrl) {
-          fetch(storeItem.htmlUrl)
-            .then((r) => r.text())
-            .then((html) => {
-              if (html && html.includes("<")) {
-                setRawReportHtml(html);
-              }
-            })
-            .catch(() => {});
-        }
-      })
-      .catch((err) => {
-        console.warn("Failed to fetch raw HTML report:", err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    // 2. Fetch raw HTML directly from Storage URL or API
+    const fetchPromises: Promise<void>[] = [];
+
+    if (storeItem?.htmlUrl && storeItem.htmlUrl.startsWith("http")) {
+      fetchPromises.push(
+        fetch(storeItem.htmlUrl)
+          .then((r) => r.text())
+          .then((html) => {
+            if (html && html.includes("<")) {
+              setRawReportHtml(html);
+            }
+          })
+          .catch(() => {})
+      );
+    }
+
+    fetchPromises.push(
+      fetch(`/api/reports/${slug}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.found && data.html) {
+            setRawReportHtml(data.html);
+          } else if (storeItem?.htmlUrl) {
+            fetch(storeItem.htmlUrl)
+              .then((r) => r.text())
+              .then((html) => {
+                if (html && html.includes("<")) {
+                  setRawReportHtml(html);
+                }
+              })
+              .catch(() => {});
+          }
+        })
+        .catch((err) => {
+          console.warn("Failed to fetch raw HTML report:", err);
+        })
+    );
+
+    Promise.allSettled(fetchPromises).finally(() => {
+      setLoading(false);
+    });
   }, [slug, storeIdeas]);
 
   if (loading) {
@@ -125,7 +143,6 @@ export default function IdeaDetailPage() {
         htmlContent={rawReportHtml}
         backUrl="/ideas"
         backLabel="Back to Aethos Ideas"
-        pdfUrl={idea?.pdfUrl}
       />
     );
   }
@@ -164,27 +181,6 @@ export default function IdeaDetailPage() {
         >
           ← Back to Aethos Ideas
         </Link>
-        {idea.pdfUrl && (
-          <a
-            href={idea.pdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="dash-card-link"
-            style={{
-              fontSize: "11px",
-              fontWeight: "600",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "5px",
-              padding: "6px 14px",
-              borderRadius: "6px",
-              background: "#ffffff",
-              border: "1px solid var(--gold-light)",
-            }}
-          >
-            Download PDF Report <ArrowUpRight />
-          </a>
-        )}
       </div>
 
       {/* Main Research Card */}

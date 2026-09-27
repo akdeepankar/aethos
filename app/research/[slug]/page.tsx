@@ -50,36 +50,30 @@ export default function ResearchDetailPage() {
       }
     }
 
-    // 2. Fetch raw report HTML from htmlUrl if available, or from /api/reports/${slug}
-    const targetUrl = found?.htmlUrl || `/api/reports/${slug}`;
-    fetch(targetUrl)
+    // 2. Fetch raw report HTML from /api/reports/${slug} and fallback sources
+    fetch(`/api/reports/${slug}`)
       .then(async (res) => {
-        if (!res.ok) {
-          if (targetUrl !== `/api/reports/${slug}`) {
-            const apiRes = await fetch(`/api/reports/${slug}`);
-            const apiData = await apiRes.json();
-            if (apiData.found && apiData.html) {
-              setRawHtml(apiData.html);
-            }
-          }
-          return;
-        }
-
-        const contentType = res.headers.get("content-type") || "";
-        if (contentType.includes("application/json")) {
+        if (res.ok) {
           const data = await res.json();
           if (data.found && data.html) {
             setRawHtml(data.html);
+            return;
           }
-        } else {
-          const text = await res.text();
-          if (text && text.trim()) {
-            setRawHtml(text);
+        }
+
+        // Try direct external htmlUrl if available
+        if (found?.htmlUrl && found.htmlUrl.startsWith("http")) {
+          const directRes = await fetch(found.htmlUrl);
+          if (directRes.ok) {
+            const directText = await directRes.text();
+            if (directText && directText.trim()) {
+              setRawHtml(directText);
+            }
           }
         }
       })
       .catch((err) => {
-        console.warn("Failed to check for raw HTML report:", err);
+        console.warn("Failed to fetch report HTML:", err);
       })
       .finally(() => {
         setLoading(false);
@@ -267,10 +261,28 @@ export default function ResearchDetailPage() {
     </div>
   );
 
-  if (rawHtml || report?.htmlUrl || report?.htmlContent) {
+  let effectiveHtml = rawHtml || report?.htmlContent || "";
+  if (!effectiveHtml && (report?.sections?.length || report?.deck)) {
+    effectiveHtml = `<article class="report-content" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; line-height: 1.65; max-width: 900px; margin: 0 auto; padding: 24px 20px;">
+  <header style="border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 28px;">
+    <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #2563eb; background: #eff6ff; padding: 4px 8px; border-radius: 4px;">${effectiveReport.tag || "RESEARCH NOTE"}</span>
+    <h1 style="font-size: 26px; font-weight: 800; color: #0f172a; margin: 14px 0 10px 0; line-height: 1.25;">${effectiveReport.title}</h1>
+    <p style="font-size: 15px; color: #475569; margin: 0 0 14px 0; line-height: 1.6;">${effectiveReport.deck || ""}</p>
+    <div style="font-size: 12.5px; color: #94a3b8; font-weight: 500;">Published: ${effectiveReport.date || "Recent"} · ${effectiveReport.readTime || "10 min read"}</div>
+  </header>
+  ${(effectiveReport.sections || []).map((s: any, idx: number) => `
+  <section style="margin-bottom: 32px;">
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 12px; border-left: 3px solid #2563eb; padding-left: 10px;">${idx + 1}. ${s.heading || s.title || `Section ${idx + 1}`}</h2>
+    <div style="font-size: 14.5px; color: #334155; line-height: 1.75;">${s.body || s.content || ""}</div>
+  </section>
+  `).join("")}
+</article>`;
+  }
+
+  if (effectiveHtml || rawHtml || report?.htmlUrl || report?.htmlContent) {
     return (
       <DynamicReportView
-        htmlContent={rawHtml || report?.htmlContent || ""}
+        htmlContent={effectiveHtml || "<p style='padding: 24px; color: #64748b;'>Loading report content...</p>"}
         backUrl="/research"
         backLabel="Research Library"
         pdfUrl={effectiveReport.pdfUrl}

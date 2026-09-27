@@ -106,7 +106,7 @@ const initialMediaFiles: StoredMediaFile[] = [
 
 const STORAGE_KEYS = {
   REPORTS: "aethos_admin_reports_v4",
-  IDEAS: "aethos_admin_ideas_v3",
+  IDEAS: "aethos_admin_ideas_v4",
   IPOS: "aethos_admin_ipos_v3",
   JOURNAL: "aethos_admin_journal_v3",
   USERS: "aethos_admin_users_v3",
@@ -239,7 +239,7 @@ export function useAdminStore() {
         }
 
         // Ideas
-        if (Array.isArray(d.ideas) && d.ideas.length > 0) {
+        if (Array.isArray(d.ideas)) {
           const seen = new Set<string>();
           const parsedIdeas: StockIdea[] = [];
           for (const i of d.ideas) {
@@ -248,24 +248,28 @@ export function useAdminStore() {
               seen.add(id);
               const ideaSlug = (i.slug && !i.slug.startsWith("http") ? i.slug : id || (i.ticker ? i.ticker.toLowerCase() : "")).toLowerCase().trim();
               const ideaHtmlUrl = i.htmlUrl || (ideaSlug ? `/${ideaSlug}.html` : `/${id}.html`);
+              const sPrice = Number(i.sharedPrice || i.refPrice || 0);
+              const cPrice = Number(i.currentPrice || i.latestPrice || 0);
+              const autoReturn = sPrice > 0 ? `${((cPrice - sPrice) / sPrice * 100) >= 0 ? "+" : ""}${(((cPrice - sPrice) / sPrice) * 100).toFixed(1)}%` : undefined;
+
               parsedIdeas.push({
                 id,
                 slug: ideaSlug || id,
-                  ticker: i.ticker || "",
-                  company: i.company || "",
-                  sector: i.sector || "Auto components",
-                  mcap: i.mcap || "2,000",
-                  published: i.published || i.sharedDate || "Today",
-                  sharedPrice: Number(i.sharedPrice || i.refPrice || 0),
-                  refPrice: Number(i.refPrice || i.sharedPrice || 0),
-                  currentPrice: Number(i.currentPrice || i.latestPrice || 0),
-                  latestPrice: Number(i.latestPrice || i.currentPrice || 0),
-                  sharedDate: i.sharedDate || i.published || "Today",
-                  returnPct: i.returnPct || undefined,
-                  coverage: i.coverage || "Coverage ongoing",
-                  pdfUrl: i.pdfUrl || undefined,
-                  htmlUrl: ideaHtmlUrl,
-                  htmlContent: i.htmlContent || undefined,
+                ticker: i.ticker || "",
+                company: i.company || "",
+                sector: i.sector || "Auto components",
+                mcap: i.mcap || "2,000",
+                published: i.published || i.sharedDate || "Today",
+                sharedPrice: sPrice,
+                refPrice: sPrice,
+                currentPrice: cPrice,
+                latestPrice: cPrice,
+                sharedDate: i.sharedDate || i.published || "Today",
+                returnPct: i.returnPct || autoReturn,
+                coverage: i.coverage || "Coverage ongoing",
+                pdfUrl: i.pdfUrl || undefined,
+                htmlUrl: ideaHtmlUrl,
+                htmlContent: i.htmlContent || undefined,
                 thesis: i.thesis || undefined,
                 studying: i.studying || undefined,
                 challenge: i.challenge || undefined,

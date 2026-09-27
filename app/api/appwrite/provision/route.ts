@@ -2,32 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Client, TablesDB, Databases, Storage, Permission, Role } from "node-appwrite";
 import { reports, ipos, posts } from "../../../_lib/content";
 
-const initialIdeas = [
-  {
-    id: "racl-geartech",
-    ticker: "RACLGEAR",
-    company: "RACL Geartech Limited",
-    sector: "Automobile and Auto Components",
-    mcap: "2030cr",
-    sharedPrice: 1340,
-    currentPrice: 1895,
-    sharedDate: "14 Jan 2026",
-    pdfUrl: "/RACL GEARTECH LIMITED.pdf",
-    thesis: "Niche transmission & high-precision gear manufacturer with multi-year tier-1 export contracts and high ROCE reinvestment.",
-  },
-  {
-    id: "spectra-a-tech",
-    ticker: "SPECTRA",
-    company: "SpectraA Technology Solutions Limited",
-    sector: "Industrial Automation & Engineering",
-    mcap: "1450cr",
-    sharedPrice: 420,
-    currentPrice: 588,
-    sharedDate: "02 Feb 2026",
-    pdfUrl: "/SpectraA_Technology_Solutions_IPO_Deep_Dive.pdf",
-    thesis: "Process engineering & automation moat for brewery, distillery, and pharma turnkey plants with 37.6% ROCE.",
-  },
-];
+const initialIdeas: any[] = [];
 
 const initialUsers = [
   {

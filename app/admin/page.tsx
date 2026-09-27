@@ -1025,8 +1025,6 @@ ${report.sections
                         <div>
                           <Link
                             href={`/research/${report.slug}`}
-                            target="_blank"
-                            rel="noreferrer"
                             style={{
                               fontSize: "13px",
                               fontWeight: "600",

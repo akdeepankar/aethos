@@ -451,7 +451,7 @@ export default function ResearchPage() {
                       </div>
 
                       <h2 className="rl-card-title">
-                        <Link href={`/research/${report.slug}`} target="_blank" rel="noreferrer" onClick={() => markAsRead(report.slug)}>
+                        <Link href={`/research/${report.slug}`} onClick={() => markAsRead(report.slug)}>
                           {report.title}
                         </Link>
                       </h2>
@@ -468,7 +468,7 @@ export default function ResearchPage() {
                         <span className="rl-card-meta">
                           {report.date}
                         </span>
-                        <Link href={`/research/${report.slug}`} target="_blank" rel="noreferrer" onClick={() => markAsRead(report.slug)} className="rl-read-btn">
+                        <Link href={`/research/${report.slug}`} onClick={() => markAsRead(report.slug)} className="rl-read-btn">
                           Read <span className="rl-read-arrow">→</span>
                         </Link>
                       </div>

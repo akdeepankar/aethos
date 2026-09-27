@@ -138,7 +138,7 @@ export default function Home() {
                         <tr key={report.slug}>
                           <td>
                             <div className="company-cell">
-                              <Link href={`/research/${report.slug}`} target="_blank" rel="noreferrer" className="company-name" style={{ textDecoration: 'none', color: 'inherit' }}>
+                              <Link href={`/research/${report.slug}`} className="company-name" style={{ textDecoration: 'none', color: 'inherit' }}>
                                 {report.title}
                               </Link>
                               <span className="company-sector">{report.deck ? (report.deck.length > 75 ? `${report.deck.slice(0, 75)}...` : report.deck) : ""}</span>
@@ -165,7 +165,7 @@ export default function Home() {
                             {report.date}
                           </td>
                           <td>
-                            <Link href={`/research/${report.slug}`} target="_blank" rel="noreferrer" className="dash-card-link">
+                            <Link href={`/research/${report.slug}`} className="dash-card-link">
                               Open <ArrowUpRight />
                             </Link>
                           </td>

@@ -109,15 +109,24 @@ export async function GET(
       try {
         const rowId = toSafeRowId(slug);
         let row: Record<string, any> | null = null;
-        try {
-          row = await tablesDB.getRow(databaseId, "reports", rowId);
-        } catch {
+        for (const table of ["reports", "ideas"]) {
           try {
-            row = await tablesDB.getRow(databaseId, "reports", slug);
-          } catch {}
+            row = await tablesDB.getRow(databaseId, table, rowId);
+            if (row) break;
+          } catch {
+            try {
+              row = await tablesDB.getRow(databaseId, table, slug);
+              if (row) break;
+            } catch {}
+          }
         }
 
         if (row) {
+          // If row has inline htmlContent
+          if (row.htmlContent && typeof row.htmlContent === "string" && row.htmlContent.trim()) {
+            return NextResponse.json({ found: true, html: row.htmlContent });
+          }
+
           // If row has an external htmlUrl, fetch it
           if (row.htmlUrl && typeof row.htmlUrl === "string" && row.htmlUrl.startsWith("http")) {
             try {

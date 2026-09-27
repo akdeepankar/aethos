@@ -280,16 +280,26 @@ export default function AdminPage() {
 
   // Idea Form State
   const [editingIdea, setEditingIdea] = useState<StockIdea | null>(null);
+  const [ideaDrawerMode, setIdeaDrawerMode] = useState<"edit" | "preview" | "split">("edit");
+  const ideaHtmlFileInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingIdeaHtml, setIsDraggingIdeaHtml] = useState(false);
   const [ideaForm, setIdeaForm] = useState({
     company: "",
     ticker: "",
-    sector: "Automotive",
-    mcap: "2000cr",
-    sharedPrice: 1000,
-    currentPrice: 1200,
-    sharedDate: "14 Jan 2026",
+    slug: "",
+    sector: "Auto components",
+    coverage: "Coverage ongoing",
+    published: "",
+    mcap: "",
+    refPrice: 0,
+    latestPrice: 0,
+    studying: "",
+    challenge: "",
+    watchNext: "",
     thesis: "",
     pdfUrl: "",
+    htmlUrl: "",
+    htmlContent: "",
   });
 
   // IPO Form State
@@ -389,6 +399,80 @@ export default function AdminPage() {
     setReportDrawerMode(mode);
   };
 
+  const handleOpenIdeaPreview = (mode: "preview" | "split" = "preview") => {
+    setIdeaDrawerMode(mode);
+  };
+
+  const handleIdeaLoadTemplate = () => {
+    setIdeaForm((prev) => ({
+      ...prev,
+      htmlContent: DEFAULT_REPORT_HTML,
+    }));
+    showNotification("Loaded standard HTML template for idea", "info");
+  };
+
+  const handleIdeaClearHtml = () => {
+    setIdeaForm((prev) => ({
+      ...prev,
+      htmlContent: "",
+    }));
+    showNotification("Cleared idea HTML editor", "info");
+  };
+
+  const handleIdeaHtmlFileUpload = (file: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        if (!text || !text.trim()) {
+          showNotification("Uploaded file is empty", "error");
+          return;
+        }
+
+        if (file.name.endsWith(".json")) {
+          try {
+            const parsed = JSON.parse(text);
+            if (parsed.htmlContent || parsed.company) {
+              setIdeaForm((prev) => ({
+                ...prev,
+                company: parsed.company || prev.company,
+                ticker: parsed.ticker || prev.ticker,
+                slug: parsed.slug || parsed.id || prev.slug,
+                sector: parsed.sector || prev.sector,
+                coverage: parsed.coverage || prev.coverage,
+                published: parsed.published || prev.published,
+                mcap: parsed.mcap || prev.mcap,
+                refPrice: Number(parsed.refPrice || prev.refPrice),
+                latestPrice: Number(parsed.latestPrice || prev.latestPrice),
+                studying: parsed.studying || prev.studying,
+                challenge: parsed.challenge || prev.challenge,
+                watchNext: parsed.watchNext || prev.watchNext,
+                thesis: parsed.thesis || prev.thesis,
+                pdfUrl: parsed.pdfUrl || prev.pdfUrl,
+                htmlContent: parsed.htmlContent || text,
+              }));
+              showNotification(`Imported Aethos idea specification from "${file.name}"`, "success");
+              return;
+            }
+          } catch {}
+        }
+
+        setIdeaForm((prev) => ({
+          ...prev,
+          htmlContent: text,
+        }));
+        showNotification(`Loaded HTML content from "${file.name}"`, "success");
+      } catch (err) {
+        showNotification("Failed to read HTML file: " + (err as Error).message, "error");
+      }
+    };
+    reader.onerror = () => {
+      showNotification("Error reading HTML file", "error");
+    };
+    reader.readAsText(file);
+  };
+
   // Open report editor drawer
   const handleOpenReportDrawer = (report?: Report) => {
     setReportDrawerMode("edit");
@@ -463,31 +547,46 @@ ${report.sections
 
   // Open idea editor drawer
   const handleOpenIdeaDrawer = (idea?: StockIdea) => {
+    setIdeaDrawerMode("edit");
     if (idea) {
       setEditingIdea(idea);
       setIdeaForm({
-        company: idea.company,
-        ticker: idea.ticker,
-        sector: idea.sector,
-        mcap: idea.mcap || "2000cr",
-        sharedPrice: idea.sharedPrice || 0,
-        currentPrice: idea.currentPrice || 0,
-        sharedDate: idea.sharedDate || "Today",
+        company: idea.company || "",
+        ticker: idea.ticker || "",
+        slug: idea.slug || idea.id || "",
+        sector: idea.sector || "Auto components",
+        coverage: (idea.coverage as string) || "Coverage ongoing",
+        published: idea.published || idea.sharedDate || "",
+        mcap: idea.mcap || "",
+        refPrice: Number(idea.refPrice || idea.sharedPrice || 0),
+        latestPrice: Number(idea.latestPrice || idea.currentPrice || 0),
+        studying: idea.studying || "",
+        challenge: idea.challenge || "",
+        watchNext: idea.watchNext || "",
         thesis: idea.thesis || "",
         pdfUrl: idea.pdfUrl || "",
+        htmlUrl: idea.htmlUrl || "",
+        htmlContent: idea.htmlContent || "",
       });
     } else {
       setEditingIdea(null);
       setIdeaForm({
         company: "",
         ticker: "",
-        sector: "Automotive",
-        mcap: "2000cr",
-        sharedPrice: 1000,
-        currentPrice: 1200,
-        sharedDate: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+        slug: "",
+        sector: "Auto components",
+        coverage: "Coverage ongoing",
+        published: "",
+        mcap: "",
+        refPrice: 0,
+        latestPrice: 0,
+        studying: "",
+        challenge: "",
+        watchNext: "",
         thesis: "",
         pdfUrl: "",
+        htmlUrl: "",
+        htmlContent: "",
       });
     }
     setActiveDrawer("idea");
@@ -603,45 +702,102 @@ ${report.sections
       return;
     }
 
-    const id = (editingIdea?.id || ideaForm.ticker.toLowerCase().replace(/[^a-z0-9]+/g, "-")).trim();
+    const slug = (
+      ideaForm.slug.trim() ||
+      ideaForm.ticker.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+    ).slice(0, 60);
 
-    // Check if idea id already exists
-    const isDuplicate = ideas.some(
-      (i) => i.id.toLowerCase() === id.toLowerCase() && (!editingIdea || editingIdea.id.toLowerCase() !== id.toLowerCase())
-    );
+    if (!slug) {
+      alert("A valid URL slug is required");
+      showNotification("A valid URL slug is required", "error");
+      return;
+    }
+
+    const id = (editingIdea?.id || slug).trim();
+
+    // Check if idea slug or id already exists
+    const isDuplicate = ideas.some((i) => {
+      if (editingIdea && (i.id === editingIdea.id || (editingIdea.slug && i.slug === editingIdea.slug))) {
+        return false;
+      }
+      return (
+        i.id.toLowerCase() === slug.toLowerCase() ||
+        (i.slug && i.slug.toLowerCase() === slug.toLowerCase()) ||
+        i.ticker.toLowerCase() === ideaForm.ticker.trim().toLowerCase()
+      );
+    });
 
     if (isDuplicate) {
-      showNotification(`A stock idea with ticker "${ideaForm.ticker}" already exists.`, "error");
+      alert(`An Aethos idea with URL slug "${slug}" already exists. Please choose a different slug.`);
+      showNotification(`An Aethos idea with URL slug "${slug}" already exists. Please choose a different slug.`, "error");
       return;
+    }
+
+    const returnCalc = Number(ideaForm.refPrice) > 0 
+      ? (((Number(ideaForm.latestPrice) - Number(ideaForm.refPrice)) / Number(ideaForm.refPrice)) * 100).toFixed(1)
+      : "0.0";
+    const formattedReturn = `${Number(returnCalc) >= 0 ? "+" : ""}${returnCalc}%`;
+
+    const autoPublished = editingIdea?.published || editingIdea?.sharedDate || new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+    let finalHtmlUrl = ideaForm.htmlUrl.trim();
+
+    // If HTML content is provided, upload it to Appwrite Storage and use the link
+    if (ideaForm.htmlContent && ideaForm.htmlContent.trim()) {
+      try {
+        const htmlBlob = new Blob([ideaForm.htmlContent.trim()], { type: "text/html;charset=utf-8" });
+        const htmlFile = new File([htmlBlob], `${id}.html`, { type: "text/html" });
+        const storedFile = await uploadPdfFile(htmlFile, "Idea");
+        if (storedFile && storedFile.url) {
+          finalHtmlUrl = storedFile.url;
+        }
+      } catch (uploadErr) {
+        console.warn("Failed uploading HTML report to Appwrite Storage:", uploadErr);
+      }
+    }
+
+    if (!finalHtmlUrl) {
+      finalHtmlUrl = `/${id}.html`;
     }
 
     const ideaObj: StockIdea = {
       id,
+      slug,
       company: ideaForm.company.trim(),
       ticker: ideaForm.ticker.trim().toUpperCase(),
       sector: ideaForm.sector,
-      mcap: ideaForm.mcap,
-      sharedPrice: Number(ideaForm.sharedPrice),
-      currentPrice: Number(ideaForm.currentPrice),
-      sharedDate: ideaForm.sharedDate,
+      coverage: ideaForm.coverage,
+      published: autoPublished,
+      mcap: ideaForm.mcap.trim(),
+      refPrice: Number(ideaForm.refPrice),
+      sharedPrice: Number(ideaForm.refPrice),
+      latestPrice: Number(ideaForm.latestPrice),
+      currentPrice: Number(ideaForm.latestPrice),
+      sharedDate: autoPublished,
+      returnPct: formattedReturn,
+      studying: ideaForm.studying.trim(),
+      challenge: ideaForm.challenge.trim(),
+      watchNext: ideaForm.watchNext.trim(),
       thesis: ideaForm.thesis.trim(),
       pdfUrl: ideaForm.pdfUrl.trim() || undefined,
+      htmlUrl: finalHtmlUrl,
+      htmlContent: ideaForm.htmlContent.trim() || undefined,
     };
 
     if (editingIdea) {
       const updated = ideas.map((i) => (i.id === editingIdea.id ? ideaObj : i));
       const res = await updateIdeas(updated, { action: "save", idea: ideaObj });
       if (!res.success) {
-        showNotification(`Failed saving idea: ${res.error}`, "error");
+        showNotification(`Failed saving Aethos idea: ${res.error}`, "error");
       } else {
-        showNotification(`Idea "${ideaForm.company}" saved`, "success");
+        showNotification(`Aethos idea "${ideaForm.company}" saved & synced to Appwrite`, "success");
       }
     } else {
       const res = await updateIdeas([ideaObj, ...ideas], { action: "save", idea: ideaObj });
       if (!res.success) {
-        showNotification(`Failed creating idea: ${res.error}`, "error");
+        showNotification(`Failed creating Aethos idea: ${res.error}`, "error");
       } else {
-        showNotification(`Idea "${ideaForm.company}" created`, "success");
+        showNotification(`Aethos idea "${ideaForm.company}" created & synced to Appwrite`, "success");
       }
     }
 
@@ -817,7 +973,7 @@ ${report.sections
             Admin Panel
           </h1>
           <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#64748b" }}>
-            Manage research notes, stock ideas, files, and database records.
+            Manage research notes, Aethos ideas, files, and database records.
           </p>
         </div>
 
@@ -882,7 +1038,7 @@ ${report.sections
                 gap: "6px",
               }}
             >
-              <IconPlus /> Add Idea
+              <IconPlus /> Add Aethos Idea
             </button>
           )}
 
@@ -922,7 +1078,7 @@ ${report.sections
       >
         {[
           { id: "reports", label: "Research", icon: IconBook, count: reports.length },
-          { id: "ideas", label: "Ideas", icon: IconSparkles, count: ideas.length },
+          { id: "ideas", label: "Aethos Ideas", icon: IconSparkles, count: ideas.length },
           { id: "ipos", label: "IPOs", icon: IconTrend, count: ipos.length },
           { id: "journal", label: "Journal", icon: IconFileText, count: journal.length },
           { id: "media", label: "Files", icon: IconFolder, count: media.length },
@@ -1118,52 +1274,194 @@ ${report.sections
 
       {/* Ideas Tab */}
       {activeTab === "ideas" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "24px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Stock Ideas</h3>
-            <span style={{ fontSize: "12px", color: "#64748b" }}>{ideas.length} ideas published</span>
+        <div>
+          {/* Header Action Bar */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", flexWrap: "wrap", gap: "12px" }}>
+            <div>
+              <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#0f172a", margin: "0 0 4px 0" }}>Aethos Ideas</h2>
+              <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>
+                Manage high-conviction investment ideas, thesis pillars, and formatted HTML research reports.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleOpenIdeaDrawer()}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                background: "#0f172a",
+                color: "#ffffff",
+                border: "none",
+                borderRadius: "6px",
+                padding: "9px 16px",
+                fontSize: "13px",
+                fontWeight: "600",
+                cursor: "pointer",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+              }}
+            >
+              <IconPlus />
+              Add New Aethos Idea
+            </button>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {ideas.map((idea, idx) => (
-              <div key={`${idea.id}-${idx}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", border: "1px solid #f1f5f9", borderRadius: "6px" }}>
-                <div>
-                  <Link
-                    href={`/ideas/${idea.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      fontSize: "13.5px",
-                      fontWeight: "600",
-                      color: "#0f172a",
-                      textDecoration: "none",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "#2563eb")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "#0f172a")}
-                  >
-                    <span>{idea.company}</span>
-                    <span style={{ opacity: 0.5 }}>
-                      <IconExternalLink />
-                    </span>
-                  </Link>
-                  <span style={{ fontSize: "11px", color: "#64748b", marginLeft: "8px" }}>({idea.ticker}) · {idea.sector}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <span style={{ fontSize: "12px", fontWeight: "600", color: "#059669" }}>
-                    ₹{idea.currentPrice}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenIdeaDrawer(idea)}
-                    style={{ padding: "4px 8px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}
-                  >
-                    Edit
-                  </button>
-                </div>
-              </div>
-            ))}
+
+          {/* Ideas Table */}
+          <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+              <thead>
+                <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
+                  <th style={{ padding: "12px 16px", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>Company / Ticker</th>
+                  <th style={{ padding: "12px 16px", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>Sector</th>
+                  <th style={{ padding: "12px 16px", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>Published</th>
+                  <th style={{ padding: "12px 16px", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>M-Cap</th>
+                  <th style={{ padding: "12px 16px", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>Prices</th>
+                  <th style={{ padding: "12px 16px", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>Coverage</th>
+                  <th style={{ padding: "12px 16px", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>Content</th>
+                  <th style={{ padding: "12px 16px", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", textAlign: "right" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ideas.map((idea, idx) => {
+                  const refP = Number(idea.refPrice || idea.sharedPrice || 0);
+                  const latP = Number(idea.latestPrice || idea.currentPrice || 0);
+                  const hasHtml = Boolean(idea.htmlContent || idea.htmlUrl);
+
+                  return (
+                    <tr key={`${idea.id}-${idx}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ padding: "12px 16px" }}>
+                        <div>
+                          <Link
+                            href={`/ideas/${idea.slug || idea.id}`}
+                            style={{
+                              fontSize: "13.5px",
+                              fontWeight: "600",
+                              color: "#0f172a",
+                              textDecoration: "none",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = "#2563eb")}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = "#0f172a")}
+                          >
+                            <span>{idea.company}</span>
+                            <span style={{ opacity: 0.5 }}>
+                              <IconExternalLink />
+                            </span>
+                          </Link>
+                          <div style={{ fontSize: "11px", color: "#64748b", fontWeight: "500" }}>
+                            {idea.ticker}
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <span style={{ fontSize: "11.5px", background: "#f1f5f9", color: "#475569", padding: "2px 8px", borderRadius: "12px", fontWeight: "500" }}>
+                          {idea.sector}
+                        </span>
+                      </td>
+                      <td style={{ padding: "12px 16px", fontSize: "12px", color: "#64748b" }}>
+                        {idea.published || idea.sharedDate || "—"}
+                      </td>
+                      <td style={{ padding: "12px 16px", fontSize: "12px", fontWeight: "600", color: "#0f172a" }}>
+                        ₹{idea.mcap} Cr
+                      </td>
+                      <td style={{ padding: "12px 16px", fontSize: "12px" }}>
+                        <div style={{ color: "#475569" }}>Ref: ₹{refP.toLocaleString()}</div>
+                        <div style={{ fontWeight: "600", color: "#0f172a" }}>Latest: ₹{latP.toLocaleString()}</div>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <span
+                          style={{
+                            fontSize: "10.5px",
+                            fontWeight: "600",
+                            padding: "2px 8px",
+                            borderRadius: "10px",
+                            background: idea.coverage === "Archived" ? "#f1f5f9" : "#fef3c7",
+                            color: idea.coverage === "Archived" ? "#64748b" : "#92400e",
+                          }}
+                        >
+                          {idea.coverage || "Coverage ongoing"}
+                        </span>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <div style={{ display: "flex", gap: "4px" }}>
+                          {hasHtml && (
+                            <span style={{ fontSize: "9px", fontWeight: "700", background: "#eff6ff", color: "#2563eb", padding: "2px 5px", borderRadius: "4px" }}>
+                              HTML
+                            </span>
+                          )}
+                          {idea.pdfUrl && (
+                            <span style={{ fontSize: "9px", fontWeight: "700", background: "#fef2f2", color: "#dc2626", padding: "2px 5px", borderRadius: "4px" }}>
+                              PDF
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                        <div style={{ display: "inline-flex", gap: "6px" }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleOpenIdeaDrawer(idea);
+                              setIdeaDrawerMode("preview");
+                            }}
+                            style={{
+                              padding: "4px 8px",
+                              background: "#ffffff",
+                              border: "1px solid #cbd5e1",
+                              borderRadius: "4px",
+                              fontSize: "11.5px",
+                              color: "#334155",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Preview
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenIdeaDrawer(idea)}
+                            style={{
+                              padding: "4px 8px",
+                              background: "#f8fafc",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "4px",
+                              fontSize: "11.5px",
+                              fontWeight: "500",
+                              color: "#334155",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (confirm(`Delete Aethos idea "${idea.company}"?`)) {
+                                const remaining = ideas.filter((i) => i.id !== idea.id);
+                                await updateIdeas(remaining, { action: "delete", idea });
+                                showNotification(`Deleted "${idea.company}"`, "info");
+                              }
+                            }}
+                            style={{
+                              padding: "4px 8px",
+                              background: "#ffffff",
+                              border: "1px solid #fecaca",
+                              borderRadius: "4px",
+                              fontSize: "11.5px",
+                              color: "#dc2626",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -1438,7 +1736,7 @@ ${report.sections
             Database Setup
           </h3>
           <p style={{ margin: "0 0 20px 0", fontSize: "13px", color: "#64748b", lineHeight: "1.5" }}>
-            Connect and synchronize all research publications, cover images, and stock ideas to your Appwrite backend.
+            Connect and synchronize all research publications, cover images, and Aethos ideas to your Appwrite backend.
           </p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -1505,9 +1803,9 @@ ${report.sections
               right: 0,
               bottom: 0,
               width:
-                activeDrawer === "report" && reportDrawerMode === "split"
+                (activeDrawer === "report" && reportDrawerMode === "split") || (activeDrawer === "idea" && ideaDrawerMode === "split")
                   ? "min(1420px, 98vw)"
-                  : activeDrawer === "report" && reportDrawerMode === "preview"
+                  : (activeDrawer === "report" && reportDrawerMode === "preview") || (activeDrawer === "idea" && ideaDrawerMode === "preview")
                   ? "min(1240px, 96vw)"
                   : "min(580px, 95vw)",
               transition: "width 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
@@ -1542,8 +1840,8 @@ ${report.sections
                         : "Add New Research Report"
                       : activeDrawer === "idea"
                       ? editingIdea
-                        ? "Edit Stock Idea"
-                        : "Add New Stock Idea"
+                        ? "Edit Aethos Idea"
+                        : "Add New Aethos Idea"
                       : activeDrawer === "ipo"
                       ? editingIpo
                         ? "Edit IPO Intelligence"
@@ -1561,14 +1859,20 @@ ${report.sections
                         : reportDrawerMode === "split"
                         ? "Side-by-side HTML editor and live preview"
                         : "Directly saved to database & displayed across platform"
+                      : activeDrawer === "idea"
+                      ? ideaDrawerMode === "preview"
+                        ? "Live preview of formatted HTML Aethos idea note"
+                        : ideaDrawerMode === "split"
+                        ? "Side-by-side Aethos idea details, HTML editor & live preview"
+                        : "Directly saved to database & displayed across platform"
                       : activeDrawer === "file"
                       ? "Stored File Inspection & Asset Management"
                       : "Directly saved to database & displayed across platform"}
                   </span>
                 </div>
 
-                {/* Report View Mode Switcher Tabs */}
-                {activeDrawer === "report" && (
+                {/* View Mode Switcher Tabs for Reports & Ideas */}
+                {(activeDrawer === "report" || activeDrawer === "idea") && (
                   <div
                     style={{
                       display: "inline-flex",
@@ -1580,16 +1884,16 @@ ${report.sections
                   >
                     <button
                       type="button"
-                      onClick={() => setReportDrawerMode("edit")}
+                      onClick={() => (activeDrawer === "report" ? setReportDrawerMode("edit") : setIdeaDrawerMode("edit"))}
                       style={{
                         padding: "4px 10px",
                         fontSize: "12px",
-                        fontWeight: reportDrawerMode === "edit" ? "600" : "500",
-                        background: reportDrawerMode === "edit" ? "#ffffff" : "transparent",
-                        color: reportDrawerMode === "edit" ? "#0f172a" : "#64748b",
+                        fontWeight: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "edit" ? "600" : "500",
+                        background: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "edit" ? "#ffffff" : "transparent",
+                        color: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "edit" ? "#0f172a" : "#64748b",
                         border: "none",
                         borderRadius: "5px",
-                        boxShadow: reportDrawerMode === "edit" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                        boxShadow: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "edit" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
                         cursor: "pointer",
                       }}
                     >
@@ -1597,19 +1901,19 @@ ${report.sections
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleOpenPreview("preview")}
+                      onClick={() => (activeDrawer === "report" ? handleOpenPreview("preview") : handleOpenIdeaPreview("preview"))}
                       style={{
                         display: "inline-flex",
                         alignItems: "center",
                         gap: "4px",
                         padding: "4px 10px",
                         fontSize: "12px",
-                        fontWeight: reportDrawerMode === "preview" ? "600" : "500",
-                        background: reportDrawerMode === "preview" ? "#ffffff" : "transparent",
-                        color: reportDrawerMode === "preview" ? "#0f172a" : "#64748b",
+                        fontWeight: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "preview" ? "600" : "500",
+                        background: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "preview" ? "#ffffff" : "transparent",
+                        color: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "preview" ? "#0f172a" : "#64748b",
                         border: "none",
                         borderRadius: "5px",
-                        boxShadow: reportDrawerMode === "preview" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                        boxShadow: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "preview" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
                         cursor: "pointer",
                       }}
                     >
@@ -1618,16 +1922,16 @@ ${report.sections
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleOpenPreview("split")}
+                      onClick={() => (activeDrawer === "report" ? handleOpenPreview("split") : handleOpenIdeaPreview("split"))}
                       style={{
                         padding: "4px 10px",
                         fontSize: "12px",
-                        fontWeight: reportDrawerMode === "split" ? "600" : "500",
-                        background: reportDrawerMode === "split" ? "#ffffff" : "transparent",
-                        color: reportDrawerMode === "split" ? "#0f172a" : "#64748b",
+                        fontWeight: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "split" ? "600" : "500",
+                        background: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "split" ? "#ffffff" : "transparent",
+                        color: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "split" ? "#0f172a" : "#64748b",
                         border: "none",
                         borderRadius: "5px",
-                        boxShadow: reportDrawerMode === "split" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                        boxShadow: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "split" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
                         cursor: "pointer",
                       }}
                     >
@@ -2475,105 +2779,713 @@ ${report.sections
               </>
             )}
 
-            {/* Drawer Body - Stock Idea Form */}
+            {/* Drawer Body - Aethos Idea Full 3-Mode Editor, Preview & Split View */}
             {activeDrawer === "idea" && (
-              <form onSubmit={handleSaveIdea} style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div>
-                  <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                    Company Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={ideaForm.company}
-                    onChange={(e) => setIdeaForm((prev) => ({ ...prev, company: e.target.value }))}
-                    placeholder="e.g. RACL Geartech Limited"
-                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
-                  />
-                </div>
+              <>
+                {/* Hidden HTML File Input for Ideas */}
+                <input
+                  type="file"
+                  ref={ideaHtmlFileInputRef}
+                  accept=".html,.htm,.json"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleIdeaHtmlFileUpload(file);
+                  }}
+                />
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                      Ticker Symbol *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={ideaForm.ticker}
-                      onChange={(e) => setIdeaForm((prev) => ({ ...prev, ticker: e.target.value }))}
-                      placeholder="RACLGEAR"
-                      style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                      Sector
-                    </label>
-                    <input
-                      type="text"
-                      value={ideaForm.sector}
-                      onChange={(e) => setIdeaForm((prev) => ({ ...prev, sector: e.target.value }))}
-                      placeholder="Auto Components"
-                      style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
-                    />
-                  </div>
-                </div>
+                {/* 1. Preview Mode */}
+                {ideaDrawerMode === "preview" && (
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+                    {/* Top Action Bar in Preview */}
+                    <div
+                      style={{
+                        padding: "10px 24px",
+                        background: "#f1f5f9",
+                        borderBottom: "1px solid #e2e8f0",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        fontSize: "12px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontWeight: "700", color: "#0f172a" }}>{ideaForm.company || "Untitled Idea"}</span>
+                        {ideaForm.ticker && (
+                          <span style={{ fontSize: "11px", color: "#64748b", background: "#e2e8f0", padding: "1px 6px", borderRadius: "3px", fontWeight: "600" }}>
+                            {ideaForm.ticker}
+                          </span>
+                        )}
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: "600",
+                            padding: "1px 7px",
+                            borderRadius: "4px",
+                            background: ideaForm.coverage === "Coverage ongoing" ? "#ecfdf5" : ideaForm.coverage === "Under review" ? "#fffbeb" : "#f1f5f9",
+                            color: ideaForm.coverage === "Coverage ongoing" ? "#065f46" : ideaForm.coverage === "Under review" ? "#b45309" : "#64748b",
+                          }}
+                        >
+                          {ideaForm.coverage}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                          type="button"
+                          onClick={() => setIdeaDrawerMode("edit")}
+                          style={{ padding: "4px 10px", fontSize: "12px", background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "5px", color: "#334155", cursor: "pointer", fontWeight: "500" }}
+                        >
+                          Edit Aethos Idea Form
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIdeaDrawerMode("split")}
+                          style={{ padding: "4px 10px", fontSize: "12px", background: "#0f172a", border: "none", borderRadius: "5px", color: "#ffffff", cursor: "pointer", fontWeight: "500" }}
+                        >
+                          Split View
+                        </button>
+                      </div>
+                    </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                      Entry Price (₹)
-                    </label>
-                    <input
-                      type="number"
-                      value={ideaForm.sharedPrice}
-                      onChange={(e) => setIdeaForm((prev) => ({ ...prev, sharedPrice: Number(e.target.value) }))}
-                      style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
-                    />
+                    {/* Live HTML Frame */}
+                    <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+                      <DynamicReportFrame
+                        htmlContent={
+                          ideaForm.htmlContent ||
+                          `<div style="font-family: system-ui, -apple-system, sans-serif; padding: 40px; text-align: center; color: #64748b;">
+                            <h3 style="color: #0f172a; margin-bottom: 8px;">No HTML Content Added Yet</h3>
+                            <p style="font-size: 14px; max-width: 480px; margin: 0 auto 20px;">You can upload an .html report file, load our standard clean template, or paste HTML code in the Editor or Split View.</p>
+                          </div>`
+                        }
+                        height="100%"
+                        minHeight="100%"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                      Current Price (₹)
-                    </label>
-                    <input
-                      type="number"
-                      value={ideaForm.currentPrice}
-                      onChange={(e) => setIdeaForm((prev) => ({ ...prev, currentPrice: Number(e.target.value) }))}
-                      style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
-                    />
+                )}
+
+                {/* 2. Full Edit Mode */}
+                {ideaDrawerMode === "edit" && (
+                  <form onSubmit={handleSaveIdea} style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "16px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "12px" }}>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                          Company Name *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={ideaForm.company}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const autoSlug = val.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-");
+                            setIdeaForm((prev) => ({
+                              ...prev,
+                              company: val,
+                              slug: editingIdea ? prev.slug : autoSlug,
+                            }));
+                          }}
+                          placeholder="e.g. RACL Geartech Limited"
+                          style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                          Ticker Symbol *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={ideaForm.ticker}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setIdeaForm((prev) => ({
+                              ...prev,
+                              ticker: val,
+                              slug: !editingIdea && !prev.company ? val.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-") : prev.slug,
+                            }));
+                          }}
+                          placeholder="RACLGEAR"
+                          style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* URL Slug & Sector */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "12px" }}>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                          URL Slug *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={ideaForm.slug}
+                          onChange={(e) => setIdeaForm((prev) => ({ ...prev, slug: e.target.value }))}
+                          placeholder="racl-geartech or raclgear"
+                          style={{
+                            width: "100%",
+                            padding: "8px 12px",
+                            border: ideas.some((i) => (i.id.toLowerCase() === ideaForm.slug.trim().toLowerCase() || (i.slug && i.slug.toLowerCase() === ideaForm.slug.trim().toLowerCase())) && (!editingIdea || (editingIdea.id !== i.id && editingIdea.slug !== i.slug))) && ideaForm.slug.trim()
+                              ? "1px solid #dc2626"
+                              : "1px solid #cbd5e1",
+                            borderRadius: "6px",
+                            fontSize: "13px",
+                            background: "#ffffff",
+                          }}
+                        />
+                        {ideas.some((i) => (i.id.toLowerCase() === ideaForm.slug.trim().toLowerCase() || (i.slug && i.slug.toLowerCase() === ideaForm.slug.trim().toLowerCase())) && (!editingIdea || (editingIdea.id !== i.id && editingIdea.slug !== i.slug))) && ideaForm.slug.trim() && (
+                          <span style={{ fontSize: "11px", color: "#dc2626", marginTop: "3px", display: "block", fontWeight: "500" }}>
+                            ⚠️ An idea with URL slug "{ideaForm.slug.trim()}" already exists.
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                          Sector
+                        </label>
+                        <input
+                          type="text"
+                          value={ideaForm.sector}
+                          onChange={(e) => setIdeaForm((prev) => ({ ...prev, sector: e.target.value }))}
+                          placeholder="Auto components"
+                          style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                          Coverage Status
+                        </label>
+                        <select
+                          value={ideaForm.coverage}
+                          onChange={(e) => setIdeaForm((prev) => ({ ...prev, coverage: e.target.value }))}
+                          style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", background: "#ffffff" }}
+                        >
+                          <option value="Coverage ongoing">Coverage ongoing</option>
+                          <option value="Under review">Under review</option>
+                          <option value="Archived">Archived</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                          M-Cap (₹ Cr)
+                        </label>
+                        <input
+                          type="text"
+                          value={ideaForm.mcap}
+                          onChange={(e) => setIdeaForm((prev) => ({ ...prev, mcap: e.target.value }))}
+                          placeholder="2,030"
+                          style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                          Ref Price (₹)
+                        </label>
+                        <input
+                          type="number"
+                          value={ideaForm.refPrice}
+                          onChange={(e) => setIdeaForm((prev) => ({ ...prev, refPrice: Number(e.target.value) }))}
+                          placeholder="1250"
+                          style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                          Latest Price (₹)
+                        </label>
+                        <input
+                          type="number"
+                          value={ideaForm.latestPrice}
+                          onChange={(e) => setIdeaForm((prev) => ({ ...prev, latestPrice: Number(e.target.value) }))}
+                          placeholder="1410"
+                          style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* HTML Content Editor Section */}
+                    <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "14px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "6px" }}>
+                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155" }}>
+                          HTML Report Content (Full Deep Dive)
+                        </label>
+                        <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                          <button
+                            type="button"
+                            onClick={() => ideaHtmlFileInputRef.current?.click()}
+                            style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontSize: "11.5px", color: "#0f172a", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "5px", padding: "3px 8px", cursor: "pointer", fontWeight: "500" }}
+                          >
+                            <IconUpload />
+                            Upload .html
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleIdeaLoadTemplate}
+                            style={{ fontSize: "11.5px", color: "#475569", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "5px", padding: "3px 8px", cursor: "pointer", fontWeight: "500" }}
+                          >
+                            Load Template
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleIdeaClearHtml}
+                            style={{ fontSize: "11.5px", color: "#ef4444", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "5px", padding: "3px 8px", cursor: "pointer", fontWeight: "500" }}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Drag & Drop HTML Editor */}
+                      <div
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setIsDraggingIdeaHtml(true);
+                        }}
+                        onDragLeave={() => setIsDraggingIdeaHtml(false)}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          setIsDraggingIdeaHtml(false);
+                          const file = e.dataTransfer.files?.[0];
+                          if (file) handleIdeaHtmlFileUpload(file);
+                        }}
+                        style={{
+                          position: "relative",
+                          border: isDraggingIdeaHtml ? "2px dashed #3b82f6" : "1px solid #cbd5e1",
+                          borderRadius: "6px",
+                          background: isDraggingIdeaHtml ? "rgba(59, 130, 246, 0.08)" : "#0f172a",
+                          overflow: "hidden",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {isDraggingIdeaHtml && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              zIndex: 10,
+                              background: "rgba(15, 23, 42, 0.88)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: "8px",
+                              color: "#60a5fa",
+                              fontSize: "13px",
+                              fontWeight: "600",
+                              pointerEvents: "none",
+                            }}
+                          >
+                            <IconUpload />
+                            <span>Drop .html file here</span>
+                          </div>
+                        )}
+
+                        <textarea
+                          rows={12}
+                          value={ideaForm.htmlContent}
+                          onChange={(e) => setIdeaForm((prev) => ({ ...prev, htmlContent: e.target.value }))}
+                          placeholder="Paste full HTML report code here, or drag & drop .html file..."
+                          spellCheck={false}
+                          style={{
+                            width: "100%",
+                            padding: "10px 12px",
+                            border: "none",
+                            fontSize: "12px",
+                            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                            lineHeight: "1.45",
+                            background: "transparent",
+                            color: "#f8fafc",
+                            outline: "none",
+                            resize: "vertical",
+                            display: "block",
+                          }}
+                        />
+
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "6px 10px",
+                            background: "#080c14",
+                            borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+                            fontSize: "11px",
+                            color: "#94a3b8",
+                          }}
+                        >
+                          <span>Drag &amp; drop .html / .json file</span>
+                          <button
+                            type="button"
+                            onClick={() => ideaHtmlFileInputRef.current?.click()}
+                            style={{ background: "transparent", border: "none", color: "#60a5fa", cursor: "pointer", padding: 0, fontSize: "11px", textDecoration: "underline" }}
+                          >
+                            Browse file
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                          PDF File URL (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={ideaForm.pdfUrl}
+                          onChange={(e) => setIdeaForm((prev) => ({ ...prev, pdfUrl: e.target.value }))}
+                          placeholder="/RACL GEARTECH LIMITED.pdf"
+                          style={{ width: "100%", padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px" }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                          HTML Report URL (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={ideaForm.htmlUrl}
+                          onChange={(e) => setIdeaForm((prev) => ({ ...prev, htmlUrl: e.target.value }))}
+                          placeholder="/racl-geartech.html"
+                          style={{ width: "100%", padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px" }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Sticky Footer Actions */}
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "14px", marginTop: "auto" }}>
+                      <button
+                        type="button"
+                        onClick={() => setActiveDrawer(null)}
+                        style={{ padding: "8px 16px", background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", color: "#475569", cursor: "pointer" }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        style={{ padding: "8px 18px", background: "#0f172a", border: "none", borderRadius: "6px", fontSize: "13px", fontWeight: "600", color: "#ffffff", cursor: "pointer" }}
+                      >
+                        {editingIdea ? "Save Aethos Idea" : "Create Aethos Idea"}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* 3. Split View Mode */}
+                {ideaDrawerMode === "split" && (
+                  <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                    {/* Left Form Column */}
+                    <div style={{ width: "500px", flexShrink: 0, borderRight: "1px solid #e2e8f0", overflowY: "auto", display: "flex", flexDirection: "column" }}>
+                      <form onSubmit={handleSaveIdea} style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: "14px", flex: 1 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "10px" }}>
+                          <div>
+                            <label style={{ fontSize: "11.5px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "3px" }}>
+                              Company Name *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={ideaForm.company}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const autoSlug = val.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-");
+                                setIdeaForm((prev) => ({
+                                  ...prev,
+                                  company: val,
+                                  slug: editingIdea ? prev.slug : autoSlug,
+                                }));
+                              }}
+                              placeholder="e.g. RACL Geartech Limited"
+                              style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: "5px", fontSize: "12.5px" }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "11.5px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "3px" }}>
+                              Ticker *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={ideaForm.ticker}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setIdeaForm((prev) => ({
+                                  ...prev,
+                                  ticker: val,
+                                  slug: !editingIdea && !prev.company ? val.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-") : prev.slug,
+                                }));
+                              }}
+                              placeholder="RACLGEAR"
+                              style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: "5px", fontSize: "12.5px" }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* URL Slug & Sector */}
+                        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "10px" }}>
+                          <div>
+                            <label style={{ fontSize: "11.5px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "3px" }}>
+                              URL Slug *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={ideaForm.slug}
+                              onChange={(e) => setIdeaForm((prev) => ({ ...prev, slug: e.target.value }))}
+                              placeholder="racl-geartech or raclgear"
+                              style={{
+                                width: "100%",
+                                padding: "6px 10px",
+                                border: ideas.some((i) => (i.id.toLowerCase() === ideaForm.slug.trim().toLowerCase() || (i.slug && i.slug.toLowerCase() === ideaForm.slug.trim().toLowerCase())) && (!editingIdea || (editingIdea.id !== i.id && editingIdea.slug !== i.slug))) && ideaForm.slug.trim()
+                                  ? "1px solid #dc2626"
+                                  : "1px solid #cbd5e1",
+                                borderRadius: "5px",
+                                fontSize: "12.5px",
+                                background: "#ffffff",
+                              }}
+                            />
+                            {ideas.some((i) => (i.id.toLowerCase() === ideaForm.slug.trim().toLowerCase() || (i.slug && i.slug.toLowerCase() === ideaForm.slug.trim().toLowerCase())) && (!editingIdea || (editingIdea.id !== i.id && editingIdea.slug !== i.slug))) && ideaForm.slug.trim() && (
+                              <span style={{ fontSize: "10.5px", color: "#dc2626", marginTop: "2px", display: "block", fontWeight: "500" }}>
+                                ⚠️ URL slug already in use
+                              </span>
+                            )}
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "11.5px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "3px" }}>
+                              Sector
+                            </label>
+                            <input
+                              type="text"
+                              value={ideaForm.sector}
+                              onChange={(e) => setIdeaForm((prev) => ({ ...prev, sector: e.target.value }))}
+                              placeholder="Auto components"
+                              style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: "5px", fontSize: "12.5px" }}
+                            />
+                          </div>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                          <div>
+                            <label style={{ fontSize: "11.5px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "3px" }}>
+                              Coverage Status
+                            </label>
+                            <select
+                              value={ideaForm.coverage}
+                              onChange={(e) => setIdeaForm((prev) => ({ ...prev, coverage: e.target.value }))}
+                              style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: "5px", fontSize: "12.5px", background: "#ffffff" }}
+                            >
+                              <option value="Coverage ongoing">Coverage ongoing</option>
+                              <option value="Under review">Under review</option>
+                              <option value="Archived">Archived</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "11.5px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "3px" }}>
+                              M-Cap (₹ Cr)
+                            </label>
+                            <input
+                              type="text"
+                              value={ideaForm.mcap}
+                              onChange={(e) => setIdeaForm((prev) => ({ ...prev, mcap: e.target.value }))}
+                              placeholder="2,030"
+                              style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: "5px", fontSize: "12.5px" }}
+                            />
+                          </div>
+                        </div>
+
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                          <div>
+                            <label style={{ fontSize: "11px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "2px" }}>
+                              Ref Price (₹)
+                            </label>
+                            <input
+                              type="number"
+                              value={ideaForm.refPrice}
+                              onChange={(e) => setIdeaForm((prev) => ({ ...prev, refPrice: Number(e.target.value) }))}
+                              placeholder="1250"
+                              style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px", fontSize: "11.5px" }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "11px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "2px" }}>
+                              Latest Price (₹)
+                            </label>
+                            <input
+                              type="number"
+                              value={ideaForm.latestPrice}
+                              onChange={(e) => setIdeaForm((prev) => ({ ...prev, latestPrice: Number(e.target.value) }))}
+                              placeholder="1410"
+                              style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px", fontSize: "11.5px" }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* HTML Content Editor in Split View */}
+                        <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "12px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px", flexWrap: "wrap", gap: "4px" }}>
+                            <label style={{ fontSize: "11.5px", fontWeight: "600", color: "#334155" }}>
+                              HTML Content
+                            </label>
+                            <div style={{ display: "flex", gap: "4px" }}>
+                              <button
+                                type="button"
+                                onClick={() => ideaHtmlFileInputRef.current?.click()}
+                                style={{ display: "inline-flex", alignItems: "center", gap: "3px", fontSize: "11px", color: "#0f172a", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "2px 6px", cursor: "pointer" }}
+                              >
+                                <IconUpload />
+                                Upload
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleIdeaLoadTemplate}
+                                style={{ fontSize: "11px", color: "#475569", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "4px", padding: "2px 6px", cursor: "pointer" }}
+                              >
+                                Template
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleIdeaClearHtml}
+                                style={{ fontSize: "11px", color: "#ef4444", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "4px", padding: "2px 6px", cursor: "pointer" }}
+                              >
+                                Clear
+                              </button>
+                            </div>
+                          </div>
+
+                          <div
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              setIsDraggingIdeaHtml(true);
+                            }}
+                            onDragLeave={() => setIsDraggingIdeaHtml(false)}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              setIsDraggingIdeaHtml(false);
+                              const file = e.dataTransfer.files?.[0];
+                              if (file) handleIdeaHtmlFileUpload(file);
+                            }}
+                            style={{
+                              position: "relative",
+                              border: isDraggingIdeaHtml ? "2px dashed #3b82f6" : "1px solid #cbd5e1",
+                              borderRadius: "6px",
+                              background: isDraggingIdeaHtml ? "rgba(59, 130, 246, 0.08)" : "#0f172a",
+                              overflow: "hidden",
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            {isDraggingIdeaHtml && (
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  inset: 0,
+                                  zIndex: 10,
+                                  background: "rgba(15, 23, 42, 0.88)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: "6px",
+                                  color: "#60a5fa",
+                                  fontSize: "12px",
+                                  fontWeight: "600",
+                                  pointerEvents: "none",
+                                }}
+                              >
+                                <IconUpload />
+                                <span>Drop .html file here</span>
+                              </div>
+                            )}
+
+                            <textarea
+                              rows={11}
+                              value={ideaForm.htmlContent}
+                              onChange={(e) => setIdeaForm((prev) => ({ ...prev, htmlContent: e.target.value }))}
+                              placeholder="Paste HTML code here, or drag & drop .html file..."
+                              spellCheck={false}
+                              style={{
+                                width: "100%",
+                                padding: "8px 10px",
+                                border: "none",
+                                fontSize: "11px",
+                                fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                                lineHeight: "1.45",
+                                background: "transparent",
+                                color: "#f8fafc",
+                                outline: "none",
+                                resize: "vertical",
+                                display: "block",
+                              }}
+                            />
+
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                padding: "4px 8px",
+                                background: "#080c14",
+                                borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+                                fontSize: "10.5px",
+                                color: "#94a3b8",
+                              }}
+                            >
+                              <span>Drag &amp; drop .html</span>
+                              <button
+                                type="button"
+                                onClick={() => ideaHtmlFileInputRef.current?.click()}
+                                style={{ background: "transparent", border: "none", color: "#60a5fa", cursor: "pointer", padding: 0, fontSize: "10.5px", textDecoration: "underline" }}
+                              >
+                                Browse
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Sticky Footer */}
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", borderTop: "1px solid #e2e8f0", paddingTop: "12px", marginTop: "auto" }}>
+                          <button
+                            type="button"
+                            onClick={() => setActiveDrawer(null)}
+                            style={{ padding: "7px 14px", background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12.5px", color: "#475569", cursor: "pointer" }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            style={{ padding: "7px 16px", background: "#0f172a", border: "none", borderRadius: "6px", fontSize: "12.5px", fontWeight: "600", color: "#ffffff", cursor: "pointer" }}
+                          >
+                            {editingIdea ? "Save" : "Create"}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+
+                    {/* Right Preview Column */}
+                    <div style={{ flex: 1, background: "#f8fafc", padding: "16px 20px", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                      <div style={{ background: "#ffffff", borderRadius: "8px", border: "1px solid #e2e8f0", overflow: "hidden", height: "100%", boxShadow: "0 1px 3px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column" }}>
+                        <div style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.05em", color: "#64748b", padding: "10px 16px", borderBottom: "1px solid #f1f5f9", background: "#ffffff", flexShrink: 0, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span>Live HTML Preview</span>
+                          <span style={{ fontSize: "10.5px", color: "#059669", background: "#ecfdf5", padding: "2px 6px", borderRadius: "4px", fontWeight: "600", textTransform: "none" }}>
+                            Synchronized
+                          </span>
+                        </div>
+                        <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
+                          <DynamicReportFrame
+                            htmlContent={ideaForm.htmlContent || "<p style='color:#64748b; padding: 16px;'>No HTML content provided yet.</p>"}
+                            height="100%"
+                            minHeight="100%"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                    Investment Thesis
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={ideaForm.thesis}
-                    onChange={(e) => setIdeaForm((prev) => ({ ...prev, thesis: e.target.value }))}
-                    placeholder="Core investment rationale, margin triggers..."
-                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
-                  />
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "14px", marginTop: "auto" }}>
-                  <button
-                    type="button"
-                    onClick={() => setActiveDrawer(null)}
-                    style={{ padding: "8px 16px", background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", color: "#475569", cursor: "pointer" }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    style={{ padding: "8px 18px", background: "#0f172a", border: "none", borderRadius: "6px", fontSize: "13px", fontWeight: "600", color: "#ffffff", cursor: "pointer" }}
-                  >
-                    {editingIdea ? "Save Idea" : "Create Idea"}
-                  </button>
-                </div>
-              </form>
+                )}
+              </>
             )}
 
             {/* Drawer Body - IPO Form */}

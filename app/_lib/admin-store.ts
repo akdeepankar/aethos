@@ -9,12 +9,23 @@ export interface StockIdea {
   ticker: string;
   company: string;
   sector: string;
+  published?: string;
   mcap: string;
-  sharedPrice: number;
+  sharedPrice?: number;
+  refPrice?: number;
   currentPrice: number;
-  sharedDate: string;
+  latestPrice?: number;
+  sharedDate?: string;
+  returnPct?: string;
+  coverage?: "Coverage ongoing" | "Under review" | "Archived" | string;
   pdfUrl?: string;
+  htmlUrl?: string;
+  htmlContent?: string;
   thesis?: string;
+  studying?: string;
+  challenge?: string;
+  watchNext?: string;
+  slug?: string;
 }
 
 export interface AdminUser {
@@ -38,32 +49,7 @@ export interface StoredMediaFile {
   category: "IPO" | "Idea" | "Report" | "General";
 }
 
-const initialIdeas: StockIdea[] = [
-  {
-    id: "racl-geartech",
-    ticker: "RACLGEAR",
-    company: "RACL Geartech Limited",
-    sector: "Automobile and Auto Components",
-    mcap: "2030cr",
-    sharedPrice: 1340,
-    currentPrice: 1895,
-    sharedDate: "14 Jan 2026",
-    pdfUrl: "/RACL GEARTECH LIMITED.pdf",
-    thesis: "Niche transmission & high-precision gear manufacturer with multi-year tier-1 export contracts and high ROCE reinvestment.",
-  },
-  {
-    id: "spectra-a-tech",
-    ticker: "SPECTRA",
-    company: "SpectraA Technology Solutions Limited",
-    sector: "Industrial Automation & Engineering",
-    mcap: "1450cr",
-    sharedPrice: 420,
-    currentPrice: 588,
-    sharedDate: "02 Feb 2026",
-    pdfUrl: "/SpectraA_Technology_Solutions_IPO_Deep_Dive.pdf",
-    thesis: "Process engineering & automation moat for brewery, distillery, and pharma turnkey plants with 37.6% ROCE.",
-  },
-];
+const initialIdeas: StockIdea[] = [];
 
 const initialAdminUsers: AdminUser[] = [
   {
@@ -189,7 +175,7 @@ async function deleteFromAppwrite(table: string, id: string): Promise<{ success:
 
 export function useAdminStore() {
   const [reports, setReports] = useState<Report[]>(() => getStoredData(STORAGE_KEYS.REPORTS, []));
-  const [ideas, setIdeas] = useState<StockIdea[]>(() => getStoredData(STORAGE_KEYS.IDEAS, initialIdeas));
+  const [ideas, setIdeas] = useState<StockIdea[]>(() => getStoredData(STORAGE_KEYS.IDEAS, []));
   const [ipos, setIpos] = useState<Ipo[]>(() => getStoredData(STORAGE_KEYS.IPOS, initialIpos));
   const [journal, setJournal] = useState<Post[]>(() => getStoredData(STORAGE_KEYS.JOURNAL, initialPosts));
   const [users, setUsers] = useState<AdminUser[]>(() => getStoredData(STORAGE_KEYS.USERS, initialAdminUsers));
@@ -246,20 +232,30 @@ export function useAdminStore() {
           const seen = new Set<string>();
           const parsedIdeas: StockIdea[] = [];
           for (const i of d.ideas) {
-            const id = (i.$id || i.ticker || "").toLowerCase().trim();
+            const id = (i.id || i.$id || i.ticker || "").toLowerCase().trim();
             if (id && !seen.has(id)) {
               seen.add(id);
               parsedIdeas.push({
                 id,
-                ticker: i.ticker,
-                company: i.company,
-                sector: i.sector,
-                mcap: i.mcap,
-                sharedPrice: Number(i.sharedPrice),
-                currentPrice: Number(i.currentPrice),
-                sharedDate: i.sharedDate,
+                ticker: i.ticker || "",
+                company: i.company || "",
+                sector: i.sector || "Auto components",
+                mcap: i.mcap || "2,000",
+                published: i.published || i.sharedDate || "Today",
+                sharedPrice: Number(i.sharedPrice || i.refPrice || 0),
+                refPrice: Number(i.refPrice || i.sharedPrice || 0),
+                currentPrice: Number(i.currentPrice || i.latestPrice || 0),
+                latestPrice: Number(i.latestPrice || i.currentPrice || 0),
+                sharedDate: i.sharedDate || i.published || "Today",
+                returnPct: i.returnPct || undefined,
+                coverage: i.coverage || "Coverage ongoing",
                 pdfUrl: i.pdfUrl || undefined,
+                htmlUrl: i.htmlUrl || (id ? `/${id}.html` : undefined),
+                htmlContent: i.htmlContent || undefined,
                 thesis: i.thesis || undefined,
+                studying: i.studying || undefined,
+                challenge: i.challenge || undefined,
+                watchNext: i.watchNext || undefined,
               });
             }
           }
@@ -394,11 +390,20 @@ export function useAdminStore() {
           company: itemToPersist.idea.company,
           sector: itemToPersist.idea.sector,
           mcap: itemToPersist.idea.mcap,
-          sharedPrice: itemToPersist.idea.sharedPrice,
-          currentPrice: itemToPersist.idea.currentPrice,
-          sharedDate: itemToPersist.idea.sharedDate,
+          published: itemToPersist.idea.published || itemToPersist.idea.sharedDate || "",
+          sharedDate: itemToPersist.idea.sharedDate || itemToPersist.idea.published || "",
+          sharedPrice: itemToPersist.idea.sharedPrice || itemToPersist.idea.refPrice || 0,
+          refPrice: itemToPersist.idea.refPrice || itemToPersist.idea.sharedPrice || 0,
+          currentPrice: itemToPersist.idea.currentPrice || itemToPersist.idea.latestPrice || 0,
+          latestPrice: itemToPersist.idea.latestPrice || itemToPersist.idea.currentPrice || 0,
+          coverage: itemToPersist.idea.coverage || "Coverage ongoing",
           pdfUrl: itemToPersist.idea.pdfUrl || "",
+          htmlUrl: itemToPersist.idea.htmlUrl || (itemToPersist.idea.id ? `/${itemToPersist.idea.id}.html` : ""),
+          htmlContent: itemToPersist.idea.htmlContent || "",
           thesis: itemToPersist.idea.thesis || "",
+          studying: itemToPersist.idea.studying || "",
+          challenge: itemToPersist.idea.challenge || "",
+          watchNext: itemToPersist.idea.watchNext || "",
         });
       } else if (itemToPersist.action === "delete") {
         return await deleteFromAppwrite("ideas", itemToPersist.idea.id);

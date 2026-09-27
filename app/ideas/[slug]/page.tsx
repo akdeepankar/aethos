@@ -26,99 +26,7 @@ type IdeaDetail = {
   triggersTable: { trigger: string; impact: string; timeline: string }[];
 };
 
-const defaultIdeasData: Record<string, IdeaDetail> = {
-  "racl-geartech": {
-    id: "racl-geartech",
-    ticker: "RACLGEAR",
-    company: "RACL Geartech Limited",
-    sector: "Automobile and Auto Components",
-    mcap: "2030cr",
-    sharedPrice: 1340,
-    currentPrice: 1895,
-    sharedDate: "14 Jan 2026",
-    pdfUrl: "/RACL GEARTECH LIMITED.pdf",
-    tag: "Company Deep Dive",
-    readTime: "18 min read",
-    overview: "RACL Geartech manufactures ultra-precision gears, transmission shafts, sub-assemblies, and precision chassis components for luxury motorcycles, high-end passenger cars, agricultural equipment, and industrial machinery. The company has evolved from a domestic tier-2 supplier into a critical, sole-source engineering partner for global marquee OEMs including BMW Motorrad, KTM, Husqvarna, Ducati, Kubota, ZF, and Royal Enfield.",
-    catalysts: [
-      {
-        title: "BMW Titan & Venus Programs (EV & Premium ICE)",
-        desc: "One of the two largest capacity programs undertaken by RACL. Supplies high-tolerance gearbox components with mass production scheduled from October 2026.",
-        impact: "Major volume & revenue ramp",
-      },
-      {
-        title: "Royal Enfield Nomination Scale-up",
-        desc: "Current run-rate of 7,500–8,000 units/month ramping toward the 10,000–20,000 units/month nomination, offering 60–100%+ volume headroom on this platform alone.",
-        impact: "High-volume domestic compounding",
-      },
-      {
-        title: "In-House Heat-Treatment Overhaul",
-        desc: "₹43 Cr allocated of the ₹77.45 Cr FY27 capex to modernize in-house metallurgical processing, driving structural 200–300 bps EBITDA margin expansion by reducing external job-work.",
-        impact: "200-300 bps margin expansion",
-      },
-      {
-        title: "Passenger Car Mix Shift (RACL 3.0)",
-        desc: "Passenger car revenue mix expanded from 0% to 13% over four years. Standalone EBITDA margins progressed from 22.5% to 25.3% as higher-margin passenger car platforms scale.",
-        impact: "Structural mix improvement",
-      },
-      {
-        title: "Kawasaki 15-Part Multi-Application Program",
-        desc: "1 of 15 validated parts currently live with 14 in advanced validation, targeting mass production across FY27-FY28.",
-        impact: "Multi-year pipeline expansion",
-      },
-    ],
-    sections: [
-      {
-        heading: "1. The Business Moat & Sole-Source Position",
-        body: "Precision transmission manufacturing is not a commoditized fabrication business. OEM vendor qualification cycles for powertrain gears take 24 to 36 months, requiring micron-level gear-grinding tolerances, metallurgical heat-treatment certifications, and rigorous field durability testing. RACL functions as a sole-source or majority-source supplier for over 80% of its customer part numbers, resulting in near-zero customer attrition over its operational history.",
-      },
-      {
-        heading: "2. Strategic Transition to Global Tier-1 Systems",
-        body: "RACL is systematically moving up the value chain from standalone gear sets to complete sub-assemblies and electric drivetrain units. Collaborations with ZF on commercial truck electric power steering (EPS) systems provide a critical beachhead into the North American ADAS and electric truck conversion cycles.",
-      },
-      {
-        heading: "3. Financial Architecture & Capital Efficiency",
-        body: "The company has demonstrated disciplined capital allocation, with Return on Capital Employed (ROCE) exceeding 22% through historical cycles. Debt has reduced from ₹297.6 Cr to ₹221.8 Cr over FY25–FY26, expanding interest coverage from 3.01x to 4.26x and providing balance sheet headroom for the next growth phase.",
-      },
-      {
-        heading: "4. Working Capital & Cash Conversion Normalisation",
-        body: "Working capital has historically been stretched due to export shipping lead times and raw material inventory buffers (inventory days at 373). The structural migration of Kubota supply to domestic invoicing via Escorts offers a tangible catalyst to accelerate cash collections and improve operating cash flow conversion relative to reported net profit.",
-      },
-    ],
-    risks: [
-      "Simultaneous execution ramp of 6+ OEM programs (Titan, Venus, RE, Kawasaki, BRP) during plant overhaul.",
-      "Working capital intensity with inventory cycles requiring discipline to ensure positive free cash flow generation.",
-      "Customer concentration with top 3 OEM relationships accounting for a significant share of revenue.",
-      "Raw material commodity cost fluctuations and energy tariff inflation.",
-    ],
-    triggersTable: [
-      { trigger: "Heat-Treatment Plant Overhaul", impact: "≈200-300 bps EBITDA margin tailwind", timeline: "Trial Jan-2027; full benefit FY28+" },
-      { trigger: "BMW Titan & Venus Programs", impact: "High-value EV gearbox mass delivery", timeline: "Mass production from Oct-2026" },
-      { trigger: "Royal Enfield Ramp (10K→20K/mo)", impact: "60-100%+ volume headroom", timeline: "Ongoing scale-up through FY27-28" },
-      { trigger: "Kawasaki 15-Part Validation", impact: "Multi-part OEM revenue stream", timeline: "Mass production Q4FY27/FY28" },
-      { trigger: "ZF EPS Truck Entry", impact: "Strategic US commercial truck ADAS entry", timeline: "SOP Sep-Oct 2026" },
-      { trigger: "EU-India FTA & China+1 Realignment", impact: "Accelerated RFQ/RFI conversion", timeline: "Structural from 2027" },
-    ],
-  },
-  "spectra-a-tech": {
-    id: "spectra-a-tech",
-    ticker: "SPECTRA",
-    company: "SpectraA Technology Solutions Limited",
-    sector: "Industrial Automation & Engineering",
-    mcap: "1450cr",
-    sharedPrice: 420,
-    currentPrice: 588,
-    sharedDate: "02 Feb 2026",
-    pdfUrl: "/SpectraA_Technology_Solutions_IPO_Deep_Dive.pdf",
-    tag: "IPO Deep Dive",
-    readTime: "24 min read",
-    overview: "SpectraA Technology Solutions provides end-to-end turnkey engineering solutions for breweries, distilleries, and biopharma plants.",
-    catalysts: [],
-    sections: [],
-    risks: [],
-    triggersTable: [],
-  },
-};
+const defaultIdeasData: Record<string, IdeaDetail> = {};
 
 export default function IdeaDetailPage() {
   const params = useParams();
@@ -134,7 +42,12 @@ export default function IdeaDetailPage() {
 
     // 1. Resolve idea
     const defaultItem = defaultIdeasData[slug];
-    const storeItem = storeIdeas.find((i) => i.id === slug || i.ticker.toLowerCase() === slug.toLowerCase());
+    const storeItem = storeIdeas.find(
+      (i) =>
+        i.id.toLowerCase() === slug.toLowerCase() ||
+        (i.slug && i.slug.toLowerCase() === slug.toLowerCase()) ||
+        i.ticker.toLowerCase() === slug.toLowerCase()
+    );
 
     if (defaultItem) {
       setIdea(defaultItem);
@@ -145,26 +58,45 @@ export default function IdeaDetailPage() {
         company: storeItem.company,
         sector: storeItem.sector,
         mcap: storeItem.mcap,
-        sharedPrice: storeItem.sharedPrice,
-        currentPrice: storeItem.currentPrice,
-        sharedDate: storeItem.sharedDate,
+        sharedPrice: Number(storeItem.refPrice || storeItem.sharedPrice || 0),
+        currentPrice: Number(storeItem.latestPrice || storeItem.currentPrice || 0),
+        sharedDate: storeItem.published || storeItem.sharedDate || "",
         pdfUrl: storeItem.pdfUrl,
-        tag: "Stock Idea",
+        tag: "Aethos Idea",
         readTime: "15 min read",
-        overview: storeItem.thesis || "",
-        catalysts: [],
-        sections: [{ heading: "Investment Thesis", body: storeItem.thesis || "" }],
-        risks: [],
-        triggersTable: [],
+        overview: storeItem.thesis || storeItem.studying || "",
+        catalysts: storeItem.watchNext ? [{ title: "What to watch next", desc: storeItem.watchNext, impact: "Key milestone" }] : [],
+        sections: [
+          ...(storeItem.studying ? [{ heading: "What we are studying", body: storeItem.studying }] : []),
+          ...(storeItem.challenge ? [{ heading: "What could challenge it", body: storeItem.challenge }] : []),
+          ...(storeItem.thesis ? [{ heading: "Investment Thesis", body: storeItem.thesis }] : []),
+        ],
+        risks: storeItem.challenge ? [storeItem.challenge] : [],
+        triggersTable: storeItem.watchNext ? [{ trigger: storeItem.watchNext, impact: "Upcoming catalyst", timeline: "FY27" }] : [],
       });
+
+      if (storeItem.htmlContent && storeItem.htmlContent.trim().length > 0) {
+        setRawReportHtml(storeItem.htmlContent);
+        setLoading(false);
+        return;
+      }
     }
 
-    // 2. Fetch raw HTML from API if available
+    // 2. Fetch raw HTML from API or public HTML path if available
     fetch(`/api/reports/${slug}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.found && data.html) {
           setRawReportHtml(data.html);
+        } else if (storeItem?.htmlUrl) {
+          fetch(storeItem.htmlUrl)
+            .then((r) => r.text())
+            .then((html) => {
+              if (html && html.includes("<")) {
+                setRawReportHtml(html);
+              }
+            })
+            .catch(() => {});
         }
       })
       .catch((err) => {

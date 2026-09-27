@@ -221,7 +221,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     pathname === "/auth/success" ||
     pathname === "/auth/failure";
 
-  const isResearchDetail = pathname.startsWith("/research/") && pathname !== "/research";
+  const isResearchDetail =
+    (pathname.startsWith("/research/") && pathname !== "/research") ||
+    (pathname.startsWith("/ideas/") && pathname !== "/ideas");
 
   // Dedicated clean view for Auth routes
   if (isAuthRoute) {

@@ -1219,6 +1219,20 @@ footer{background:var(--paper);color:var(--muted);padding-top:59px;border-top:1p
   flex: 1;
 }
 
+.dashboard-content.research-detail-content {
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.dashboard-main-wrap.research-detail-wrap {
+  height: 100vh;
+  overflow: hidden;
+}
+
 .dash-icon {
   width: 18px;
   height: 18px;

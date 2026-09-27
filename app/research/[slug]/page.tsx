@@ -272,7 +272,7 @@ export default function ResearchDetailPage() {
       <DynamicReportView
         htmlContent={rawHtml || report?.htmlContent || ""}
         backUrl="/research"
-        backLabel="Back to Research Library"
+        backLabel="Research Library"
         pdfUrl={effectiveReport.pdfUrl}
       />
     );

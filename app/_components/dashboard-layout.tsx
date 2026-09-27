@@ -221,6 +221,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     pathname === "/auth/success" ||
     pathname === "/auth/failure";
 
+  const isResearchDetail = pathname.startsWith("/research/") && pathname !== "/research";
+
   // Dedicated clean view for Auth routes
   if (isAuthRoute) {
     return (
@@ -370,83 +372,85 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Container */}
-      <div className={`dashboard-main-wrap ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
-        {/* Top Header Bar */}
-        <header className="dashboard-header">
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <button 
-              className="mobile-toggle-btn"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open sidebar"
-            >
-              <IconMenu />
-            </button>
+      <div className={`dashboard-main-wrap ${sidebarCollapsed ? "sidebar-collapsed" : ""} ${isResearchDetail ? "research-detail-wrap" : ""}`}>
+        {/* Top Header Bar (Hidden on research detail pages so report starts from top) */}
+        {!isResearchDetail && (
+          <header className="dashboard-header">
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <button 
+                className="mobile-toggle-btn"
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open sidebar"
+              >
+                <IconMenu />
+              </button>
 
-            <button
-              type="button"
-              onClick={toggleSidebarCollapsed}
-              className="header-sidebar-toggle-btn"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                borderRadius: "8px",
-                padding: "6px 10px",
-                fontSize: "12px",
-                fontWeight: "600",
-                color: "#475569",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
-              title={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
-            >
-              <IconSidebarToggle collapsed={sidebarCollapsed} />
-              <span className="sidebar-toggle-text" style={{ fontSize: "11px" }}>
-                {sidebarCollapsed ? "Expand" : "Collapse"}
-              </span>
-            </button>
-          </div>
-
-          <div className="header-search-bar">
-            <IconSearch />
-            <input 
-              type="text" 
-              placeholder="Search companies, sectors, IPOs or research..." 
-            />
-            <span className="kbd-shortcut">⌘K</span>
-          </div>
-
-          <div className="header-actions">
-            <button className="header-icon-btn" aria-label="Notifications" title="Notifications">
-              <IconBell />
-              <span className="notif-dot" />
-            </button>
-
-            <div className="header-avatar-circle" title="Sibesh Agrawal">
-              {user ? initials : "SA"}
-            </div>
-
-            <div className="header-illustrative-tag">
-              Illustrative data
-            </div>
-
-            {user ? (
               <button
                 type="button"
-                onClick={signOut}
-                className="button button-gold header-cta"
-                style={{ fontSize: "11px", padding: "0 12px", height: "32px", cursor: "pointer" }}
+                onClick={toggleSidebarCollapsed}
+                className="header-sidebar-toggle-btn"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  padding: "6px 10px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "#475569",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+                title={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
               >
-                Sign Out
+                <IconSidebarToggle collapsed={sidebarCollapsed} />
+                <span className="sidebar-toggle-text" style={{ fontSize: "11px" }}>
+                  {sidebarCollapsed ? "Expand" : "Collapse"}
+                </span>
               </button>
-            ) : null}
-          </div>
-        </header>
+            </div>
+
+            <div className="header-search-bar">
+              <IconSearch />
+              <input 
+                type="text" 
+                placeholder="Search companies, sectors, IPOs or research..." 
+              />
+              <span className="kbd-shortcut">⌘K</span>
+            </div>
+
+            <div className="header-actions">
+              <button className="header-icon-btn" aria-label="Notifications" title="Notifications">
+                <IconBell />
+                <span className="notif-dot" />
+              </button>
+
+              <div className="header-avatar-circle" title="Sibesh Agrawal">
+                {user ? initials : "SA"}
+              </div>
+
+              <div className="header-illustrative-tag">
+                Illustrative data
+              </div>
+
+              {user ? (
+                <button
+                  type="button"
+                  onClick={signOut}
+                  className="button button-gold header-cta"
+                  style={{ fontSize: "11px", padding: "0 12px", height: "32px", cursor: "pointer" }}
+                >
+                  Sign Out
+                </button>
+              ) : null}
+            </div>
+          </header>
+        )}
 
         {/* Protected Page Content Body with Gatewall */}
-        <main className="dashboard-content">
+        <main className={`dashboard-content ${isResearchDetail ? "research-detail-content" : ""}`}>
           <AuthGate>
             {children}
           </AuthGate>

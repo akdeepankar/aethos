@@ -51,99 +51,112 @@ export default function DynamicReportView({
   };
 
   return (
-    <div className="dash-overview-page">
-      {/* Top Navigation & Action Header */}
+    <div style={{ height: "100vh", width: "100%", display: "flex", flexDirection: "column", background: "#ffffff", overflow: "hidden" }}>
+      {/* Sleek, Ultra-Compact Top Bar */}
       <div
         style={{
-          marginBottom: "16px",
+          height: "38px",
+          padding: "0 14px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          flexWrap: "wrap",
-          gap: "12px",
+          background: "#fafafa",
+          borderBottom: "1px solid #e2e8f0",
+          flexShrink: 0,
+          gap: "10px",
         }}
       >
+        {/* Compact Back Button */}
         <Link
           href={backUrl}
-          className="dash-card-link"
           style={{
-            fontSize: "12px",
+            fontSize: "11px",
+            fontWeight: "600",
             display: "inline-flex",
             alignItems: "center",
-            gap: "6px",
+            gap: "5px",
+            color: "#475569",
+            textDecoration: "none",
+            padding: "3px 8px",
+            background: "#ffffff",
+            border: "1px solid #e2e8f0",
+            borderRadius: "5px",
+            lineHeight: 1.2,
+            transition: "all 0.15s ease",
           }}
+          title={backLabel}
         >
-          ← {backLabel}
+          <span>←</span>
+          <span>{backLabel}</span>
         </Link>
 
-        {/* Action Controls, Format Switcher & Zoom Tools */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+        {/* Compact Action Controls, Format Switcher & Zoom Tools */}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           {/* Format Switcher */}
           {pdfUrl && (
             <div
               style={{
                 display: "inline-flex",
-                background: "#f4f4f5",
-                padding: "3px",
-                borderRadius: "8px",
-                border: "1px solid var(--gold-light)",
+                background: "#ffffff",
+                padding: "1px",
+                borderRadius: "5px",
+                border: "1px solid #e2e8f0",
+                height: "25px",
+                alignItems: "center",
               }}
             >
               <button
                 type="button"
                 onClick={() => setActiveFormat("markdown")}
                 style={{
-                  padding: "5px 12px",
-                  fontSize: "11px",
+                  padding: "2px 7px",
+                  fontSize: "10.5px",
                   fontWeight: "700",
-                  borderRadius: "6px",
+                  borderRadius: "4px",
                   border: "none",
                   cursor: "pointer",
-                  background: activeFormat === "markdown" ? "#ffffff" : "transparent",
-                  color: activeFormat === "markdown" ? "var(--ink)" : "var(--muted)",
-                  boxShadow:
-                    activeFormat === "markdown"
-                      ? "0 1px 3px rgba(0,0,0,0.08)"
-                      : "none",
+                  background: activeFormat === "markdown" ? "#0f172a" : "transparent",
+                  color: activeFormat === "markdown" ? "#ffffff" : "#64748b",
                   transition: "all 0.15s ease",
+                  height: "21px",
+                  lineHeight: "17px",
                 }}
               >
-                Markdown Format
+                Note
               </button>
               <button
                 type="button"
                 onClick={() => setActiveFormat("pdf")}
                 style={{
-                  padding: "5px 12px",
-                  fontSize: "11px",
+                  padding: "2px 7px",
+                  fontSize: "10.5px",
                   fontWeight: "700",
-                  borderRadius: "6px",
+                  borderRadius: "4px",
                   border: "none",
                   cursor: "pointer",
-                  background: activeFormat === "pdf" ? "#ffffff" : "transparent",
-                  color: activeFormat === "pdf" ? "var(--ink)" : "var(--muted)",
-                  boxShadow:
-                    activeFormat === "pdf"
-                      ? "0 1px 3px rgba(0,0,0,0.08)"
-                      : "none",
+                  background: activeFormat === "pdf" ? "#0f172a" : "transparent",
+                  color: activeFormat === "pdf" ? "#ffffff" : "#64748b",
                   transition: "all 0.15s ease",
+                  height: "21px",
+                  lineHeight: "17px",
                 }}
               >
-                PDF Format
+                PDF
               </button>
             </div>
           )}
 
-          {/* Zoom In / Out Controls */}
+          {/* Compact Zoom In / Out Controls */}
           <div
             style={{
               display: "inline-flex",
               alignItems: "center",
-              background: "#f4f4f5",
-              borderRadius: "8px",
-              padding: "2px 4px",
-              border: "1px solid var(--gold-light)",
-              gap: "2px",
+              background: "#ffffff",
+              borderRadius: "5px",
+              padding: "1px 2px",
+              border: "1px solid #e2e8f0",
+              gap: "1px",
+              height: "25px",
             }}
           >
             <button
@@ -152,14 +165,14 @@ export default function DynamicReportView({
               disabled={zoomLevel <= 0.7}
               title="Zoom Out (−)"
               style={{
-                padding: "4px 8px",
-                fontSize: "13px",
+                padding: "2px 5px",
+                fontSize: "11px",
                 fontWeight: "700",
                 border: "none",
                 background: "transparent",
                 cursor: zoomLevel <= 0.7 ? "not-allowed" : "pointer",
-                color: zoomLevel <= 0.7 ? "#a1a1aa" : "var(--ink)",
-                borderRadius: "4px",
+                color: zoomLevel <= 0.7 ? "#cbd5e1" : "#475569",
+                borderRadius: "3px",
                 lineHeight: "1",
               }}
             >
@@ -170,18 +183,17 @@ export default function DynamicReportView({
               onClick={handleZoomReset}
               title="Reset Zoom (100%)"
               style={{
-                padding: "4px 6px",
-                fontSize: "11px",
+                padding: "1px 4px",
+                fontSize: "10px",
                 fontWeight: "700",
                 border: "none",
-                background: "#ffffff",
+                background: "#f1f5f9",
                 cursor: "pointer",
-                color: "var(--ink)",
-                borderRadius: "4px",
-                minWidth: "46px",
+                color: "#0f172a",
+                borderRadius: "3px",
+                minWidth: "38px",
                 textAlign: "center",
-                boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                lineHeight: "1.2",
+                lineHeight: "1.3",
               }}
             >
               {Math.round(zoomLevel * 100)}%
@@ -192,14 +204,14 @@ export default function DynamicReportView({
               disabled={zoomLevel >= 1.6}
               title="Zoom In (+)"
               style={{
-                padding: "4px 8px",
-                fontSize: "13px",
+                padding: "2px 5px",
+                fontSize: "11px",
                 fontWeight: "700",
                 border: "none",
                 background: "transparent",
                 cursor: zoomLevel >= 1.6 ? "not-allowed" : "pointer",
-                color: zoomLevel >= 1.6 ? "#a1a1aa" : "var(--ink)",
-                borderRadius: "4px",
+                color: zoomLevel >= 1.6 ? "#cbd5e1" : "#475569",
+                borderRadius: "3px",
                 lineHeight: "1",
               }}
             >
@@ -207,53 +219,56 @@ export default function DynamicReportView({
             </button>
           </div>
 
-          {/* Direct PDF Download Link */}
+          {/* Compact PDF Link */}
           {pdfUrl && (
             <a
               href={pdfUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="dash-card-link"
               style={{
-                fontSize: "11px",
+                fontSize: "10.5px",
                 fontWeight: "600",
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "5px",
-                padding: "6px 14px",
-                borderRadius: "6px",
+                gap: "4px",
+                padding: "3px 8px",
+                borderRadius: "5px",
                 background: "#ffffff",
-                border: "1px solid var(--gold-light)",
+                border: "1px solid #e2e8f0",
+                color: "#0f172a",
+                textDecoration: "none",
+                height: "25px",
+                lineHeight: 1,
               }}
             >
-              {pdfButtonLabel} <ArrowUpRight />
+              <span>{pdfButtonLabel}</span>
+              <ArrowUpRight />
             </a>
           )}
         </div>
       </div>
 
-      {/* Main Report Container */}
+      {/* Main Report Container - Full Available Height from Top */}
       <div
-        className="dash-card"
         style={{
+          flex: 1,
+          height: "calc(100vh - 38px)",
+          minHeight: 0,
           padding: 0,
           overflow: "hidden",
           background: "#ffffff",
-          border: "1px solid var(--gold-light)",
-          height: "calc(100vh - 130px)",
-          minHeight: "650px",
           display: "flex",
           flexDirection: "column",
         }}
       >
         {activeFormat === "markdown" ? (
-          <DynamicReportFrame htmlContent={htmlContent} zoom={zoomLevel} height="100%" minHeight="100%" />
+          <DynamicReportFrame htmlContent={htmlContent} zoom={zoomLevel} height="100%" minHeight="100%" style={{ borderRadius: 0 }} />
         ) : pdfUrl ? (
           <div style={{ flex: 1, overflowY: "auto", height: "100%" }}>
             <CleanPdfRenderer pdfUrl={pdfUrl} zoom={zoomLevel} />
           </div>
         ) : (
-          <DynamicReportFrame htmlContent={htmlContent} zoom={zoomLevel} height="100%" minHeight="100%" />
+          <DynamicReportFrame htmlContent={htmlContent} zoom={zoomLevel} height="100%" minHeight="100%" style={{ borderRadius: 0 }} />
         )}
       </div>
     </div>

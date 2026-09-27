@@ -41,6 +41,7 @@ export default function ResearchPage() {
       return {};
     }
   });
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
   // Toggle bookmark / saved in user's browser storage
@@ -78,6 +79,34 @@ export default function ResearchPage() {
     setActiveTab("all");
     setCurrentPage(1);
   };
+
+  const removeType = (type: string) => {
+    setSelectedTypes((prev) => prev.filter((t) => t !== type));
+    setCurrentPage(1);
+  };
+
+  const removeSector = (sector: string) => {
+    setSelectedSectors((prev) => prev.filter((s) => s !== sector));
+    setCurrentPage(1);
+  };
+
+  const clearCompanySearch = () => {
+    setCompanySearch("");
+    setCurrentPage(1);
+  };
+
+  const clearPublishedFilter = () => {
+    setPublishedFilter("any");
+    setCurrentPage(1);
+  };
+
+  const activeFilterCount =
+    selectedTypes.length +
+    selectedSectors.length +
+    (companySearch.trim() ? 1 : 0) +
+    (publishedFilter !== "any" ? 1 : 0);
+
+  const hasActiveFilters = activeFilterCount > 0 || searchQuery.trim().length > 0;
 
   const researchTypes = [
     "Stock deep dives",
@@ -149,7 +178,7 @@ export default function ResearchPage() {
 
       return true;
     });
-  }, [allReports, activeTab, searchQuery, companySearch, selectedTypes, selectedSectors, savedSlugs]);
+  }, [allReports, activeTab, searchQuery, companySearch, selectedTypes, selectedSectors, savedSlugs, readSlugs]);
 
   // Sorting
   const sortedReports = useMemo(() => {
@@ -164,11 +193,12 @@ export default function ResearchPage() {
   }, [filteredReports, sortOption]);
 
   const itemsPerPage = 6;
-  const totalItems = 48; // Illustrative full count matching design
+  const totalItems = allReports.length > 0 ? allReports.length : 48;
   const paginatedReports = sortedReports.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
+  const totalPages = Math.max(1, Math.ceil(sortedReports.length / itemsPerPage));
 
   return (
     <div className="rl-container">
@@ -179,7 +209,7 @@ export default function ResearchPage() {
           <p className="rl-subtitle">Every report. Every update. A growing perspective.</p>
         </div>
         <div className="rl-header-right">
-          <span className="rl-piece-count">{totalItems} research pieces</span>
+          <span className="rl-piece-count">{sortedReports.length} research pieces</span>
         </div>
       </div>
 
@@ -199,17 +229,129 @@ export default function ResearchPage() {
             setCurrentPage(1);
           }}
         />
+        {searchQuery && (
+          <button
+            type="button"
+            className="rl-search-clear-btn"
+            onClick={() => {
+              setSearchQuery("");
+              setCurrentPage(1);
+            }}
+            aria-label="Clear search"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" strokeLinecap="round" />
+              <line x1="6" y1="6" x2="18" y2="18" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
       </div>
+
+      {/* Mobile Filter Toggle Bar */}
+      <div className="rl-mobile-filter-bar">
+        <button
+          type="button"
+          className={`rl-mobile-filter-btn ${showMobileFilters ? "active" : ""}`}
+          onClick={() => setShowMobileFilters((prev) => !prev)}
+          aria-expanded={showMobileFilters}
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="4" y1="21" x2="4" y2="14" />
+            <line x1="4" y1="10" x2="4" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="12" />
+            <line x1="12" y1="8" x2="12" y2="3" />
+            <line x1="20" y1="21" x2="20" y2="16" />
+            <line x1="20" y1="12" x2="20" y2="3" />
+            <line x1="1" y1="14" x2="7" y2="14" />
+            <line x1="9" y1="8" x2="15" y2="8" />
+            <line x1="17" y1="16" x2="23" y2="16" />
+          </svg>
+          <span>{showMobileFilters ? "Hide Filters" : "Filter Research"}</span>
+          {activeFilterCount > 0 && (
+            <span className="rl-mobile-filter-badge">{activeFilterCount}</span>
+          )}
+          <svg
+            className={`rl-mobile-chevron ${showMobileFilters ? "open" : ""}`}
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+
+        {hasActiveFilters && (
+          <button type="button" onClick={handleReset} className="rl-mobile-reset-btn">
+            Reset all
+          </button>
+        )}
+      </div>
+
+      {/* Active Filter Chips (Removable tags) */}
+      {hasActiveFilters && (
+        <div className="rl-active-chips-bar">
+          <div className="rl-active-chips-list">
+            {selectedTypes.map((type) => (
+              <span key={type} className="rl-active-chip">
+                <span>{type}</span>
+                <button type="button" onClick={() => removeType(type)} aria-label={`Remove ${type} filter`}>
+                  ×
+                </button>
+              </span>
+            ))}
+            {selectedSectors.map((sector) => (
+              <span key={sector} className="rl-active-chip">
+                <span>{sector}</span>
+                <button type="button" onClick={() => removeSector(sector)} aria-label={`Remove ${sector} filter`}>
+                  ×
+                </button>
+              </span>
+            ))}
+            {companySearch && (
+              <span className="rl-active-chip">
+                <span>Co: {companySearch}</span>
+                <button type="button" onClick={clearCompanySearch} aria-label="Remove company filter">
+                  ×
+                </button>
+              </span>
+            )}
+            {publishedFilter !== "any" && (
+              <span className="rl-active-chip">
+                <span>{publishedFilter}</span>
+                <button type="button" onClick={clearPublishedFilter} aria-label="Remove time filter">
+                  ×
+                </button>
+              </span>
+            )}
+          </div>
+          <button type="button" onClick={handleReset} className="rl-chips-clear-all">
+            Clear all
+          </button>
+        </div>
+      )}
 
       {/* Two Column Layout: Left Filter Sidebar & Right Research Content */}
       <div className="rl-layout">
-        {/* Left Filter Column */}
-        <aside className="rl-filter-sidebar">
+        {/* Left Filter Column / Drawer */}
+        <aside className={`rl-filter-sidebar ${showMobileFilters ? "mobile-open" : ""}`}>
           <div className="rl-filter-header">
             <span className="rl-filter-title">Refine your search</span>
-            <button type="button" onClick={handleReset} className="rl-filter-reset">
-              Reset
-            </button>
+            <div className="rl-filter-header-actions">
+              <button type="button" onClick={handleReset} className="rl-filter-reset">
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowMobileFilters(false)}
+                className="rl-filter-close-btn"
+                aria-label="Close filters"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           {/* Research Type Group */}
@@ -308,6 +450,17 @@ export default function ResearchPage() {
                 <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </div>
+          </div>
+
+          {/* Mobile Apply Button */}
+          <div className="rl-filter-mobile-footer">
+            <button
+              type="button"
+              className="rl-filter-apply-btn"
+              onClick={() => setShowMobileFilters(false)}
+            >
+              Show {sortedReports.length} {sortedReports.length === 1 ? "Report" : "Reports"}
+            </button>
           </div>
         </aside>
 
@@ -496,47 +649,40 @@ export default function ResearchPage() {
           {/* Bottom Pagination */}
           <div className="rl-pagination-bar">
             <span className="rl-showing-count">
-              Showing 1–{Math.min(paginatedReports.length, 6)} of {totalItems}
+              Showing {paginatedReports.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}–{Math.min(currentPage * itemsPerPage, sortedReports.length)} of {sortedReports.length}
             </span>
-            <div className="rl-pagination-pages">
-              <button
-                type="button"
-                className={`rl-page-btn ${currentPage === 1 ? "active" : ""}`}
-                onClick={() => setCurrentPage(1)}
-              >
-                1
-              </button>
-              <button
-                type="button"
-                className={`rl-page-btn ${currentPage === 2 ? "active" : ""}`}
-                onClick={() => setCurrentPage(2)}
-              >
-                2
-              </button>
-              <button
-                type="button"
-                className={`rl-page-btn ${currentPage === 3 ? "active" : ""}`}
-                onClick={() => setCurrentPage(3)}
-              >
-                3
-              </button>
-              <span className="rl-page-ellipsis">...</span>
-              <button
-                type="button"
-                className={`rl-page-btn ${currentPage === 8 ? "active" : ""}`}
-                onClick={() => setCurrentPage(8)}
-              >
-                8
-              </button>
-              <button
-                type="button"
-                className="rl-page-btn rl-page-next"
-                onClick={() => setCurrentPage((p) => Math.min(p + 1, 8))}
-                aria-label="Next page"
-              >
-                &gt;
-              </button>
-            </div>
+            {totalPages > 1 && (
+              <div className="rl-pagination-pages">
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  className="rl-page-btn rl-page-prev"
+                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                  aria-label="Previous page"
+                >
+                  &lt;
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    type="button"
+                    className={`rl-page-btn ${currentPage === page ? "active" : ""}`}
+                    onClick={() => setCurrentPage(page)}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages}
+                  className="rl-page-btn rl-page-next"
+                  onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                  aria-label="Next page"
+                >
+                  &gt;
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Footer Disclaimer */}

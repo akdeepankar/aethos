@@ -548,7 +548,9 @@ ${report.sections
     setIdeaDrawerMode("edit");
     if (idea) {
       setEditingIdea(idea);
-      const ideaSlug = idea.slug || idea.id || "";
+      const ideaSlug = (idea.slug && !idea.slug.startsWith("http") ? idea.slug : idea.id || (idea.ticker ? idea.ticker.toLowerCase() : "")).toLowerCase().trim();
+      const initialHtmlUrl = idea.htmlUrl || (ideaSlug ? `/${ideaSlug}.html` : "");
+
       setIdeaForm({
         company: idea.company || "",
         ticker: idea.ticker || "",
@@ -559,13 +561,35 @@ ${report.sections
         mcap: idea.mcap || "",
         refPrice: Number(idea.refPrice || idea.sharedPrice || 0),
         latestPrice: Number(idea.latestPrice || idea.currentPrice || 0),
-        studying: idea.studying || "",
+        studying: idea.studying || idea.thesis || "",
         challenge: idea.challenge || "",
         watchNext: idea.watchNext || "",
-        thesis: idea.thesis || "",
-        htmlUrl: idea.htmlUrl || (ideaSlug ? `/${ideaSlug}.html` : ""),
+        thesis: idea.thesis || idea.studying || "",
+        htmlUrl: initialHtmlUrl,
         htmlContent: idea.htmlContent || "",
       });
+
+      // Fetch HTML report from cloud storage / API if not already in memory
+      if (!idea.htmlContent && (initialHtmlUrl || ideaSlug)) {
+        if (initialHtmlUrl && initialHtmlUrl.startsWith("http")) {
+          fetch(initialHtmlUrl)
+            .then((r) => r.text())
+            .then((html) => {
+              if (html && html.includes("<")) {
+                setIdeaForm((prev) => ({ ...prev, htmlContent: html }));
+              }
+            })
+            .catch(() => {});
+        }
+        fetch(`/api/reports/${ideaSlug}`)
+          .then((res) => res.json())
+          .then((d) => {
+            if (d.found && d.html) {
+              setIdeaForm((prev) => ({ ...prev, htmlContent: d.html }));
+            }
+          })
+          .catch(() => {});
+      }
     } else {
       setEditingIdea(null);
       setIdeaForm({

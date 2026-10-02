@@ -16,7 +16,7 @@ const ArrowUpRight = () => (
 );
 
 export default function Home() {
-  const { reports, ipos, journal: posts } = useAdminStore();
+  const { reports, ipos, journal: posts, ideas } = useAdminStore();
   const featuredReport = reports && reports.length > 0 ? reports[0] : null;
 
   return (
@@ -73,13 +73,13 @@ export default function Home() {
 
         <div className="dash-metric-card">
           <div className="metric-header">
-            <span>Coverage Sectors</span>
+            <span>Aethos Ideas</span>
             <span className="metric-trend up">Active</span>
           </div>
           <div className="metric-body">
-            <span className="metric-value">12</span>
+            <span className="metric-value">{ideas.length}</span>
           </div>
-          <div className="metric-footer">Across Indian equity universe</div>
+          <div className="metric-footer">High-conviction stock theses</div>
         </div>
       </div>
 

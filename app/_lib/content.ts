@@ -33,12 +33,20 @@ export type Ipo = {
   price: string;
   type: "Mainboard" | "SME";
   deepDive: boolean;
+  hasReport?: boolean;
   deck: string;
   issueSize: string;
   lotSize: string;
   listing: string;
   pdfUrl?: string;
   htmlUrl?: string;
+  htmlContent?: string;
+  externalId?: string;
+  status?: string;
+  isSme?: boolean;
+  additionalText?: string;
+  lastSyncedAt?: string;
+  closedAt?: string;
   sections: { heading: string; body: string }[];
 };
 

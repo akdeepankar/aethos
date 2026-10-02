@@ -160,5 +160,35 @@
       "encryption": true,
       "antivirus": true
     }
+  ],
+  "functions": [
+    {
+      "$id": "get-ipos",
+      "name": "Fetch Live IPO Data Daily Midnight",
+      "runtime": "node-18.0",
+      "execute": ["any"],
+      "events": [],
+      "schedule": "0 0 * * *",
+      "timeout": 900,
+      "enabled": true,
+      "logging": true,
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "path": "functions/get-ipos"
+    },
+    {
+      "$id": "generate-ipo-report",
+      "name": "Generate IPO Deep Dive HTML Report",
+      "runtime": "node-18.0",
+      "execute": ["any"],
+      "events": [],
+      "schedule": "",
+      "timeout": 900,
+      "enabled": true,
+      "logging": true,
+      "entrypoint": "src/main.js",
+      "commands": "npm install",
+      "path": "functions/generate-ipo-report"
+    }
   ]
 }

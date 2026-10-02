@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
 import { useAuth } from "../_context/auth-context";
 import { AuthGate } from "./auth-gate";
 
@@ -166,12 +166,45 @@ export function IconChat() {
   );
 }
 
+export function IconFolder() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="dash-icon">
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconDatabase() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="dash-icon">
+      <ellipse cx="12" cy="5" rx="9" ry="3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
+export function IconArrowLeft() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="dash-icon">
+      <path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 interface NavItem {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   badge?: string;
   badgeType?: string;
+}
+
+interface AdminNavItem {
+  label: string;
+  tab: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
 }
 
 const navItems: NavItem[] = [
@@ -189,8 +222,56 @@ const secondaryItems: NavItem[] = [
   { label: "Admin Studio", href: "/admin", icon: IconAdmin, badge: "Admin", badgeType: "live" },
 ];
 
+const adminNavItems: AdminNavItem[] = [
+  { label: "Research", tab: "reports", href: "/admin?tab=reports", icon: IconResearch },
+  { label: "Aethos Ideas", tab: "ideas", href: "/admin?tab=ideas", icon: IconIdeas },
+  { label: "IPOs", tab: "ipos", href: "/admin?tab=ipos", icon: IconIpos },
+  { label: "Journal", tab: "journal", href: "/admin?tab=journal", icon: IconJournal },
+  { label: "Files & Media", tab: "media", href: "/admin?tab=media", icon: IconFolder },
+  { label: "Database", tab: "database", href: "/admin?tab=database", icon: IconDatabase },
+];
+
+function AdminNavbarTabs() {
+  const searchParams = useSearchParams();
+  const activeAdminTab = searchParams.get("tab") || "reports";
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+      {adminNavItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = activeAdminTab === item.tab;
+
+        return (
+          <Link
+            key={item.tab}
+            href={item.href}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "6px 14px",
+              borderRadius: "6px",
+              fontSize: "12.5px",
+              fontWeight: isActive ? "600" : "500",
+              color: isActive ? "#0f172a" : "#64748b",
+              background: isActive ? "#f1f5f9" : "transparent",
+              border: isActive ? "1px solid #cbd5e1" : "1px solid transparent",
+              textDecoration: "none",
+              transition: "all 0.15s ease",
+            }}
+          >
+            <Icon />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const isAdminRoute = pathname.startsWith("/admin");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { user, signOut, signInWithGoogle } = useAuth();
@@ -279,176 +360,231 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     .toUpperCase() || "AW";
 
   return (
-    <div className="dashboard-root">
+    <div className={`dashboard-root ${isAdminRoute ? "admin-root-layout" : ""}`}>
       {/* Mobile Backdrop */}
-      {sidebarOpen && (
+      {sidebarOpen && !isAdminRoute && (
         <div 
           className="sidebar-backdrop" 
           onClick={() => setSidebarOpen(false)} 
         />
       )}
 
-      {/* Left Sidebar */}
-      <aside className={`dashboard-sidebar ${sidebarOpen ? "open" : ""} ${sidebarCollapsed ? "collapsed" : ""}`}>
-        <div className="sidebar-brand-area">
-          <Link href="/" className="sidebar-brand" onClick={() => setSidebarOpen(false)} title="Aethos Investment Research">
-            <Image
-              className="brand-logo"
-              src="/aethos-eagle-logo.jpeg"
-              alt="Aethos"
-              width={34}
-              height={34}
-              quality={90}
-              priority
-            />
-            <div className="brand-text">
-              <span className="brand-title">AETHOS WEALTH</span>
-              <span className="brand-subtitle">Perspective that creates value</span>
-            </div>
-          </Link>
-          <button 
-            className="sidebar-minimize-btn"
-            onClick={toggleSidebarCollapsed}
-            aria-label={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
-            title={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
-          >
-            <span style={{ fontSize: "11px", fontWeight: "bold", lineHeight: 1 }}>
-              {sidebarCollapsed ? "▶" : "◀"}
-            </span>
-          </button>
-          <button 
-            className="sidebar-close-btn"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Close sidebar"
-          >
-            <IconClose />
-          </button>
-        </div>
-
-        <div className="sidebar-nav-container">
-          <div className="nav-group">
-            <nav className="nav-list">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = item.href === "/" 
-                  ? pathname === "/" 
-                  : pathname.startsWith(item.href);
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`sidebar-link ${isActive ? "active" : ""}`}
-                    onClick={() => setSidebarOpen(false)}
-                    title={item.label}
-                  >
-                    <Icon />
-                    <span className="sidebar-link-text">{item.label}</span>
-                    {item.badge && (
-                      <span className={`sidebar-badge ${item.badgeType || ""}`}>
-                        {item.badge}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-        </div>
-
-        {/* User Profile in Bottom Sidebar */}
-        <div className="sidebar-footer-area">
-          {user ? (
-            <Link href="/dashboard" className="sidebar-user-card" style={{ textDecoration: "none" }} title={displayName}>
-              <div className="user-avatar">{initials}</div>
-              <div className="user-info">
-                <span className="user-name">{user.name || user.email}</span>
-                <span className="user-status">Active Member</span>
+      {/* Left Sidebar (Regular app only, hidden for Admin) */}
+      {!isAdminRoute && (
+        <aside className={`dashboard-sidebar ${sidebarOpen ? "open" : ""} ${sidebarCollapsed ? "collapsed" : ""}`}>
+          <div className="sidebar-brand-area">
+            <Link href="/" className="sidebar-brand" onClick={() => setSidebarOpen(false)} title="Aethos Investment Research">
+              <Image
+                className="brand-logo"
+                src="/aethos-eagle-logo.jpeg"
+                alt="Aethos"
+                width={34}
+                height={34}
+                quality={90}
+                priority
+              />
+              <div className="brand-text">
+                <span className="brand-title">AETHOS WEALTH</span>
+                <span className="brand-subtitle">Perspective that creates value</span>
               </div>
-              <span className="user-chevron">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="m9 18 6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </span>
             </Link>
-          ) : (
-            <div
-              className="sidebar-user-card"
-              onClick={() => signInWithGoogle(pathname)}
-              style={{ textDecoration: "none", cursor: "pointer" }}
-              title="Sign In to Aethos Wealth"
+            <button 
+              className="sidebar-minimize-btn"
+              onClick={toggleSidebarCollapsed}
+              aria-label={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
+              title={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
             >
-              <div className="user-avatar" style={{ background: "#e2e8f0", color: "#64748b" }}>
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              </div>
-              <div className="user-info">
-                <span className="user-name">Guest Member</span>
-                <span className="user-status" style={{ color: "#b45309" }}>Sign In to Unlock</span>
-              </div>
-              <span className="user-chevron">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="m9 18 6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+              <span style={{ fontSize: "11px", fontWeight: "bold", lineHeight: 1 }}>
+                {sidebarCollapsed ? "▶" : "◀"}
               </span>
+            </button>
+            <button 
+              className="sidebar-close-btn"
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Close sidebar"
+            >
+              <IconClose />
+            </button>
+          </div>
+
+          <div className="sidebar-nav-container">
+            <div className="nav-group">
+              <nav className="nav-list">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = item.href === "/" 
+                    ? pathname === "/" 
+                    : pathname.startsWith(item.href);
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`sidebar-link ${isActive ? "active" : ""}`}
+                      onClick={() => setSidebarOpen(false)}
+                      title={item.label}
+                    >
+                      <Icon />
+                      <span className="sidebar-link-text">{item.label}</span>
+                      {item.badge && (
+                        <span className={`sidebar-badge ${item.badgeType || ""}`}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </nav>
             </div>
-          )}
-        </div>
-      </aside>
+          </div>
+
+          {/* User Profile in Bottom Sidebar */}
+          <div className="sidebar-footer-area">
+            {user ? (
+              <Link href="/dashboard" className="sidebar-user-card" style={{ textDecoration: "none" }} title={displayName}>
+                <div className="user-avatar">{initials}</div>
+                <div className="user-info">
+                  <span className="user-name">{user.name || user.email}</span>
+                  <span className="user-status">Active Member</span>
+                </div>
+                <span className="user-chevron">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="m9 18 6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              </Link>
+            ) : (
+              <div
+                className="sidebar-user-card"
+                onClick={() => signInWithGoogle(pathname)}
+                style={{ textDecoration: "none", cursor: "pointer" }}
+                title="Sign In to Aethos Wealth"
+              >
+                <div className="user-avatar" style={{ background: "#e2e8f0", color: "#64748b" }}>
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </div>
+                <div className="user-info">
+                  <span className="user-name">Guest Member</span>
+                  <span className="user-status" style={{ color: "#b45309" }}>Sign In to Unlock</span>
+                </div>
+                <span className="user-chevron">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="m9 18 6-6-6-6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              </div>
+            )}
+          </div>
+        </aside>
+      )}
 
       {/* Main Container */}
-      <div className={`dashboard-main-wrap ${sidebarCollapsed ? "sidebar-collapsed" : ""} ${isResearchDetail ? "research-detail-wrap" : ""}`}>
-        {/* Top Header Bar (Hidden on research detail pages so report starts from top) */}
+      <div className={`dashboard-main-wrap ${isAdminRoute ? "admin-full-width-wrap" : ""} ${sidebarCollapsed && !isAdminRoute ? "sidebar-collapsed" : ""} ${isResearchDetail ? "research-detail-wrap" : ""}`}>
+        {/* Top Header Bar */}
         {!isResearchDetail && (
-          <header className="dashboard-header">
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <button 
-                className="mobile-toggle-btn"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Open sidebar"
-              >
-                <IconMenu />
-              </button>
+          <header className="dashboard-header" style={isAdminRoute ? { padding: "0 24px" } : undefined}>
+            {isAdminRoute ? (
+              <div style={{ display: "flex", alignItems: "center", gap: "20px", flex: 1 }}>
+                <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
+                  <Image
+                    src="/aethos-eagle-logo.jpeg"
+                    alt="Aethos"
+                    width={30}
+                    height={30}
+                    style={{ borderRadius: "6px" }}
+                    priority
+                  />
+                  <div style={{ display: "flex", flexDirection: "column" }}>
+                    <span style={{ fontSize: "13px", fontWeight: "800", letterSpacing: "0.08em", color: "#0f172a", lineHeight: 1.1 }}>
+                      AETHOS
+                    </span>
+                    <span style={{ fontSize: "8px", fontWeight: "700", letterSpacing: "0.1em", color: "#64748b" }}>
+                      ADMIN STUDIO
+                    </span>
+                  </div>
+                </Link>
 
-              <button
-                type="button"
-                onClick={toggleSidebarCollapsed}
-                className="header-sidebar-toggle-btn"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "8px",
-                  padding: "6px 10px",
-                  fontSize: "12px",
-                  fontWeight: "600",
-                  color: "#475569",
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                }}
-                title={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
-              >
-                <IconSidebarToggle collapsed={sidebarCollapsed} />
-                <span className="sidebar-toggle-text" style={{ fontSize: "11px" }}>
-                  {sidebarCollapsed ? "Expand" : "Collapse"}
-                </span>
-              </button>
-            </div>
+                <div style={{ height: "24px", width: "1px", background: "#cbd5e1" }} />
 
-            <div className="header-search-bar">
-              <IconSearch />
-              <input 
-                type="text" 
-                placeholder="Search companies, sectors, IPOs or research..." 
-              />
-              <span className="kbd-shortcut">⌘K</span>
-            </div>
+                <Suspense fallback={null}>
+                  <AdminNavbarTabs />
+                </Suspense>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <button 
+                    className="mobile-toggle-btn"
+                    onClick={() => setSidebarOpen(true)}
+                    aria-label="Open sidebar"
+                  >
+                    <IconMenu />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={toggleSidebarCollapsed}
+                    className="header-sidebar-toggle-btn"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "8px",
+                      padding: "6px 10px",
+                      fontSize: "12px",
+                      fontWeight: "600",
+                      color: "#475569",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                    title={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
+                  >
+                    <IconSidebarToggle collapsed={sidebarCollapsed} />
+                    <span className="sidebar-toggle-text" style={{ fontSize: "11px" }}>
+                      {sidebarCollapsed ? "Expand" : "Collapse"}
+                    </span>
+                  </button>
+                </div>
+
+                <div className="header-search-bar">
+                  <IconSearch />
+                  <input 
+                    type="text" 
+                    placeholder="Search companies, sectors, IPOs or research..." 
+                  />
+                  <span className="kbd-shortcut">⌘K</span>
+                </div>
+              </>
+            )}
 
             <div className="header-actions">
+              {isAdminRoute && (
+                <Link
+                  href="/"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    color: "#475569",
+                    background: "#f1f5f9",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "6px",
+                    padding: "5px 12px",
+                    textDecoration: "none",
+                  }}
+                >
+                  <IconArrowLeft />
+                  <span>Main App</span>
+                </Link>
+              )}
+
               <button className="header-icon-btn" aria-label="Notifications" title="Notifications">
                 <IconBell />
                 <span className="notif-dot" />

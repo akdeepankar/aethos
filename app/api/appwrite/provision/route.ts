@@ -224,6 +224,7 @@ export async function POST(req: NextRequest) {
     await addStringCol("ipos", "price", 100, true);
     await addStringCol("ipos", "type", 50, true);
     await addBoolCol("ipos", "deepDive", true, true);
+    await addBoolCol("ipos", "hasReport", false, false);
     await addStringCol("ipos", "deck", 2000, false);
     await addStringCol("ipos", "issueSize", 100, false);
     await addStringCol("ipos", "lotSize", 100, false);
@@ -231,6 +232,28 @@ export async function POST(req: NextRequest) {
     await addStringCol("ipos", "pdfUrl", 1000, false);
     await addStringCol("ipos", "htmlUrl", 1000, false);
     await addStringCol("ipos", "sections", 65535, false);
+    await addStringCol("ipos", "externalId", 100, false);
+    await addStringCol("ipos", "status", 30, false);
+    await addBoolCol("ipos", "isSme", false);
+    await addStringCol("ipos", "additionalText", 500, false);
+    try {
+      await tablesDB.createDatetimeColumn(databaseId, "ipos", "lastSyncedAt", false);
+      addLog("  + Added datetime column 'lastSyncedAt' to 'ipos'");
+    } catch {
+      try {
+        await databases.createDatetimeAttribute(databaseId, "ipos", "lastSyncedAt", false);
+        addLog("  + Added datetime attribute 'lastSyncedAt' to 'ipos'");
+      } catch {}
+    }
+    try {
+      await tablesDB.createDatetimeColumn(databaseId, "ipos", "closedAt", false);
+      addLog("  + Added datetime column 'closedAt' to 'ipos'");
+    } catch {
+      try {
+        await databases.createDatetimeAttribute(databaseId, "ipos", "closedAt", false);
+        addLog("  + Added datetime attribute 'closedAt' to 'ipos'");
+      } catch {}
+    }
 
     // --- Table: journal ---
     await getOrCreateTable("journal", "Journal & Memos");

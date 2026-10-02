@@ -289,6 +289,7 @@ export function useAdminStore() {
             const s = (ipo.slug || ipo.$id || "").trim();
             if (s && !seen.has(s.toLowerCase())) {
               seen.add(s.toLowerCase());
+              const hasReportContent = Boolean(ipo.htmlContent || ipo.pdfUrl || (ipo.deepDive && ipo.htmlUrl && !ipo.htmlUrl.startsWith("/")));
               parsedIpos.push({
                 slug: s,
                 company: ipo.company,
@@ -296,13 +297,18 @@ export function useAdminStore() {
                 period: ipo.period,
                 price: ipo.price,
                 type: ipo.type,
-                deepDive: Boolean(ipo.deepDive),
+                deepDive: hasReportContent,
+                hasReport: hasReportContent,
                 deck: ipo.deck,
                 issueSize: ipo.issueSize,
                 lotSize: ipo.lotSize,
                 listing: ipo.listing,
+                status: ipo.status || "active",
+                externalId: ipo.externalId,
+                isSme: Boolean(ipo.isSme ?? (ipo.type === "SME")),
                 pdfUrl: ipo.pdfUrl,
-                htmlUrl: ipo.htmlUrl,
+                htmlUrl: ipo.htmlUrl || `/${s}.html`,
+                htmlContent: ipo.htmlContent || undefined,
                 sections: typeof ipo.sections === "string" ? JSON.parse(ipo.sections || "[]") : (ipo.sections || []),
               });
             }
@@ -481,12 +487,12 @@ export function useAdminStore() {
     return { success: true };
   };
 
-  const updateIpos = async (newIpos: Ipo[], itemToPersist?: { action: "save" | "delete"; ipo: Ipo }): Promise<{ success: boolean; error?: string }> => {
+  const updateIpos = async (newIpos: Ipo[], itemToPersist?: { action: "save" | "delete" | "sync"; ipo?: Ipo }): Promise<{ success: boolean; error?: string }> => {
     setIpos(newIpos);
     setStoredData(STORAGE_KEYS.IPOS, newIpos);
 
     if (itemToPersist) {
-      if (itemToPersist.action === "save") {
+      if (itemToPersist.action === "save" && itemToPersist.ipo) {
         return await persistToAppwrite("ipos", itemToPersist.ipo.slug, {
           slug: itemToPersist.ipo.slug,
           company: itemToPersist.ipo.company,
@@ -500,10 +506,34 @@ export function useAdminStore() {
           lotSize: itemToPersist.ipo.lotSize || "",
           listing: itemToPersist.ipo.listing || "",
           pdfUrl: itemToPersist.ipo.pdfUrl || "",
-          htmlUrl: itemToPersist.ipo.htmlUrl || "",
+          htmlUrl: itemToPersist.ipo.htmlUrl || (itemToPersist.ipo.slug ? `/${itemToPersist.ipo.slug}.html` : ""),
+          htmlContent: itemToPersist.ipo.htmlContent || "",
           sections: JSON.stringify(itemToPersist.ipo.sections || []),
         });
-      } else if (itemToPersist.action === "delete") {
+      } else if (itemToPersist.action === "sync") {
+        let hasErrors = false;
+        for (const item of newIpos) {
+          const res = await persistToAppwrite("ipos", item.slug, {
+            slug: item.slug,
+            company: item.company,
+            sector: item.sector,
+            period: item.period,
+            price: item.price,
+            type: item.type,
+            deepDive: Boolean(item.deepDive),
+            deck: item.deck || "",
+            issueSize: item.issueSize || "",
+            lotSize: item.lotSize || "",
+            listing: item.listing || "",
+            pdfUrl: item.pdfUrl || "",
+            htmlUrl: item.htmlUrl || (item.slug ? `/${item.slug}.html` : ""),
+            htmlContent: item.htmlContent || "",
+            sections: JSON.stringify(item.sections || []),
+          });
+          if (!res.success) hasErrors = true;
+        }
+        return { success: !hasErrors };
+      } else if (itemToPersist.action === "delete" && itemToPersist.ipo) {
         return await deleteFromAppwrite("ipos", itemToPersist.ipo.slug);
       }
     }

@@ -28,6 +28,132 @@ export async function GET(req: NextRequest) {
     const { tablesDB, storage, databaseId } = getAppwriteClient();
 
     if (table) {
+      if (searchParams.get("action") === "sync-ipos" || table === "sync-ipos") {
+        try {
+          const endpoint = process.env.APPWRITE_ENDPOINT || "https://sgp.cloud.appwrite.io/v1";
+          const projectId = process.env.APPWRITE_PROJECT_ID || "aethos-wealth";
+          const functionId = process.env.APPWRITE_FUNCTION_ID_GET_IPOS || process.env.NEXT_PUBLIC_APPWRITE_FUNCTION_GET_IPOS || "get-ipos";
+
+          let fnExecuted = false;
+          let fnOutput: any = null;
+
+          // 1. Try triggering deployed Appwrite Cloud Function via Functions SDK
+          try {
+            const { Functions } = await import("node-appwrite");
+            const { client } = getAppwriteClient();
+            const functions = new Functions(client);
+            const execution = await functions.createExecution(functionId, "", false);
+            if (execution.status === "completed" && execution.responseBody) {
+              fnExecuted = true;
+              fnOutput = JSON.parse(execution.responseBody);
+            }
+          } catch (fnErr) {
+            console.warn("Appwrite Functions SDK execution skipped/failed:", fnErr);
+          }
+
+          // 2. Fetch live market data (or use function output if available)
+          let fetchedListings: any[] = [];
+          if (fnOutput?.data && Array.isArray(fnOutput.data)) {
+            fetchedListings = fnOutput.data;
+          } else {
+            const apiRes = await fetch("https://stock.indianapi.in/ipo", {
+              headers: { "X-Api-Key": process.env.INDIAN_API_KEY || "" },
+              cache: "no-store",
+            });
+            if (apiRes.ok) {
+              const apiData = await apiRes.json();
+              fetchedListings = [
+                ...(apiData.active || []).map((i: any) => ({ ...i, status: "active" })),
+                ...(apiData.pre_apply || []).map((i: any) => ({ ...i, status: "pre_apply" })),
+                ...(apiData.closed || []).slice(0, 5).map((i: any) => ({ ...i, status: "closed" })),
+                ...(apiData.listed || []).slice(0, 8).map((i: any) => ({ ...i, status: "listed" })),
+              ];
+            }
+          }
+
+          // Fetch existing rows from Appwrite DB table "ipos"
+          const existingRes = await tablesDB.listRows(databaseId, "ipos").catch(() => ({ rows: [] }));
+          const existingRows = existingRes.rows || [];
+          const existingMap = new Map<string, any>();
+          existingRows.forEach((r: any) => {
+            if (r.slug) existingMap.set(r.slug.toLowerCase(), r);
+          });
+
+          let addedCount = 0;
+          let updatedCount = 0;
+
+          for (const item of fetchedListings) {
+            const slug = (item.action_slug || item.symbol || item.name || "")
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-|-$/g, "");
+
+            if (!slug) continue;
+
+            const existing = existingMap.get(slug);
+            const hasReport = Boolean(
+              existing?.hasReport ||
+              existing?.htmlContent ||
+              existing?.pdfUrl ||
+              (existing?.htmlUrl && !existing.htmlUrl.startsWith("/")) ||
+              item.has_aethos_notes
+            );
+            const rowData = {
+              slug,
+              company: item.name || item.symbol,
+              sector: item.sector || (item.is_sme ? "SME Segment" : "Mainboard Segment"),
+              period: item.bidding_start_date ? `${item.bidding_start_date} - ${item.bidding_end_date || "TBA"}` : "Schedule TBA",
+              price: item.issue_price ? `₹${item.issue_price}` : item.min_price ? `₹${item.min_price} - ₹${item.max_price}` : "TBA",
+              type: item.is_sme ? "SME" : "Mainboard",
+              deepDive: hasReport,
+              hasReport: hasReport,
+              deck: existing?.deck || item.additional_text || "",
+              issueSize: item.total_subscription_rate ? `${item.total_subscription_rate}x Subscribed` : existing?.issueSize || "—",
+              lotSize: item.lot_size ? `${item.lot_size} shares` : existing?.lotSize || "—",
+              listing: item.listing_date || existing?.listing || "TBA",
+              externalId: String(item.symbol || slug),
+              status: String(item.status || "active"),
+              isSme: Boolean(item.is_sme),
+              additionalText: item.additional_text ? String(item.additional_text).slice(0, 500) : "",
+              pdfUrl: existing?.pdfUrl || "",
+              htmlUrl: existing?.htmlUrl || "",
+              lastSyncedAt: new Date().toISOString(),
+              closedAt: item.bidding_end_date ? new Date(item.bidding_end_date).toISOString() : undefined,
+            };
+
+            const rowId = slug.length <= 36 ? slug : slug.slice(0, 36);
+
+            try {
+              if (existing) {
+                await tablesDB.updateRow(databaseId, "ipos", rowId, rowData);
+                updatedCount++;
+              } else {
+                await tablesDB.createRow(databaseId, "ipos", rowId, rowData);
+                addedCount++;
+              }
+            } catch (wErr) {
+              console.warn(`Could not sync IPO document ${slug}:`, wErr);
+            }
+          }
+
+          // Fetch final updated rows from Appwrite DB table ipos
+          const finalRes = await tablesDB.listRows(databaseId, "ipos");
+          return NextResponse.json({
+            success: true,
+            action: "sync-ipos",
+            addedCount,
+            updatedCount,
+            totalFetched: fetchedListings.length,
+            rows: finalRes.rows,
+          });
+        } catch (syncErr) {
+          console.error("IPO server sync error:", syncErr);
+          return NextResponse.json(
+            { success: false, error: syncErr instanceof Error ? syncErr.message : String(syncErr) },
+            { status: 500 }
+          );
+        }
+      }
       if (table === "media") {
         try {
           const storageRes = await storage.listFiles("aethos_pdfs");
@@ -58,6 +184,85 @@ export async function GET(req: NextRequest) {
         }));
         return NextResponse.json({ success: true, table, total: res.total, rows: rowsWithHtml });
       }
+
+      if (table === "ipos") {
+        let liveApiIpos: any[] = [];
+        try {
+          const apiRes = await fetch("https://stock.indianapi.in/ipo", {
+            headers: { "X-Api-Key": process.env.INDIAN_API_KEY || "" },
+            next: { revalidate: 60 },
+          });
+          if (apiRes.ok) {
+            const apiData = await apiRes.json();
+            liveApiIpos = [
+              ...(apiData.active || []),
+              ...(apiData.pre_apply || []),
+              ...(apiData.closed || []).slice(0, 3),
+              ...(apiData.listed || []).slice(0, 5),
+            ];
+          }
+        } catch (e) {
+          console.warn("Live Indian API fetch fallback error:", e);
+        }
+
+        // Merge and normalize Appwrite DB ipos with live API dataset
+        const dbRows = (res.rows || []).map((r: any) => {
+          let minPrice: number | null = null;
+          let maxPrice: number | null = null;
+          if (r.price) {
+            const nums = r.price.replace(/[^0-9.-]+/g, " ").trim().split(/\s+/).map(Number).filter((n: number) => !isNaN(n) && n > 0);
+            if (nums.length >= 2) {
+              minPrice = nums[0];
+              maxPrice = nums[1];
+            } else if (nums.length === 1) {
+              minPrice = nums[0];
+              maxPrice = nums[0];
+            }
+          }
+
+          let biddingStart: string | null = null;
+          let biddingEnd: string | null = null;
+          if (r.period && r.period.includes(" - ")) {
+            const parts = r.period.split(" - ").map((p: string) => p.trim());
+            biddingStart = parts[0] || null;
+            biddingEnd = parts[1] || null;
+          } else if (r.period) {
+            biddingStart = r.period;
+          }
+
+          const rawSector = (r.sector && !r.sector.includes("Segment")) ? r.sector : (r.isSme || r.type === "SME" ? "SME Segment" : "Mainboard Segment");
+          const companyName = r.company || r.name || (r.externalId ? String(r.externalId) : r.slug);
+
+          return {
+            ...r,
+            symbol: r.externalId || r.slug?.toUpperCase() || r.$id?.toUpperCase(),
+            name: companyName,
+            sector: rawSector,
+            status: r.status || "active",
+            is_sme: Boolean(r.isSme ?? (r.type === "SME")),
+            min_price: minPrice,
+            max_price: maxPrice,
+            issue_price: minPrice || maxPrice,
+            latest_price: maxPrice || minPrice,
+            bidding_start_date: biddingStart,
+            bidding_end_date: biddingEnd,
+            listing_date: r.listing && r.listing !== "TBA" ? r.listing : (r.period || "TBA"),
+            lot_size: r.lotSize ? parseInt(r.lotSize) || null : null,
+            hasReport: Boolean(r.hasReport || r.deepDive || r.htmlContent || r.pdfUrl || (r.htmlUrl && !r.htmlUrl.startsWith("/"))),
+            has_aethos_notes: Boolean(r.hasReport || r.deepDive || r.htmlContent || r.pdfUrl || (r.htmlUrl && !r.htmlUrl.startsWith("/"))),
+            action_slug: r.slug,
+          };
+        });
+
+        return NextResponse.json({
+          success: true,
+          table: "ipos",
+          total: dbRows.length || liveApiIpos.length,
+          rows: dbRows,
+          liveApiIpos,
+        });
+      }
+
       return NextResponse.json({ success: true, table, total: res.total, rows: res.rows });
     }
 
@@ -152,6 +357,7 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
     "price",
     "type",
     "deepDive",
+    "hasReport",
     "deck",
     "issueSize",
     "lotSize",
@@ -159,6 +365,12 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
     "pdfUrl",
     "htmlUrl",
     "sections",
+    "externalId",
+    "status",
+    "isSme",
+    "additionalText",
+    "lastSyncedAt",
+    "closedAt",
   ],
   journal: [
     "slug",
@@ -266,6 +478,16 @@ export async function POST(req: NextRequest) {
       if (typeof payload.sections === "string" && payload.sections.length > 50000) {
         payload.sections = payload.sections.slice(0, 50000);
       }
+    }
+
+    // Default required fields for table 'ipos'
+    if (table === "ipos") {
+      payload.company = payload.company || rawPayload.company || "";
+      payload.slug = payload.slug || rawPayload.slug || "";
+      payload.pdfUrl = payload.pdfUrl !== undefined ? payload.pdfUrl : rawPayload.pdfUrl || "";
+      payload.htmlUrl = payload.htmlUrl || rawPayload.htmlUrl || "";
+      payload.deepDive = Boolean(payload.pdfUrl || payload.htmlContent || payload.deepDive || rawPayload.deepDive);
+      payload.hasReport = Boolean(payload.pdfUrl || payload.htmlContent || payload.hasReport || rawPayload.hasReport);
     }
 
     // Default required fields for table 'ideas'

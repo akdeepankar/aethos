@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import { DashboardLayout } from "./_components/dashboard-layout";
 import { AppwriteProvider } from "./_components/appwrite-provider";
@@ -39,7 +40,9 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-slate-50">
         <AppwriteProvider>
           <AuthProvider>
-            <DashboardLayout>{children}</DashboardLayout>
+            <Suspense fallback={null}>
+              <DashboardLayout>{children}</DashboardLayout>
+            </Suspense>
           </AuthProvider>
         </AppwriteProvider>
       </body>

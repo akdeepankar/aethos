@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth } from "../_context/auth-context";
 import {
   useAdminStore,
@@ -227,7 +228,7 @@ function IconUpload() {
   );
 }
 
-export default function AdminPage() {
+function AdminPageContent() {
   const { user } = useAuth();
   const {
     reports,
@@ -245,7 +246,23 @@ export default function AdminPage() {
     uploadPdfFile,
   } = useAdminStore();
 
-  const [activeTab, setActiveTab] = useState<TabType>("reports");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const currentTabFromUrl = searchParams.get("tab") as TabType | null;
+  const activeTab: TabType = useMemo(() => {
+    if (currentTabFromUrl && ["reports", "ideas", "ipos", "journal", "media", "database"].includes(currentTabFromUrl)) {
+      return currentTabFromUrl;
+    }
+    return "reports";
+  }, [currentTabFromUrl]);
+
+  const setActiveTab = (tab: TabType) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    router.push(`/admin?${params.toString()}`);
+  };
+  const [ipoSubTab, setIpoSubTab] = useState<"all" | "open" | "upcoming" | "recently_listed" | "archive">("open");
   const [searchQuery, setSearchQuery] = useState("");
   const [notification, setNotification] = useState<{ msg: string; type?: "success" | "error" | "info" } | null>(null);
 
@@ -257,6 +274,9 @@ export default function AdminPage() {
   const [reportDrawerMode, setReportDrawerMode] = useState<"edit" | "preview" | "split">("edit");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const htmlFileInputRef = useRef<HTMLInputElement>(null);
+  const ipoPdfFileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingIpoPdf, setIsUploadingIpoPdf] = useState(false);
+  const [isSavingIpo, setIsSavingIpo] = useState(false);
   const [isDraggingHtml, setIsDraggingHtml] = useState(false);
 
   // Report Form State
@@ -277,6 +297,90 @@ export default function AdminPage() {
     tabCategory: "company" as "company" | "sectoral" | "thematic",
     htmlContent: "",
   });
+
+  const handleLoadTemplate = () => {
+    setReportForm((prev) => ({
+      ...prev,
+      htmlContent: DEFAULT_REPORT_HTML,
+    }));
+    showNotification("Loaded standard HTML template for research report", "info");
+  };
+
+  const handleClearHtml = () => {
+    setReportForm((prev) => ({
+      ...prev,
+      htmlContent: "",
+    }));
+    showNotification("Cleared report HTML editor", "info");
+  };
+
+  const handleHtmlFileUpload = (file: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        if (!text || !text.trim()) {
+          showNotification("Uploaded file is empty", "error");
+          return;
+        }
+        setReportForm((prev) => ({
+          ...prev,
+          htmlContent: text,
+        }));
+        showNotification(`Loaded HTML content from "${file.name}"`, "success");
+      } catch (err) {
+        showNotification("Failed to read HTML file: " + (err as Error).message, "error");
+      }
+    };
+    reader.onerror = () => {
+      showNotification("Error reading HTML file", "error");
+    };
+    reader.readAsText(file);
+  };
+
+  // Open Research Report drawer
+  const handleOpenReportDrawer = (report?: Report) => {
+    setReportDrawerMode("edit");
+    if (report) {
+      setEditingReport(report);
+      setReportForm({
+        title: report.title || "",
+        slug: report.slug || "",
+        deck: report.deck || "",
+        sector: report.sector || "Electrical equipment",
+        researchType: report.researchType || "Stock deep dives",
+        company: report.company || "",
+        readTime: report.readTime || "10 min read",
+        date: report.date || "Today",
+        free: report.free ?? true,
+        imageUrl: report.imageUrl || "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
+        pdfUrl: report.pdfUrl || "",
+        isNew: report.isNew ?? true,
+        tabCategory: report.tabCategory || "company",
+        htmlContent: report.htmlContent || "",
+      });
+    } else {
+      setEditingReport(null);
+      setReportForm({
+        title: "",
+        slug: "",
+        deck: "",
+        sector: "Electrical equipment",
+        researchType: "Stock deep dives",
+        company: "",
+        readTime: "10 min read",
+        date: "Today",
+        free: true,
+        imageUrl: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
+        pdfUrl: "",
+        isNew: true,
+        tabCategory: "company",
+        htmlContent: "",
+      });
+    }
+    setActiveDrawer("report");
+  };
 
   // Idea Form State
   const [editingIdea, setEditingIdea] = useState<StockIdea | null>(null);
@@ -301,113 +405,12 @@ export default function AdminPage() {
     htmlContent: "",
   });
 
-  // IPO Form State
-  const [editingIpo, setEditingIpo] = useState<Ipo | null>(null);
-  const [ipoForm, setIpoForm] = useState({
-    company: "",
-    slug: "",
-    sector: "Industrial",
-    period: "20-22 Sep 2026",
-    price: "₹100 - ₹120",
-    type: "Mainboard" as "Mainboard" | "SME",
-    deepDive: true,
-    deck: "",
-    issueSize: "₹500 crore",
-    lotSize: "100 shares",
-    listing: "30 Sep 2026",
-  });
-
-  const [isConnecting, setIsConnecting] = useState(false);
-
-  const showNotification = (msg: string, type: "success" | "error" | "info" = "success") => {
-    setNotification({ msg, type });
-    setTimeout(() => setNotification(null), 3500);
-  };
-
-  // Load standard HTML template
-  const handleLoadTemplate = () => {
-    setReportForm((prev) => ({
-      ...prev,
-      htmlContent: DEFAULT_REPORT_HTML,
-    }));
-    showNotification("Loaded standard HTML report template", "info");
-  };
-
-  // Clear HTML content
-  const handleClearHtml = () => {
-    setReportForm((prev) => ({
-      ...prev,
-      htmlContent: "",
-    }));
-    showNotification("Cleared HTML editor", "info");
-  };
-
-  // Upload or Drag-and-Drop HTML file
-  const handleHtmlFileUpload = (file: File) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const text = e.target?.result as string;
-        if (!text || !text.trim()) {
-          showNotification("Uploaded file is empty", "error");
-          return;
-        }
-
-        // If user uploaded a json specification containing htmlContent
-        if (file.name.endsWith(".json")) {
-          try {
-            const parsed = JSON.parse(text);
-            if (parsed.htmlContent) {
-              setReportForm((prev) => ({
-                ...prev,
-                title: parsed.title || prev.title,
-                slug: parsed.slug || prev.slug,
-                deck: parsed.deck || prev.deck,
-                sector: parsed.sector || prev.sector,
-                researchType: parsed.researchType || prev.researchType,
-                company: parsed.company || prev.company,
-                imageUrl: parsed.imageUrl || prev.imageUrl,
-                pdfUrl: parsed.pdfUrl || prev.pdfUrl,
-                htmlContent: parsed.htmlContent,
-              }));
-              showNotification(`Imported HTML report specification from "${file.name}"`, "success");
-              return;
-            }
-          } catch {
-            // treat as regular text
-          }
-        }
-
-        setReportForm((prev) => ({
-          ...prev,
-          htmlContent: text,
-        }));
-        showNotification(`Loaded HTML content from "${file.name}"`, "success");
-      } catch (err) {
-        showNotification("Failed to read HTML file: " + (err as Error).message, "error");
-      }
-    };
-    reader.onerror = () => {
-      showNotification("Error reading HTML file", "error");
-    };
-    reader.readAsText(file);
-  };
-
-  const handleOpenPreview = (mode: "preview" | "split" = "preview") => {
-    setReportDrawerMode(mode);
-  };
-
-  const handleOpenIdeaPreview = (mode: "preview" | "split" = "preview") => {
-    setIdeaDrawerMode(mode);
-  };
-
   const handleIdeaLoadTemplate = () => {
     setIdeaForm((prev) => ({
       ...prev,
       htmlContent: DEFAULT_REPORT_HTML,
     }));
-    showNotification("Loaded standard HTML template for idea", "info");
+    showNotification("Loaded standard HTML template for Aethos idea", "info");
   };
 
   const handleIdeaClearHtml = () => {
@@ -428,34 +431,6 @@ export default function AdminPage() {
           showNotification("Uploaded file is empty", "error");
           return;
         }
-
-        if (file.name.endsWith(".json")) {
-          try {
-            const parsed = JSON.parse(text);
-            if (parsed.htmlContent || parsed.company) {
-              setIdeaForm((prev) => ({
-                ...prev,
-                company: parsed.company || prev.company,
-                ticker: parsed.ticker || prev.ticker,
-                slug: parsed.slug || parsed.id || prev.slug,
-                sector: parsed.sector || prev.sector,
-                coverage: parsed.coverage || prev.coverage,
-                published: parsed.published || prev.published,
-                mcap: parsed.mcap || prev.mcap,
-                refPrice: Number(parsed.refPrice || prev.refPrice),
-                latestPrice: Number(parsed.latestPrice || prev.latestPrice),
-                studying: parsed.studying || prev.studying,
-                challenge: parsed.challenge || prev.challenge,
-                watchNext: parsed.watchNext || prev.watchNext,
-                thesis: parsed.thesis || prev.thesis,
-                htmlContent: parsed.htmlContent || text,
-              }));
-              showNotification(`Imported Aethos idea specification from "${file.name}"`, "success");
-              return;
-            }
-          } catch {}
-        }
-
         setIdeaForm((prev) => ({
           ...prev,
           htmlContent: text,
@@ -471,125 +446,28 @@ export default function AdminPage() {
     reader.readAsText(file);
   };
 
-  // Open report editor drawer
-  const handleOpenReportDrawer = (report?: Report) => {
-    setReportDrawerMode("edit");
-    if (report) {
-      setEditingReport(report);
-      let initialHtml = "";
-      if (report.htmlContent) {
-        initialHtml = report.htmlContent;
-      } else if (report.sections && report.sections.length > 0) {
-        initialHtml = `<article class="report-content" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; line-height: 1.65; max-width: 900px; margin: 0 auto; padding: 20px 0;">
-  <header style="border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 28px;">
-    <h2 style="font-size: 24px; font-weight: 700; color: #0f172a; margin: 0 0 10px 0;">${report.title}</h2>
-    <p style="font-size: 15px; color: #475569; margin: 0; line-height: 1.6;">${report.deck || ""}</p>
-  </header>
-${report.sections
-  .map(
-    (s, idx) => `  <section style="margin-bottom: 28px;">
-    <h3 style="font-size: 18px; font-weight: 600; color: #0f172a; margin-bottom: 10px; border-left: 3px solid #2563eb; padding-left: 10px;">${idx + 1}. ${s.heading}</h3>
-    <p style="font-size: 14.5px; color: #334155; line-height: 1.7;">${s.body}</p>
-  </section>`
-  )
-  .join("\n")}
-</article>`;
-      }
-      if (report.htmlUrl || report.slug) {
-        fetch(`/api/reports/${report.slug}`)
-          .then((res) => res.json())
-          .then((d) => {
-            if (d.found && d.html) {
-              setReportForm((prev) => ({ ...prev, htmlContent: d.html }));
-            }
-          })
-          .catch(() => {});
-      }
-      setReportForm({
-        title: report.title,
-        slug: report.slug,
-        deck: report.deck,
-        sector: report.sector || report.tag || "Electrical equipment",
-        researchType: (report.researchType as string) || "Stock deep dives",
-        company: report.company || "",
-        readTime: "10 min read",
-        date: report.date || "Today",
-        free: report.free,
-        imageUrl: report.imageUrl || "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
-        pdfUrl: report.pdfUrl || "",
-        isNew: Boolean(report.isNew),
-        tabCategory: report.tabCategory || "company",
-        htmlContent: initialHtml,
-      });
-    } else {
-      setEditingReport(null);
-      setReportForm({
-        title: "",
-        slug: "",
-        deck: "",
-        sector: "Electrical equipment",
-        researchType: "Stock deep dives",
-        company: "",
-        readTime: "10 min read",
-        date: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
-        free: true,
-        imageUrl: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
-        pdfUrl: "",
-        isNew: true,
-        tabCategory: "company",
-        htmlContent: "",
-      });
-    }
-    setActiveDrawer("report");
-  };
-
-  // Open idea editor drawer
+  // Open Idea drawer
   const handleOpenIdeaDrawer = (idea?: StockIdea) => {
     setIdeaDrawerMode("edit");
     if (idea) {
       setEditingIdea(idea);
-      const ideaSlug = (idea.slug && !idea.slug.startsWith("http") ? idea.slug : idea.id || (idea.ticker ? idea.ticker.toLowerCase() : "")).toLowerCase().trim();
-      const initialHtmlUrl = idea.htmlUrl || (ideaSlug ? `/${ideaSlug}.html` : "");
-
       setIdeaForm({
         company: idea.company || "",
         ticker: idea.ticker || "",
-        slug: ideaSlug,
+        slug: idea.slug || idea.id || "",
         sector: idea.sector || "Auto components",
-        coverage: (idea.coverage as string) || "Coverage ongoing",
+        coverage: idea.coverage || "Coverage ongoing",
         published: idea.published || idea.sharedDate || "",
         mcap: idea.mcap || "",
         refPrice: Number(idea.refPrice || idea.sharedPrice || 0),
         latestPrice: Number(idea.latestPrice || idea.currentPrice || 0),
-        studying: idea.studying || idea.thesis || "",
+        studying: idea.studying || "",
         challenge: idea.challenge || "",
         watchNext: idea.watchNext || "",
-        thesis: idea.thesis || idea.studying || "",
-        htmlUrl: initialHtmlUrl,
+        thesis: idea.thesis || "",
+        htmlUrl: idea.htmlUrl || "",
         htmlContent: idea.htmlContent || "",
       });
-
-      // Fetch HTML report from cloud storage / API if not already in memory
-      if (!idea.htmlContent && (initialHtmlUrl || ideaSlug)) {
-        if (initialHtmlUrl && initialHtmlUrl.startsWith("http")) {
-          fetch(initialHtmlUrl)
-            .then((r) => r.text())
-            .then((html) => {
-              if (html && html.includes("<")) {
-                setIdeaForm((prev) => ({ ...prev, htmlContent: html }));
-              }
-            })
-            .catch(() => {});
-        }
-        fetch(`/api/reports/${ideaSlug}`)
-          .then((res) => res.json())
-          .then((d) => {
-            if (d.found && d.html) {
-              setIdeaForm((prev) => ({ ...prev, htmlContent: d.html }));
-            }
-          })
-          .catch(() => {});
-      }
     } else {
       setEditingIdea(null);
       setIdeaForm({
@@ -613,22 +491,110 @@ ${report.sections
     setActiveDrawer("idea");
   };
 
+  // IPO Form State
+  const [editingIpo, setEditingIpo] = useState<Ipo | null>(null);
+  const [ipoDrawerMode, setIpoDrawerMode] = useState<"edit" | "preview" | "split">("edit");
+  const ipoHtmlFileInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingIpoHtml, setIsDraggingIpoHtml] = useState(false);
+  const [ipoForm, setIpoForm] = useState({
+    company: "",
+    slug: "",
+    sector: "Industrial",
+    period: "20-22 Sep 2026",
+    price: "₹100 - ₹120",
+    type: "Mainboard" as "Mainboard" | "SME",
+    deepDive: true,
+    deck: "",
+    issueSize: "₹500 crore",
+    lotSize: "100 shares",
+    listing: "30 Sep 2026",
+    pdfUrl: "",
+    htmlUrl: "",
+    htmlContent: "",
+  });
+
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isRunningIpoSync, setIsRunningIpoSync] = useState(false);
+
+  const showNotification = (msg: string, type: "success" | "error" | "info" = "success") => {
+    setNotification({ msg, type });
+    setTimeout(() => setNotification(null), 3500);
+  };
+
+  const handleRunIpoSync = async () => {
+    setIsRunningIpoSync(true);
+    showNotification("Executing IPO Sync & Deduplication...", "info");
+    try {
+      // Execute server-side Market Feed fetch & Appwrite DB deduplication
+      const syncRes = await fetch("/api/appwrite/records?action=sync-ipos", {
+        cache: "no-store",
+      });
+      const json = await syncRes.json();
+
+      if (!syncRes.ok || !json.success) {
+        showNotification(`IPO sync error: ${json?.error || syncRes.statusText}`, "error");
+        setIsRunningIpoSync(false);
+        return;
+      }
+
+      // Sync updated DB rows back into admin store & trigger Appwrite state refresh
+      await syncFromAppwrite();
+      showNotification(
+        `IPO Sync Complete: ${json.addedCount || 0} new added, ${json.updatedCount || 0} updated (${json.totalFetched || 0} items processed, 0 duplicates).`,
+        "success"
+      );
+    } catch (err) {
+      showNotification("Failed executing IPO function: " + (err as Error).message, "error");
+    } finally {
+      setIsRunningIpoSync(false);
+    }
+  };
+
+  const handleIpoPdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingIpoPdf(true);
+    showNotification(`Uploading "${file.name}" to storage...`, "info");
+    try {
+      const newFile = await uploadPdfFile(file, "IPO");
+      if (newFile && newFile.url) {
+        setIpoForm((prev) => ({
+          ...prev,
+          pdfUrl: newFile.url,
+          deepDive: true,
+        }));
+        showNotification(`Uploaded "${file.name}" to storage and filled PDF URL!`, "success");
+      }
+    } catch (err) {
+      showNotification("Failed uploading PDF: " + (err as Error).message, "error");
+    } finally {
+      setIsUploadingIpoPdf(false);
+      if (e.target) e.target.value = "";
+    }
+  };
+
   // Open IPO editor drawer
   const handleOpenIpoDrawer = (ipo?: Ipo) => {
+    setIpoDrawerMode("edit");
     if (ipo) {
       setEditingIpo(ipo);
+      const ipoSlug = (ipo.slug || ipo.company.toLowerCase().replace(/[^a-z0-9]+/g, "-")).toLowerCase().trim();
+
       setIpoForm({
         company: ipo.company,
-        slug: ipo.slug,
-        sector: ipo.sector,
-        period: ipo.period || "20-22 Sep 2026",
-        price: ipo.price || "₹100 - ₹120",
+        slug: ipoSlug,
+        sector: ipo.sector || "Industrial",
+        period: ipo.period || "",
+        price: ipo.price || "",
         type: (ipo.type as "Mainboard" | "SME") || "Mainboard",
-        deepDive: Boolean(ipo.deepDive),
+        deepDive: Boolean(ipo.deepDive || ipo.pdfUrl),
         deck: ipo.deck || "",
-        issueSize: ipo.issueSize || "₹500 crore",
-        lotSize: ipo.lotSize || "100 shares",
-        listing: ipo.listing || "30 Sep 2026",
+        issueSize: ipo.issueSize || "",
+        lotSize: ipo.lotSize || "",
+        listing: ipo.listing || "",
+        pdfUrl: ipo.pdfUrl || "",
+        htmlUrl: "",
+        htmlContent: "",
       });
     } else {
       setEditingIpo(null);
@@ -636,14 +602,17 @@ ${report.sections
         company: "",
         slug: "",
         sector: "Industrial",
-        period: "20-22 Sep 2026",
-        price: "₹100 - ₹120",
+        period: "",
+        price: "",
         type: "Mainboard",
-        deepDive: true,
+        deepDive: false,
         deck: "",
-        issueSize: "₹500 crore",
-        lotSize: "100 shares",
-        listing: "30 Sep 2026",
+        issueSize: "",
+        lotSize: "",
+        listing: "",
+        pdfUrl: "",
+        htmlUrl: "",
+        htmlContent: "",
       });
     }
     setActiveDrawer("ipo");
@@ -839,6 +808,11 @@ ${report.sections
       return;
     }
 
+    const finalHtmlUrl = ipoForm.htmlUrl.trim() || `/${slug}.html`;
+    const pdfPresent = Boolean(ipoForm.pdfUrl?.trim());
+    const hasReport = pdfPresent || Boolean(ipoForm.htmlContent?.trim() || (ipoForm.htmlUrl?.trim() && !ipoForm.htmlUrl.startsWith("/")));
+    const hasDeepDive = pdfPresent || Boolean(ipoForm.htmlContent?.trim() || ipoForm.deepDive);
+
     const ipoObj: Ipo = {
       slug,
       company: ipoForm.company.trim(),
@@ -846,32 +820,44 @@ ${report.sections
       period: ipoForm.period,
       price: ipoForm.price,
       type: ipoForm.type,
-      deepDive: ipoForm.deepDive,
+      deepDive: hasDeepDive,
+      hasReport: hasReport,
       deck: ipoForm.deck.trim(),
       issueSize: ipoForm.issueSize,
       lotSize: ipoForm.lotSize,
       listing: ipoForm.listing,
-      sections: [],
+      pdfUrl: ipoForm.pdfUrl.trim() || "",
+      htmlUrl: finalHtmlUrl,
+      htmlContent: ipoForm.htmlContent.trim() || undefined,
+      sections: editingIpo?.sections || [],
     };
 
-    if (editingIpo) {
-      const updated = ipos.map((i) => (i.slug === editingIpo.slug ? ipoObj : i));
-      const res = await updateIpos(updated, { action: "save", ipo: ipoObj });
-      if (!res.success) {
-        showNotification(`Failed saving IPO: ${res.error}`, "error");
+    setIsSavingIpo(true);
+    showNotification("Saving IPO note to Appwrite database...", "info");
+    try {
+      if (editingIpo) {
+        const updated = ipos.map((i) => (i.slug === editingIpo.slug ? ipoObj : i));
+        const res = await updateIpos(updated, { action: "save", ipo: ipoObj });
+        if (!res.success) {
+          showNotification(`Failed saving IPO: ${res.error}`, "error");
+        } else {
+          showNotification(`IPO "${ipoForm.company}" saved successfully`, "success");
+          setActiveDrawer(null);
+        }
       } else {
-        showNotification(`IPO "${ipoForm.company}" saved`, "success");
+        const res = await updateIpos([ipoObj, ...ipos], { action: "save", ipo: ipoObj });
+        if (!res.success) {
+          showNotification(`Failed creating IPO: ${res.error}`, "error");
+        } else {
+          showNotification(`IPO "${ipoForm.company}" created successfully`, "success");
+          setActiveDrawer(null);
+        }
       }
-    } else {
-      const res = await updateIpos([ipoObj, ...ipos], { action: "save", ipo: ipoObj });
-      if (!res.success) {
-        showNotification(`Failed creating IPO: ${res.error}`, "error");
-      } else {
-        showNotification(`IPO "${ipoForm.company}" created`, "success");
-      }
+    } catch (err) {
+      showNotification("Error saving IPO note: " + (err as Error).message, "error");
+    } finally {
+      setIsSavingIpo(false);
     }
-
-    setActiveDrawer(null);
   };
 
   // Delete report
@@ -977,13 +963,25 @@ ${report.sections
       )}
 
       {/* Header Bar */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", borderBottom: "1px solid #e2e8f0", paddingBottom: "16px" }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: "24px", fontWeight: "700", color: "#0f172a" }}>
-            Admin Panel
+          <h1 style={{ margin: 0, fontSize: "22px", fontWeight: "700", color: "#0f172a" }}>
+            {
+              activeTab === "reports" ? "Research Library" :
+              activeTab === "ideas" ? "Aethos Ideas" :
+              activeTab === "ipos" ? "IPO Tracker" :
+              activeTab === "journal" ? "Market Journal" :
+              activeTab === "media" ? "Files & Media" : "Database Console"
+            }
           </h1>
           <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#64748b" }}>
-            Manage research notes, Aethos ideas, files, and database records.
+            {
+              activeTab === "ideas" ? "Manage high-conviction investment ideas, thesis pillars, and formatted HTML research reports." :
+              activeTab === "reports" ? "Manage research notes, publications, and formatted HTML research reports." :
+              activeTab === "ipos" ? "Track live bidding IPOs, upload PDF deep dives, and manage listing notes." :
+              activeTab === "journal" ? "Manage market journal entries and commentaries." :
+              activeTab === "media" ? "Manage files uploaded to Appwrite storage bucket." : "Database console and sync tools."
+            }
           </p>
         </div>
 
@@ -1074,70 +1072,6 @@ ${report.sections
             </button>
           )}
         </div>
-      </div>
-
-      {/* Minimal Navigation Tabs */}
-      <div
-        style={{
-          display: "flex",
-          gap: "4px",
-          borderBottom: "1px solid #e2e8f0",
-          marginBottom: "24px",
-          overflowX: "auto",
-        }}
-      >
-        {[
-          { id: "reports", label: "Research", icon: IconBook, count: reports.length },
-          { id: "ideas", label: "Aethos Ideas", icon: IconSparkles, count: ideas.length },
-          { id: "ipos", label: "IPOs", icon: IconTrend, count: ipos.length },
-          { id: "journal", label: "Journal", icon: IconFileText, count: journal.length },
-          { id: "media", label: "Files", icon: IconFolder, count: media.length },
-          { id: "database", label: "Database", icon: IconDatabase },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id as TabType)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "10px 16px",
-                fontSize: "13px",
-                fontWeight: isActive ? "600" : "500",
-                color: isActive ? "#0f172a" : "#64748b",
-                borderBottom: isActive ? "2px solid #0f172a" : "2px solid transparent",
-                background: "none",
-                borderTop: "none",
-                borderLeft: "none",
-                borderRight: "none",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                transition: "all 0.15s ease",
-              }}
-            >
-              <Icon />
-              <span>{tab.label}</span>
-              {tab.count !== undefined && (
-                <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: "600",
-                    background: isActive ? "#f1f5f9" : "#f8fafc",
-                    color: isActive ? "#0f172a" : "#94a3b8",
-                    padding: "1px 6px",
-                    borderRadius: "10px",
-                  }}
-                >
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          );
-        })}
       </div>
 
       {/* Main Content Area */}
@@ -1285,14 +1219,6 @@ ${report.sections
       {/* Ideas Tab */}
       {activeTab === "ideas" && (
         <div>
-          {/* Header Action Bar */}
-          <div style={{ marginBottom: "18px" }}>
-            <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#0f172a", margin: "0 0 4px 0" }}>Aethos Ideas</h2>
-            <p style={{ fontSize: "13px", color: "#64748b", margin: 0 }}>
-              Manage high-conviction investment ideas, thesis pillars, and formatted HTML research reports.
-            </p>
-          </div>
-
           {/* Ideas Table */}
           <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
@@ -1450,52 +1376,259 @@ ${report.sections
 
       {/* IPOs Tab */}
       {activeTab === "ipos" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "24px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>IPO Intelligence</h3>
-            <span style={{ fontSize: "12px", color: "#64748b" }}>{ipos.length} companies tracked</span>
+        <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
+          <div style={{ padding: "16px 20px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fafafa" }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Active & Tracked IPOs</h3>
+              <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748b" }}>
+                Manage live bidding IPOs, upload HTML deep dive research reports, and track listing notes.
+              </p>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "12px", fontWeight: "500", color: "#64748b" }}>{ipos.length} IPOs</span>
+              <button
+                type="button"
+                disabled={isRunningIpoSync}
+                onClick={handleRunIpoSync}
+                style={{
+                  padding: "6px 14px",
+                  background: "#2563eb",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "#ffffff",
+                  cursor: isRunningIpoSync ? "not-allowed" : "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  opacity: isRunningIpoSync ? 0.7 : 1,
+                }}
+              >
+                <IconDatabase />
+                {isRunningIpoSync ? "Running Sync..." : "Run IPO Function Sync"}
+              </button>
+            </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {ipos.map((ipo, idx) => (
-              <div key={`${ipo.slug}-${idx}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", border: "1px solid #f1f5f9", borderRadius: "6px" }}>
-                <div>
-                  <Link
-                    href={`/ipos/${ipo.slug}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      fontSize: "13.5px",
-                      fontWeight: "600",
-                      color: "#0f172a",
-                      textDecoration: "none",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "4px",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.color = "#2563eb")}
-                    onMouseLeave={(e) => (e.currentTarget.style.color = "#0f172a")}
-                  >
-                    <span>{ipo.company}</span>
-                    <span style={{ opacity: 0.5 }}>
-                      <IconExternalLink />
-                    </span>
-                  </Link>
-                  <span style={{ fontSize: "11px", color: "#64748b", marginLeft: "8px" }}>{ipo.sector} · {ipo.type}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <span style={{ fontSize: "12px", color: "#475569" }}>
-                    {ipo.price}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenIpoDrawer(ipo)}
-                    style={{ padding: "4px 8px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}
-                  >
-                    Edit
-                  </button>
-                </div>
-              </div>
+
+          {/* IPO Status Sub-Tabs */}
+          <div style={{ display: "flex", gap: "8px", padding: "12px 20px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
+            {[
+              { id: "open", label: "Open Bidding", count: ipos.filter(i => (i.status || "active") === "active").length },
+              { id: "upcoming", label: "Upcoming", count: ipos.filter(i => i.status === "pre_apply").length },
+              { id: "recently_listed", label: "Recently Listed", count: ipos.filter(i => i.status === "listed").length },
+              { id: "archive", label: "Archive", count: ipos.filter(i => i.status === "closed").length },
+              { id: "all", label: "All IPOs", count: ipos.length },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setIpoSubTab(tab.id as any)}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: ipoSubTab === tab.id ? "600" : "500",
+                  border: ipoSubTab === tab.id ? "1px solid #cbd5e1" : "1px solid transparent",
+                  backgroundColor: ipoSubTab === tab.id ? "#ffffff" : "transparent",
+                  color: ipoSubTab === tab.id ? "#0f172a" : "#64748b",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  boxShadow: ipoSubTab === tab.id ? "0 1px 2px rgba(0,0,0,0.04)" : "none"
+                }}
+              >
+                <span>{tab.label}</span>
+                <span style={{ fontSize: "10px", padding: "1px 5px", borderRadius: "8px", background: ipoSubTab === tab.id ? "#f1f5f9" : "#e2e8f0", color: "#475569" }}>
+                  {tab.count}
+                </span>
+              </button>
             ))}
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+              <thead>
+                <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", color: "#64748b", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  <th style={{ padding: "12px 16px" }}>Company & Sector</th>
+                  <th style={{ padding: "12px 16px" }}>Type</th>
+                  <th style={{ padding: "12px 16px" }}>Price Band</th>
+                  <th style={{ padding: "12px 16px" }}>Issue Size</th>
+                  <th style={{ padding: "12px 16px" }}>Bidding Period</th>
+                  <th style={{ padding: "12px 16px" }}>Deep Dive Report</th>
+                  <th style={{ padding: "12px 16px", textAlign: "right" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ipos.filter(ipo => {
+                  const s = ipo.status || "active";
+                  if (ipoSubTab === "open") return s === "active";
+                  if (ipoSubTab === "upcoming") return s === "pre_apply";
+                  if (ipoSubTab === "recently_listed") return s === "listed";
+                  if (ipoSubTab === "archive") return s === "closed";
+                  return true;
+                }).map((ipo, idx) => {
+                  const hasDeepDive = Boolean(ipo.htmlContent || ipo.pdfUrl || (ipo.deepDive && ipo.htmlUrl && !ipo.htmlUrl.startsWith("/")));
+                  const hasHtml = Boolean(ipo.htmlContent || (ipo.htmlUrl && !ipo.htmlUrl.startsWith("/")));
+                  const hasPdf = Boolean(ipo.pdfUrl);
+
+                  return (
+                    <tr key={`${ipo.slug}-${idx}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                      <td style={{ padding: "14px 16px" }}>
+                        <div style={{ display: "flex", flexDirection: "column" }}>
+                          <Link
+                            href={`/ipos/${ipo.slug}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              fontSize: "13.5px",
+                              fontWeight: "600",
+                              color: "#0f172a",
+                              textDecoration: "none",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.color = "#2563eb")}
+                            onMouseLeave={(e) => (e.currentTarget.style.color = "#0f172a")}
+                          >
+                            <span>{ipo.company}</span>
+                            <span style={{ opacity: 0.5 }}>
+                              <IconExternalLink />
+                            </span>
+                          </Link>
+                          <span style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>
+                            {ipo.sector || "General"} · /{ipo.slug}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ padding: "14px 16px" }}>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: "600",
+                            padding: "2px 8px",
+                            borderRadius: "4px",
+                            background: ipo.type === "SME" ? "#fef3c7" : "#e0f2fe",
+                            color: ipo.type === "SME" ? "#92400e" : "#075985",
+                          }}
+                        >
+                          {ipo.type || "Mainboard"}
+                        </span>
+                      </td>
+                      <td style={{ padding: "14px 16px", fontWeight: "500", color: "#334155" }}>
+                        {ipo.price || "—"}
+                      </td>
+                      <td style={{ padding: "14px 16px", color: "#64748b" }}>
+                        {ipo.issueSize || "—"}
+                      </td>
+                      <td style={{ padding: "14px 16px", color: "#64748b" }}>
+                        {ipo.period || "—"}
+                      </td>
+                      <td style={{ padding: "14px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          {hasDeepDive ? (
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: "600",
+                                padding: "3px 8px",
+                                borderRadius: "4px",
+                                background: "#dcfce7",
+                                color: "#166534",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                              }}
+                            >
+                              ✓ Report Available
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: "500",
+                                padding: "3px 8px",
+                                borderRadius: "4px",
+                                background: "#f4f4f5",
+                                color: "#71717a",
+                              }}
+                            >
+                              No Deep Dive
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ padding: "14px 16px", textAlign: "right" }}>
+                        <div style={{ display: "inline-flex", gap: "6px" }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleOpenIpoDrawer(ipo);
+                              if (hasDeepDive) {
+                                setIpoDrawerMode("preview");
+                              } else {
+                                setIpoDrawerMode("edit");
+                              }
+                            }}
+                            style={{
+                              padding: "4px 10px",
+                              background: hasDeepDive ? "#ffffff" : "#f0fdf4",
+                              border: hasDeepDive ? "1px solid #cbd5e1" : "1px solid #bbf7d0",
+                              borderRadius: "4px",
+                              fontSize: "11.5px",
+                              fontWeight: "500",
+                              color: hasDeepDive ? "#334155" : "#166534",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {hasDeepDive ? "Preview" : "+ Add Report"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenIpoDrawer(ipo)}
+                            style={{
+                              padding: "4px 10px",
+                              background: "#f8fafc",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "4px",
+                              fontSize: "11.5px",
+                              fontWeight: "500",
+                              color: "#334155",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Edit Details
+                          </button>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (confirm(`Delete IPO record for "${ipo.company}"?`)) {
+                                const remaining = ipos.filter((i) => i.slug !== ipo.slug);
+                                await updateIpos(remaining, { action: "delete", ipo });
+                                showNotification(`Deleted "${ipo.company}"`, "info");
+                              }
+                            }}
+                            style={{
+                              padding: "4px 8px",
+                              background: "#ffffff",
+                              border: "1px solid #fecaca",
+                              borderRadius: "4px",
+                              fontSize: "11.5px",
+                              color: "#dc2626",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -1853,8 +1986,8 @@ ${report.sections
                   </span>
                 </div>
 
-                {/* View Mode Switcher Tabs for Reports & Ideas */}
-                {(activeDrawer === "report" || activeDrawer === "idea") && (
+                {/* View Mode Switcher Tabs for Reports, Ideas & IPOs */}
+                {(activeDrawer === "report" || activeDrawer === "idea" || activeDrawer === "ipo") && (
                   <div
                     style={{
                       display: "inline-flex",
@@ -1866,16 +1999,16 @@ ${report.sections
                   >
                     <button
                       type="button"
-                      onClick={() => (activeDrawer === "report" ? setReportDrawerMode("edit") : setIdeaDrawerMode("edit"))}
+                      onClick={() => (activeDrawer === "report" ? setReportDrawerMode("edit") : activeDrawer === "idea" ? setIdeaDrawerMode("edit") : setIpoDrawerMode("edit"))}
                       style={{
                         padding: "4px 10px",
                         fontSize: "12px",
-                        fontWeight: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "edit" ? "600" : "500",
-                        background: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "edit" ? "#ffffff" : "transparent",
-                        color: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "edit" ? "#0f172a" : "#64748b",
+                        fontWeight: (activeDrawer === "report" ? reportDrawerMode : activeDrawer === "idea" ? ideaDrawerMode : ipoDrawerMode) === "edit" ? "600" : "500",
+                        background: (activeDrawer === "report" ? reportDrawerMode : activeDrawer === "idea" ? ideaDrawerMode : ipoDrawerMode) === "edit" ? "#ffffff" : "transparent",
+                        color: (activeDrawer === "report" ? reportDrawerMode : activeDrawer === "idea" ? ideaDrawerMode : ipoDrawerMode) === "edit" ? "#0f172a" : "#64748b",
                         border: "none",
                         borderRadius: "5px",
-                        boxShadow: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "edit" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                        boxShadow: (activeDrawer === "report" ? reportDrawerMode : activeDrawer === "idea" ? ideaDrawerMode : ipoDrawerMode) === "edit" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
                         cursor: "pointer",
                       }}
                     >
@@ -1883,19 +2016,19 @@ ${report.sections
                     </button>
                     <button
                       type="button"
-                      onClick={() => (activeDrawer === "report" ? handleOpenPreview("preview") : handleOpenIdeaPreview("preview"))}
+                      onClick={() => (activeDrawer === "report" ? setReportDrawerMode("preview") : activeDrawer === "idea" ? setIdeaDrawerMode("preview") : setIpoDrawerMode("preview"))}
                       style={{
                         display: "inline-flex",
                         alignItems: "center",
                         gap: "4px",
                         padding: "4px 10px",
                         fontSize: "12px",
-                        fontWeight: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "preview" ? "600" : "500",
-                        background: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "preview" ? "#ffffff" : "transparent",
-                        color: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "preview" ? "#0f172a" : "#64748b",
+                        fontWeight: (activeDrawer === "report" ? reportDrawerMode : activeDrawer === "idea" ? ideaDrawerMode : ipoDrawerMode) === "preview" ? "600" : "500",
+                        background: (activeDrawer === "report" ? reportDrawerMode : activeDrawer === "idea" ? ideaDrawerMode : ipoDrawerMode) === "preview" ? "#ffffff" : "transparent",
+                        color: (activeDrawer === "report" ? reportDrawerMode : activeDrawer === "idea" ? ideaDrawerMode : ipoDrawerMode) === "preview" ? "#0f172a" : "#64748b",
                         border: "none",
                         borderRadius: "5px",
-                        boxShadow: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "preview" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                        boxShadow: (activeDrawer === "report" ? reportDrawerMode : activeDrawer === "idea" ? ideaDrawerMode : ipoDrawerMode) === "preview" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
                         cursor: "pointer",
                       }}
                     >
@@ -1904,16 +2037,16 @@ ${report.sections
                     </button>
                     <button
                       type="button"
-                      onClick={() => (activeDrawer === "report" ? handleOpenPreview("split") : handleOpenIdeaPreview("split"))}
+                      onClick={() => (activeDrawer === "report" ? setReportDrawerMode("split") : activeDrawer === "idea" ? setIdeaDrawerMode("split") : setIpoDrawerMode("split"))}
                       style={{
                         padding: "4px 10px",
                         fontSize: "12px",
-                        fontWeight: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "split" ? "600" : "500",
-                        background: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "split" ? "#ffffff" : "transparent",
-                        color: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "split" ? "#0f172a" : "#64748b",
+                        fontWeight: (activeDrawer === "report" ? reportDrawerMode : activeDrawer === "idea" ? ideaDrawerMode : ipoDrawerMode) === "split" ? "600" : "500",
+                        background: (activeDrawer === "report" ? reportDrawerMode : activeDrawer === "idea" ? ideaDrawerMode : ipoDrawerMode) === "split" ? "#ffffff" : "transparent",
+                        color: (activeDrawer === "report" ? reportDrawerMode : activeDrawer === "idea" ? ideaDrawerMode : ipoDrawerMode) === "split" ? "#0f172a" : "#64748b",
                         border: "none",
                         borderRadius: "5px",
-                        boxShadow: (activeDrawer === "report" ? reportDrawerMode : ideaDrawerMode) === "split" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
+                        boxShadow: (activeDrawer === "report" ? reportDrawerMode : activeDrawer === "idea" ? ideaDrawerMode : ipoDrawerMode) === "split" ? "0 1px 3px rgba(0,0,0,0.08)" : "none",
                         cursor: "pointer",
                       }}
                     >
@@ -2047,6 +2180,7 @@ ${report.sections
                         style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none" }}
                       />
                     </div>
+
 
                     {/* Cover Picture */}
                     <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
@@ -2197,7 +2331,7 @@ ${report.sections
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleOpenPreview("preview")}
+                            onClick={() => setReportDrawerMode("preview")}
                             style={{
                               display: "inline-flex",
                               alignItems: "center",
@@ -2317,11 +2451,44 @@ ${report.sections
                       </div>
                     </div>
 
+                    {/* PDF URL / File Picker */}
+                    <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "14px" }}>
+                      <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        PDF Document URL / File Reference (Optional)
+                      </label>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 160px", gap: "8px", alignItems: "center" }}>
+                        <input
+                          type="text"
+                          value={reportForm.pdfUrl}
+                          onChange={(e) => setReportForm((prev) => ({ ...prev, pdfUrl: e.target.value }))}
+                          placeholder="https://... or Appwrite Storage URL"
+                          style={{ width: "100%", padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px", outline: "none" }}
+                        />
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              setReportForm((prev) => ({ ...prev, pdfUrl: e.target.value }));
+                              showNotification("Selected PDF file from Storage bucket", "info");
+                            }
+                          }}
+                          style={{ width: "100%", padding: "7px 8px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px", background: "#ffffff", color: "#334155", cursor: "pointer" }}
+                        >
+                          <option value="">📁 Select from Files...</option>
+                          {media.map((file) => (
+                            <option key={file.id} value={file.url}>
+                              {file.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
                     {/* Drawer Sticky Footer Actions */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #e2e8f0", paddingTop: "14px", marginTop: "auto" }}>
                       <button
                         type="button"
-                        onClick={() => handleOpenPreview("preview")}
+                        onClick={() => setReportDrawerMode("preview")}
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
@@ -3115,15 +3282,34 @@ ${report.sections
 
                     <div>
                       <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                        HTML Report URL (Optional)
+                        HTML Report URL / File Reference (Optional)
                       </label>
-                      <input
-                        type="text"
-                        value={ideaForm.htmlUrl}
-                        onChange={(e) => setIdeaForm((prev) => ({ ...prev, htmlUrl: e.target.value }))}
-                        placeholder="/racl-geartech.html"
-                        style={{ width: "100%", padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px" }}
-                      />
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 160px", gap: "8px", alignItems: "center" }}>
+                        <input
+                          type="text"
+                          value={ideaForm.htmlUrl}
+                          onChange={(e) => setIdeaForm((prev) => ({ ...prev, htmlUrl: e.target.value }))}
+                          placeholder="/racl-geartech.html or Appwrite Storage URL"
+                          style={{ width: "100%", padding: "7px 10px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px" }}
+                        />
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              setIdeaForm((prev) => ({ ...prev, htmlUrl: e.target.value }));
+                              showNotification("Selected file from Storage bucket", "info");
+                            }
+                          }}
+                          style={{ width: "100%", padding: "7px 8px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "12px", background: "#ffffff", color: "#334155", cursor: "pointer" }}
+                        >
+                          <option value="">📁 Select from Files...</option>
+                          {media.map((file) => (
+                            <option key={file.id} value={file.url}>
+                              {file.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
                     {/* Sticky Footer Actions */}
@@ -3478,80 +3664,359 @@ ${report.sections
               </>
             )}
 
-            {/* Drawer Body - IPO Form */}
+            {/* Drawer Body - IPO Form (Clean PDF & Metadata Editor) */}
             {activeDrawer === "ipo" && (
-              <form onSubmit={handleSaveIpo} style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "16px" }}>
-                <div>
-                  <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                    Company Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={ipoForm.company}
-                    onChange={(e) => setIpoForm((prev) => ({ ...prev, company: e.target.value }))}
-                    placeholder="SpectraA Technology Solutions"
-                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
-                  />
-                </div>
+              <>
+                {/* Hidden PDF File Input for IPO */}
+                <input
+                  type="file"
+                  ref={ipoPdfFileInputRef}
+                  accept=".pdf,application/pdf"
+                  style={{ display: "none" }}
+                  onChange={handleIpoPdfUpload}
+                />
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <form onSubmit={handleSaveIpo} style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "12px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        Company Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={ipoForm.company}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const autoSlug = val.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-");
+                          setIpoForm((prev) => ({
+                            ...prev,
+                            company: val,
+                            slug: editingIpo ? prev.slug : autoSlug,
+                          }));
+                        }}
+                        placeholder="e.g. SpectraA Technology Solutions"
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        URL Slug *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={ipoForm.slug}
+                        onChange={(e) => setIpoForm((prev) => ({ ...prev, slug: e.target.value }))}
+                        placeholder="spectraa-technology-solutions"
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        Sector
+                      </label>
+                      <select
+                        value={ipoForm.sector}
+                        onChange={(e) => setIpoForm((prev) => ({ ...prev, sector: e.target.value }))}
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", background: "#ffffff" }}
+                      >
+                        {SECTORS.map((s) => (
+                          <option key={s} value={s}>{s}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        Issue Price / Band
+                      </label>
+                      <input
+                        type="text"
+                        value={ipoForm.price}
+                        onChange={(e) => setIpoForm((prev) => ({ ...prev, price: e.target.value }))}
+                        placeholder="₹118"
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        Board Segment
+                      </label>
+                      <select
+                        value={ipoForm.type}
+                        onChange={(e) => setIpoForm((prev) => ({ ...prev, type: e.target.value as "Mainboard" | "SME" }))}
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", background: "#ffffff" }}
+                      >
+                        <option value="Mainboard">Mainboard</option>
+                        <option value="SME">SME</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        Issue Size
+                      </label>
+                      <input
+                        type="text"
+                        value={ipoForm.issueSize}
+                        onChange={(e) => setIpoForm((prev) => ({ ...prev, issueSize: e.target.value }))}
+                        placeholder="₹38.5 crore"
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        Lot Size
+                      </label>
+                      <input
+                        type="text"
+                        value={ipoForm.lotSize}
+                        onChange={(e) => setIpoForm((prev) => ({ ...prev, lotSize: e.target.value }))}
+                        placeholder="1,200 shares"
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        Bidding / Listing Schedule
+                      </label>
+                      <input
+                        type="text"
+                        value={ipoForm.period}
+                        onChange={(e) => setIpoForm((prev) => ({ ...prev, period: e.target.value }))}
+                        placeholder="18 — 22 Sep 2026"
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                      />
+                    </div>
+                  </div>
+
                   <div>
                     <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                      Issue Price
+                      IPO Summary Deck
                     </label>
-                    <input
-                      type="text"
-                      value={ipoForm.price}
-                      onChange={(e) => setIpoForm((prev) => ({ ...prev, price: e.target.value }))}
-                      placeholder="₹118"
-                      style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                    <textarea
+                      rows={2}
+                      value={ipoForm.deck}
+                      onChange={(e) => setIpoForm((prev) => ({ ...prev, deck: e.target.value }))}
+                      placeholder="An institutional underwriting note on process engineering moat and capital efficiency..."
+                      style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", outline: "none" }}
                     />
                   </div>
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                      Board Type
-                    </label>
-                    <select
-                      value={ipoForm.type}
-                      onChange={(e) => setIpoForm((prev) => ({ ...prev, type: e.target.value as "Mainboard" | "SME" }))}
-                      style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", background: "#ffffff" }}
-                    >
-                      <option value="Mainboard">Mainboard</option>
-                      <option value="SME">SME</option>
-                    </select>
+
+                  {/* PDF Document URL & Upload / Selection section */}
+                  <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                      <label style={{ fontSize: "12.5px", fontWeight: "600", color: "#0f172a", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span>Deep Dive Report (PDF URL)</span>
+                        {ipoForm.pdfUrl && (
+                          <span style={{ fontSize: "10px", background: "#dcfce7", color: "#166534", padding: "1px 6px", borderRadius: "4px", fontWeight: "600" }}>
+                            Report Attached
+                          </span>
+                        )}
+                      </label>
+                      <button
+                        type="button"
+                        disabled={isUploadingIpoPdf}
+                        onClick={() => ipoPdfFileInputRef.current?.click()}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          padding: "5px 12px",
+                          background: isUploadingIpoPdf ? "#94a3b8" : "#0f172a",
+                          border: "none",
+                          borderRadius: "6px",
+                          fontSize: "11.5px",
+                          fontWeight: "600",
+                          color: "#ffffff",
+                          cursor: isUploadingIpoPdf ? "not-allowed" : "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <IconUpload />
+                        {isUploadingIpoPdf ? "Uploading PDF..." : "Upload PDF to Storage"}
+                      </button>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 170px", gap: "8px", alignItems: "center" }}>
+                      <input
+                        type="text"
+                        value={ipoForm.pdfUrl}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const isFilled = Boolean(val.trim());
+                          setIpoForm((prev) => ({
+                            ...prev,
+                            pdfUrl: val,
+                            deepDive: isFilled,
+                            hasReport: isFilled,
+                          }));
+                        }}
+                        placeholder="https://... or click Upload PDF / Select from Files"
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          background: "#ffffff",
+                          outline: "none",
+                        }}
+                      />
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            setIpoForm((prev) => ({
+                              ...prev,
+                              pdfUrl: e.target.value,
+                              deepDive: true,
+                              hasReport: true,
+                            }));
+                            showNotification("Selected PDF file from Storage bucket", "info");
+                          }
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "8px 10px",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          background: "#ffffff",
+                          color: "#334155",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <option value="">📁 Select PDF File...</option>
+                        {media
+                          .filter((file) => file.name.toLowerCase().endsWith(".pdf") || file.url.toLowerCase().endsWith(".pdf") || (file.type && file.type.includes("pdf")))
+                          .map((file) => (
+                            <option key={file.id} value={file.url}>
+                              {file.name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
+                    {ipoForm.pdfUrl && (
+                      <div style={{ display: "flex", gap: "8px", marginTop: "10px", alignItems: "center" }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIpoForm((prev) => ({
+                              ...prev,
+                              pdfUrl: "",
+                              deepDive: Boolean(prev.htmlContent?.trim()),
+                              hasReport: Boolean(prev.htmlContent?.trim()),
+                            }));
+                            showNotification("Cleared PDF report field", "info");
+                          }}
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: "500",
+                            color: "#dc2626",
+                            background: "#fef2f2",
+                            border: "1px solid #fecaca",
+                            borderRadius: "4px",
+                            padding: "3px 10px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Clear Field
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const currentUrl = ipoForm.pdfUrl.trim();
+                            const matchedFile = media.find((m) => m.url === currentUrl || currentUrl.includes(m.id));
+                            if (confirm(`Delete referenced PDF file from Appwrite storage?`)) {
+                              if (matchedFile) {
+                                await handleDeleteFile(matchedFile.id);
+                              }
+                              setIpoForm((prev) => ({
+                                ...prev,
+                                pdfUrl: "",
+                                deepDive: Boolean(prev.htmlContent?.trim()),
+                                hasReport: Boolean(prev.htmlContent?.trim()),
+                              }));
+                              showNotification("PDF file deleted & field cleared", "info");
+                            }
+                          }}
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: "500",
+                            color: "#b91c1c",
+                            background: "#fff1f2",
+                            border: "1px solid #fda4af",
+                            borderRadius: "4px",
+                            padding: "3px 10px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Delete File from Storage
+                        </button>
+                      </div>
+                    )}
+
+                    <p style={{ margin: "6px 0 0", fontSize: "11px", color: "#64748b" }}>
+                      Enter a PDF link directly, pick an uploaded file from storage, or click <strong>Upload PDF to Storage</strong>.
+                    </p>
                   </div>
-                </div>
 
-                <div>
-                  <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                    IPO Summary Deck
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={ipoForm.deck}
-                    onChange={(e) => setIpoForm((prev) => ({ ...prev, deck: e.target.value }))}
-                    placeholder="Turnkey process plant engineering note..."
-                    style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
-                  />
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "14px", marginTop: "auto" }}>
-                  <button
-                    type="button"
-                    onClick={() => setActiveDrawer(null)}
-                    style={{ padding: "8px 16px", background: "#ffffff", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px", color: "#475569", cursor: "pointer" }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    style={{ padding: "8px 18px", background: "#0f172a", border: "none", borderRadius: "6px", fontSize: "13px", fontWeight: "600", color: "#ffffff", cursor: "pointer" }}
-                  >
-                    {editingIpo ? "Save IPO" : "Create IPO"}
-                  </button>
-                </div>
-              </form>
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "14px", marginTop: "auto" }}>
+                    <button
+                      type="button"
+                      disabled={isSavingIpo}
+                      onClick={() => setActiveDrawer(null)}
+                      style={{
+                        padding: "8px 16px",
+                        background: "#ffffff",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "6px",
+                        fontSize: "13px",
+                        color: "#475569",
+                        cursor: isSavingIpo ? "not-allowed" : "pointer",
+                        opacity: isSavingIpo ? 0.6 : 1,
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSavingIpo}
+                      style={{
+                        padding: "8px 18px",
+                        background: isSavingIpo ? "#334155" : "#0f172a",
+                        border: "none",
+                        borderRadius: "6px",
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        color: "#ffffff",
+                        cursor: isSavingIpo ? "not-allowed" : "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        opacity: isSavingIpo ? 0.85 : 1,
+                      }}
+                    >
+                      {isSavingIpo ? (
+                        <>
+                          <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid #ffffff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        editingIpo ? "Save IPO Note" : "Create IPO Note"
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </>
             )}
 
             {/* Drawer Body - File Inspector */}
@@ -3733,5 +4198,13 @@ ${report.sections
         </>
       )}
     </div>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: "32px", color: "#64748b", fontSize: "14px" }}>Loading Admin Studio...</div>}>
+      <AdminPageContent />
+    </Suspense>
   );
 }

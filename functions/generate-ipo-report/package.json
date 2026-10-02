@@ -1,0 +1,12 @@
+{
+  "name": "generate-ipo-report",
+  "version": "1.0.0",
+  "description": "Appwrite Cloud Function to generate institutional HTML Deep Dive IPO reports using OpenAI GPT API and upload to Appwrite Storage",
+  "main": "src/main.js",
+  "dependencies": {
+    "form-data": "^4.0.6",
+    "node-appwrite": "^12.0.0",
+    "node-fetch": "^2.7.0",
+    "pdf-lib": "^1.17.1"
+  }
+}

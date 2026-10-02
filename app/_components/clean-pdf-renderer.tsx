@@ -85,8 +85,15 @@ export default function CleanPdfRenderer({
         setLoading(true);
         setError(null);
 
+        // Convert direct Appwrite cloud storage URL to proxy endpoint if needed to bypass HTTP 401 unauthenticated errors
+        let targetUrl = pdfUrl;
+        const appwriteMatch = pdfUrl.match(/\/files\/([^\/]+)\/(view|download)/);
+        if (appwriteMatch && appwriteMatch[1]) {
+          targetUrl = `/api/appwrite/media?fileId=${appwriteMatch[1]}`;
+        }
+
         const pdfjs = await loadPdfJsScript();
-        const loadingTask = pdfjs.getDocument(pdfUrl);
+        const loadingTask = pdfjs.getDocument(targetUrl);
         const pdf = await loadingTask.promise;
 
         if (isCancelled) return;

@@ -56,13 +56,15 @@ export default function IpoDetailPage() {
     );
   }
 
-  if (rawReportHtml) {
+  if (rawReportHtml || ipo?.pdfUrl) {
     return (
       <DynamicReportView
-        htmlContent={rawReportHtml}
+        htmlContent={rawReportHtml || `<div style="font-family: system-ui, -apple-system, sans-serif; padding: 40px; text-align: center; color: #64748b;"><h3 style="color: #0f172a; margin-bottom: 8px;">PDF Deep Dive Report Available</h3><p style="font-size: 14px; max-width: 480px; margin: 0 auto;">Switch to PDF view above or download the document directly.</p></div>`}
         backUrl="/ipos"
         backLabel="Back to IPO Intelligence"
+        title={ipo?.company}
         pdfUrl={ipo?.pdfUrl}
+        initialFormat={ipo?.pdfUrl ? "pdf" : "markdown"}
       />
     );
   }

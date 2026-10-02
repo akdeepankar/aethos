@@ -10,6 +10,7 @@ interface DynamicReportViewProps {
   htmlContent: string;
   backUrl: string;
   backLabel: string;
+  title?: string;
   pdfUrl?: string;
   pdfButtonLabel?: string;
   initialFormat?: "markdown" | "pdf";
@@ -19,6 +20,7 @@ export default function DynamicReportView({
   htmlContent,
   backUrl,
   backLabel,
+  title,
   pdfUrl,
   pdfButtonLabel = "Download PDF",
   initialFormat = "markdown",
@@ -64,6 +66,7 @@ export default function DynamicReportView({
           borderBottom: "1px solid #e2e8f0",
           flexShrink: 0,
           gap: "10px",
+          position: "relative",
         }}
       >
         {/* Compact Back Button */}
@@ -83,6 +86,7 @@ export default function DynamicReportView({
             borderRadius: "5px",
             lineHeight: 1.2,
             transition: "all 0.15s ease",
+            zIndex: 2,
           }}
           title={backLabel}
         >
@@ -90,62 +94,31 @@ export default function DynamicReportView({
           <span>{backLabel}</span>
         </Link>
 
-        {/* Compact Action Controls, Format Switcher & Zoom Tools */}
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          {/* Format Switcher */}
-          {pdfUrl && (
-            <div
-              style={{
-                display: "inline-flex",
-                background: "#ffffff",
-                padding: "1px",
-                borderRadius: "5px",
-                border: "1px solid #e2e8f0",
-                height: "25px",
-                alignItems: "center",
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setActiveFormat("markdown")}
-                style={{
-                  padding: "2px 7px",
-                  fontSize: "10.5px",
-                  fontWeight: "700",
-                  borderRadius: "4px",
-                  border: "none",
-                  cursor: "pointer",
-                  background: activeFormat === "markdown" ? "#0f172a" : "transparent",
-                  color: activeFormat === "markdown" ? "#ffffff" : "#64748b",
-                  transition: "all 0.15s ease",
-                  height: "21px",
-                  lineHeight: "17px",
-                }}
-              >
-                Note
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveFormat("pdf")}
-                style={{
-                  padding: "2px 7px",
-                  fontSize: "10.5px",
-                  fontWeight: "700",
-                  borderRadius: "4px",
-                  border: "none",
-                  cursor: "pointer",
-                  background: activeFormat === "pdf" ? "#0f172a" : "transparent",
-                  color: activeFormat === "pdf" ? "#ffffff" : "#64748b",
-                  transition: "all 0.15s ease",
-                  height: "21px",
-                  lineHeight: "17px",
-                }}
-              >
-                PDF
-              </button>
-            </div>
-          )}
+        {/* Company Name / Report Title on Top Middle */}
+        {title && (
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              transform: "translateX(-50%)",
+              fontSize: "12.5px",
+              fontWeight: "700",
+              color: "#0f172a",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              maxWidth: "45%",
+              letterSpacing: "-0.01em",
+              zIndex: 1,
+            }}
+            title={title}
+          >
+            {title}
+          </div>
+        )}
 
+        {/* Compact Action Controls & Zoom Tools */}
+        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
           {/* Compact Zoom In / Out Controls */}
           <div
             style={{
@@ -218,33 +191,6 @@ export default function DynamicReportView({
               +
             </button>
           </div>
-
-          {/* Compact PDF Link */}
-          {pdfUrl && (
-            <a
-              href={pdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                fontSize: "10.5px",
-                fontWeight: "600",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px",
-                padding: "3px 8px",
-                borderRadius: "5px",
-                background: "#ffffff",
-                border: "1px solid #e2e8f0",
-                color: "#0f172a",
-                textDecoration: "none",
-                height: "25px",
-                lineHeight: 1,
-              }}
-            >
-              <span>{pdfButtonLabel}</span>
-              <ArrowUpRight />
-            </a>
-          )}
         </div>
       </div>
 

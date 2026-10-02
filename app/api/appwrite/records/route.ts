@@ -3,6 +3,9 @@ import { Client, TablesDB, Databases, Storage } from "node-appwrite";
 import fs from "node:fs";
 import path from "node:path";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function getAppwriteClient() {
   const apiKey = process.env.APPWRITE_API_KEY;
   const endpoint = process.env.APPWRITE_ENDPOINT || "https://sgp.cloud.appwrite.io/v1";
@@ -83,10 +86,26 @@ export async function GET(req: NextRequest) {
           let updatedCount = 0;
 
           for (const item of fetchedListings) {
-            const slug = (item.action_slug || item.symbol || item.name || "")
+            const rawBase = (item.action_slug || item.symbol || item.name || "")
               .toLowerCase()
               .replace(/[^a-z0-9]+/g, "-")
               .replace(/^-|-$/g, "");
+
+            let monthYearSuffix = "";
+            const dateRef = item.bidding_start_date || item.listing_date;
+            if (dateRef) {
+              const parsedDate = new Date(dateRef);
+              if (!isNaN(parsedDate.getTime())) {
+                const m = parsedDate.toLocaleDateString("en-US", { month: "short", year: "numeric" }).toLowerCase().replace(/[^a-z0-9]+/g, "-");
+                monthYearSuffix = `-ipo-${m}`;
+              }
+            }
+            if (!monthYearSuffix) {
+              const currentM = new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" }).toLowerCase().replace(/[^a-z0-9]+/g, "-");
+              monthYearSuffix = `-ipo-${currentM}`;
+            }
+
+            const slug = rawBase.includes("-ipo-") ? rawBase : `${rawBase}${monthYearSuffix}`;
 
             if (!slug) continue;
 
@@ -254,13 +273,22 @@ export async function GET(req: NextRequest) {
           };
         });
 
-        return NextResponse.json({
-          success: true,
-          table: "ipos",
-          total: dbRows.length || liveApiIpos.length,
-          rows: dbRows,
-          liveApiIpos,
-        });
+        return NextResponse.json(
+          {
+            success: true,
+            table: "ipos",
+            total: dbRows.length || liveApiIpos.length,
+            rows: dbRows,
+            liveApiIpos,
+          },
+          {
+            headers: {
+              "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+              "Pragma": "no-cache",
+              "Expires": "0",
+            },
+          }
+        );
       }
 
       return NextResponse.json({ success: true, table, total: res.total, rows: res.rows });

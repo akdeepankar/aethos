@@ -4,14 +4,14 @@ import { posts } from "../_lib/content";
 
 export default function JournalPage() {
   return (
-    <div className="dash-overview-page">
-      <div className="dash-welcome-banner">
-        <div className="dash-welcome-copy">
-          <h1>Journal & Market Memos</h1>
-          <p>Short-form observations, market updates, and thematic analysis.</p>
+    <div className="rl-container">
+      <div className="rl-header">
+        <div className="rl-header-left">
+          <h1 className="rl-title">Journal & Market Memos</h1>
+          <p className="rl-subtitle">Short-form observations, market updates, and thematic analysis.</p>
         </div>
-        <div className="dash-banner-meta">
-          <span className="meta-chip">Total Memos: {posts.length}</span>
+        <div className="rl-header-right">
+          <span className="rl-piece-count">{posts.length} market memos</span>
         </div>
       </div>
 

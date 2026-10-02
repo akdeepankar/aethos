@@ -35,6 +35,11 @@ export type ApiIpo = {
   action_label?: string;
   action_slug?: string;
   has_aethos_notes?: boolean;
+  pdfUrl?: string;
+  htmlUrl?: string;
+  deepDive?: boolean;
+  hasReport?: boolean;
+  slug?: string;
 };
 
 // Rich default dataset covering Open, Upcoming, Listed, and Archive IPOs
@@ -442,44 +447,15 @@ export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
       {/* Top Header Banner */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
         <div>
-          <div style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.12em", color: "#b45309", marginBottom: "4px" }}>
-            IPO TRACKER
-          </div>
-          <h1 style={{ fontSize: "38px", fontWeight: "700", letterSpacing: "-0.03em", fontFamily: "Georgia, serif", margin: 0, color: "#0f172a" }}>
+          <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, "Times New Roman", serif', fontSize: "42px", fontWeight: "700", lineHeight: 1.1, letterSpacing: "-0.025em", margin: "0 0 6px 0", color: "#0f172a" }}>
             IPO Tracker
           </h1>
-          <p style={{ fontSize: "16px", color: "#52525b", marginTop: "6px", marginBottom: 0 }}>
+          <p style={{ fontSize: "15px", color: "#475569", margin: 0, fontWeight: "400" }}>
             The listing is a milestone. The business is the story.
           </p>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <button
-            type="button"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "9px 16px",
-              borderRadius: "8px",
-              border: "1px solid #d4d4d8",
-              backgroundColor: "#ffffff",
-              fontSize: "13px",
-              fontWeight: "600",
-              color: "#18181b",
-              cursor: "pointer",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
-            }}
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-            View IPO calendar →
-          </button>
-        </div>
+
       </div>
 
       {/* Main Category Tabs */}
@@ -837,16 +813,21 @@ export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
 
                     <td style={{ padding: "16px 24px", textAlign: "right" }}>
                       {(() => {
-                        const itemName = (item.name || "").toLowerCase();
-                        const targetSlug = (item.action_slug || item.symbol || "").toLowerCase();
+                        const itemName = (item.name || item.company || "").toLowerCase();
+                        const targetSlug = (item.slug || item.action_slug || item.symbol || "").toLowerCase();
                         const storeMatch = storeIpos.find(
                           (i) =>
                             (i.slug && i.slug.toLowerCase() === targetSlug) ||
                             (itemName && i.company && i.company.toLowerCase().includes(itemName)) ||
                             (itemName && i.company && itemName.includes(i.company.toLowerCase()))
                         );
-                        const hasReport = item.has_aethos_notes || (storeMatch && (storeMatch.deepDive || storeMatch.htmlContent || storeMatch.htmlUrl || storeMatch.pdfUrl));
-                        const label = item.action_label || (hasReport ? "Deep dive →" : "No Deep Dive");
+
+                        const hasReport = Boolean(
+                          (storeMatch && (Boolean(storeMatch.pdfUrl?.trim()) || Boolean(storeMatch.htmlContent?.trim()) || (storeMatch.htmlUrl?.trim() && !storeMatch.htmlUrl.startsWith("/")))) ||
+                          Boolean(item.pdfUrl?.trim()) ||
+                          Boolean(item.hasReport)
+                        );
+                        const label = hasReport ? "Deep dive →" : "No Deep Dive";
 
                         if (!hasReport) {
                           return (

@@ -17,10 +17,28 @@ function getAppwriteStorage() {
   return { client, storage, endpoint, projectId };
 }
 
-// GET /api/appwrite/media
-export async function GET() {
+// GET /api/appwrite/media or GET /api/appwrite/media?fileId=xxx
+export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const fileId = searchParams.get("fileId");
     const { storage, endpoint, projectId } = getAppwriteStorage();
+
+    // If fileId is passed, stream the file content through backend proxy to bypass unauthenticated 401 errors
+    if (fileId) {
+      const fileMeta = await storage.getFile("aethos_pdfs", fileId).catch(() => null);
+      const fileBytes = await storage.getFileView("aethos_pdfs", fileId);
+
+      return new NextResponse(fileBytes, {
+        headers: {
+          "Content-Type": fileMeta?.mimeType || "application/pdf",
+          "Content-Disposition": `inline; filename="${fileMeta?.name || "document.pdf"}"`,
+          "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+        },
+      });
+    }
+
+    const host = req.nextUrl.origin || "http://localhost:3000";
     const res = await storage.listFiles("aethos_pdfs");
 
     const files = res.files.map((f) => ({
@@ -28,14 +46,14 @@ export async function GET() {
       name: f.name,
       size: f.sizeOriginal,
       type: f.mimeType || "application/octet-stream",
-      url: `${endpoint}/storage/buckets/aethos_pdfs/files/${f.$id}/view?project=${projectId}`,
+      url: `${host}/api/appwrite/media?fileId=${f.$id}`,
       uploadedAt: new Date(f.$createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
       category: f.name.endsWith(".html") ? "Report HTML" : f.name.endsWith(".pdf") ? "Research PDF" : "General",
     }));
 
     return NextResponse.json({ success: true, total: res.total, files });
   } catch (error: unknown) {
-    console.error("Error listing files from Appwrite Storage:", error);
+    console.error("Error in GET /api/appwrite/media:", error);
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : String(error), files: [] },
       { status: 500 }
@@ -63,12 +81,13 @@ export async function POST(req: NextRequest) {
       Permission.read(Role.any()),
     ]);
 
+    const host = req.nextUrl.origin || "http://localhost:3000";
     const storedFile = {
       id: created.$id,
       name: created.name,
       size: created.sizeOriginal,
       type: created.mimeType || file.type || "application/octet-stream",
-      url: `${endpoint}/storage/buckets/aethos_pdfs/files/${created.$id}/view?project=${projectId}`,
+      url: `${host}/api/appwrite/media?fileId=${created.$id}`,
       uploadedAt: new Date(created.$createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
       category: file.name.endsWith(".html") ? "Report HTML" : file.name.endsWith(".pdf") ? "Research PDF" : category,
     };

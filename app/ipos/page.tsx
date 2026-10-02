@@ -1,11 +1,14 @@
 import IpoTableTabs, { ApiIpo } from "./ipo-table-tabs";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 async function getLiveIpos(): Promise<ApiIpo[]> {
   try {
     // Read cached/persisted IPO records from Appwrite Database table ipos
     const host = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const res = await fetch(`${host}/api/appwrite/records?table=ipos`, {
-      next: { revalidate: 3600 },
+      cache: "no-store",
     }).catch(() => null);
 
     if (res && res.ok) {

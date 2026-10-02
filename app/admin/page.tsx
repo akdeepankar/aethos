@@ -1601,27 +1601,6 @@ function AdminPageContent() {
                           >
                             Edit Details
                           </button>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              if (confirm(`Delete IPO record for "${ipo.company}"?`)) {
-                                const remaining = ipos.filter((i) => i.slug !== ipo.slug);
-                                await updateIpos(remaining, { action: "delete", ipo });
-                                showNotification(`Deleted "${ipo.company}"`, "info");
-                              }
-                            }}
-                            style={{
-                              padding: "4px 8px",
-                              background: "#ffffff",
-                              border: "1px solid #fecaca",
-                              borderRadius: "4px",
-                              fontSize: "11.5px",
-                              color: "#dc2626",
-                              cursor: "pointer",
-                            }}
-                          >
-                            Delete
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -3688,7 +3667,9 @@ function AdminPageContent() {
                         value={ipoForm.company}
                         onChange={(e) => {
                           const val = e.target.value;
-                          const autoSlug = val.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-");
+                          const currentMonthYear = new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" }).toLowerCase().replace(/[^a-z0-9]+/g, "-");
+                          const baseSlug = val.toLowerCase().replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-");
+                          const autoSlug = baseSlug ? `${baseSlug}-ipo-${currentMonthYear}` : "";
                           setIpoForm((prev) => ({
                             ...prev,
                             company: val,
@@ -3708,7 +3689,7 @@ function AdminPageContent() {
                         required
                         value={ipoForm.slug}
                         onChange={(e) => setIpoForm((prev) => ({ ...prev, slug: e.target.value }))}
-                        placeholder="spectraa-technology-solutions"
+                        placeholder="spectraa-technology-solutions-ipo-sep-2026"
                         style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
                       />
                     </div>
@@ -3969,51 +3950,84 @@ function AdminPageContent() {
                     </p>
                   </div>
 
-                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", borderTop: "1px solid #e2e8f0", paddingTop: "14px", marginTop: "auto" }}>
-                    <button
-                      type="button"
-                      disabled={isSavingIpo}
-                      onClick={() => setActiveDrawer(null)}
-                      style={{
-                        padding: "8px 16px",
-                        background: "#ffffff",
-                        border: "1px solid #cbd5e1",
-                        borderRadius: "6px",
-                        fontSize: "13px",
-                        color: "#475569",
-                        cursor: isSavingIpo ? "not-allowed" : "pointer",
-                        opacity: isSavingIpo ? 0.6 : 1,
-                      }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isSavingIpo}
-                      style={{
-                        padding: "8px 18px",
-                        background: isSavingIpo ? "#334155" : "#0f172a",
-                        border: "none",
-                        borderRadius: "6px",
-                        fontSize: "13px",
-                        fontWeight: "600",
-                        color: "#ffffff",
-                        cursor: isSavingIpo ? "not-allowed" : "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        opacity: isSavingIpo ? 0.85 : 1,
-                      }}
-                    >
-                      {isSavingIpo ? (
-                        <>
-                          <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid #ffffff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-                          <span>Saving...</span>
-                        </>
-                      ) : (
-                        editingIpo ? "Save IPO Note" : "Create IPO Note"
-                      )}
-                    </button>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #e2e8f0", paddingTop: "14px", marginTop: "auto" }}>
+                    {editingIpo ? (
+                      <button
+                        type="button"
+                        disabled={isSavingIpo}
+                        onClick={async () => {
+                          if (confirm(`Are you sure you want to delete the IPO record for "${editingIpo.company}"?`)) {
+                            const remaining = ipos.filter((i) => i.slug !== editingIpo.slug);
+                            await updateIpos(remaining, { action: "delete", ipo: editingIpo });
+                            setActiveDrawer(null);
+                            showNotification(`Deleted "${editingIpo.company}"`, "info");
+                          }
+                        }}
+                        style={{
+                          padding: "8px 14px",
+                          background: "#fef2f2",
+                          border: "1px solid #fecaca",
+                          borderRadius: "6px",
+                          fontSize: "13px",
+                          fontWeight: "500",
+                          color: "#dc2626",
+                          cursor: isSavingIpo ? "not-allowed" : "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                        }}
+                      >
+                        <IconTrash />
+                        <span>Delete IPO</span>
+                      </button>
+                    ) : <div />}
+
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                      <button
+                        type="button"
+                        disabled={isSavingIpo}
+                        onClick={() => setActiveDrawer(null)}
+                        style={{
+                          padding: "8px 16px",
+                          background: "#ffffff",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "6px",
+                          fontSize: "13px",
+                          color: "#475569",
+                          cursor: isSavingIpo ? "not-allowed" : "pointer",
+                          opacity: isSavingIpo ? 0.6 : 1,
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSavingIpo}
+                        style={{
+                          padding: "8px 18px",
+                          background: isSavingIpo ? "#334155" : "#0f172a",
+                          border: "none",
+                          borderRadius: "6px",
+                          fontSize: "13px",
+                          fontWeight: "600",
+                          color: "#ffffff",
+                          cursor: isSavingIpo ? "not-allowed" : "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          opacity: isSavingIpo ? 0.85 : 1,
+                        }}
+                      >
+                        {isSavingIpo ? (
+                          <>
+                            <span style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid #ffffff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                            <span>Saving...</span>
+                          </>
+                        ) : (
+                          editingIpo ? "Save IPO Note" : "Create IPO Note"
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </form>
               </>

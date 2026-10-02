@@ -143,6 +143,7 @@ export default function IdeaDetailPage() {
         htmlContent={rawReportHtml}
         backUrl="/ideas"
         backLabel="Back to Aethos Ideas"
+        title={idea?.company}
       />
     );
   }

@@ -1668,7 +1668,7 @@ footer{background:var(--paper);color:var(--muted);padding-top:59px;border-top:1p
 
 .ai-title {
   font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
-  font-size: 40px;
+  font-size: 42px;
   font-weight: 700;
   line-height: 1.1;
   color: #0f172a;
@@ -2471,16 +2471,20 @@ footer{background:var(--paper);color:var(--muted);padding-top:59px;border-top:1p
 }
 
 .dash-welcome-copy h1 {
-  font-size: 32px;
+  font-family: var(--font-playfair), Georgia, "Times New Roman", serif;
+  font-size: 42px;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: #0f172a;
+  letter-spacing: -0.025em;
   margin: 0 0 6px;
 }
 
 .dash-welcome-copy p {
-  color: var(--muted);
-  font-size: 14px;
+  font-size: 15px;
+  color: #475569;
   margin: 0;
+  font-weight: 400;
 }
 
 .dash-banner-meta {

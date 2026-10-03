@@ -46,15 +46,28 @@ export async function GET() {
         year: "numeric",
       });
 
-      const formattedLastActive = u.accessedAt
-        ? new Date(u.accessedAt).toLocaleDateString("en-GB", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : meta.lastActive || "Recently";
+      let formattedLastActive = meta.lastActive || "Recently";
+      if (u.email?.toLowerCase() === "akdeepaknyc@gmail.com") {
+        formattedLastActive = "Confidential";
+      } else if (u.accessedAt) {
+        const accessedDate = new Date(u.accessedAt);
+        const now = new Date();
+        const diffTime = Math.abs(now.getTime() - accessedDate.getTime());
+        const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
+
+        if (diffHours < 1) {
+          formattedLastActive = "Just now";
+        } else if (diffDays === 0) {
+          formattedLastActive = `Today, ${accessedDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`;
+        } else if (diffDays === 1) {
+          formattedLastActive = `Yesterday, ${accessedDate.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}`;
+        } else if (diffDays < 30) {
+          formattedLastActive = `${diffDays} days ago`;
+        } else {
+          formattedLastActive = accessedDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+        }
+      }
 
       let role = meta.role || (u.labels?.includes("admin") ? "Admin" : u.email.includes("deepak") ? "Admin" : "Institutional");
       let status = u.status ? (meta.status || "Active") : "Suspended";

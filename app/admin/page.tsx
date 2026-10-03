@@ -242,6 +242,7 @@ function AdminPageContent() {
     updateIdeas,
     updateIpos,
     updateJournal,
+    updateUsers,
     updateMedia,
     uploadPdfFile,
   } = useAdminStore();
@@ -866,6 +867,18 @@ function AdminPageContent() {
     if (confirm("Delete this report from database?")) {
       updateReports(reports.filter((r) => r.slug !== slug), target ? { action: "delete", report: target } : undefined);
       showNotification("Report deleted", "info");
+    }
+  };
+
+  // Delete user
+  const handleDeleteUser = (userId: string) => {
+    const target = users.find((u) => u.id === userId);
+    if (confirm("Are you sure you want to delete this user from Appwrite Auth and Database?")) {
+      updateUsers(
+        users.filter((u) => u.id !== userId),
+        target ? { action: "delete", user: target } : undefined
+      );
+      showNotification("User account deleted", "info");
     }
   };
 
@@ -1674,9 +1687,9 @@ function AdminPageContent() {
               </div>
             </div>
             <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "16px 20px" }}>
-              <div style={{ fontSize: "11.5px", fontWeight: "600", textTransform: "uppercase", color: "#b45309", letterSpacing: "0.04em" }}>Institutional Members</div>
+              <div style={{ fontSize: "11.5px", fontWeight: "600", textTransform: "uppercase", color: "#b45309", letterSpacing: "0.04em" }}>All Members</div>
               <div style={{ fontSize: "24px", fontWeight: "700", color: "#b45309", marginTop: "4px" }}>
-                {users.filter((u) => u.role === "Institutional" || u.role === "Pro").length}
+                {users.filter((u) => u.role === "Institutional" || u.role === "Pro" || u.role === "Admin").length}
               </div>
             </div>
           </div>
@@ -1719,6 +1732,7 @@ function AdminPageContent() {
                       <th style={{ padding: "12px 16px" }}>Account Status</th>
                       <th style={{ padding: "12px 16px" }}>Last Active</th>
                       <th style={{ padding: "12px 16px" }}>Joined Date</th>
+                      <th style={{ padding: "12px 16px", textAlign: "right" }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1788,6 +1802,26 @@ function AdminPageContent() {
                           </td>
                           <td style={{ padding: "14px 16px", color: "#64748b", fontSize: "12px" }}>
                             {u.joinedDate || "—"}
+                          </td>
+                          <td style={{ padding: "14px 16px", textAlign: "right" }}>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteUser(u.id)}
+                              title="Delete user"
+                              style={{
+                                padding: "6px 8px",
+                                background: "#fff1f2",
+                                border: "1px solid #fecdd3",
+                                borderRadius: "6px",
+                                color: "#e11d48",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                            >
+                              <IconTrash />
+                            </button>
                           </td>
                         </tr>
                       ))}

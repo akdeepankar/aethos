@@ -16,7 +16,7 @@ import { adaptReportToRichView } from "../_lib/report-adapter";
 
 import DynamicReportFrame from "../_components/dynamic-report-frame";
 
-type TabType = "reports" | "ideas" | "ipos" | "journal" | "media" | "database";
+type TabType = "reports" | "ideas" | "ipos" | "journal" | "users" | "media" | "database";
 type DrawerType = "report" | "idea" | "ipo" | "journal" | "file" | null;
 
 const SECTORS = [
@@ -251,7 +251,7 @@ function AdminPageContent() {
 
   const currentTabFromUrl = searchParams.get("tab") as TabType | null;
   const activeTab: TabType = useMemo(() => {
-    if (currentTabFromUrl && ["reports", "ideas", "ipos", "journal", "media", "database"].includes(currentTabFromUrl)) {
+    if (currentTabFromUrl && ["reports", "ideas", "ipos", "journal", "users", "media", "database"].includes(currentTabFromUrl)) {
       return currentTabFromUrl;
     }
     return "reports";
@@ -971,6 +971,7 @@ function AdminPageContent() {
               activeTab === "ideas" ? "Aethos Ideas" :
               activeTab === "ipos" ? "IPO Tracker" :
               activeTab === "journal" ? "Market Journal" :
+              activeTab === "users" ? "User Management" :
               activeTab === "media" ? "Files & Media" : "Database Console"
             }
           </h1>
@@ -980,6 +981,7 @@ function AdminPageContent() {
               activeTab === "reports" ? "Manage research notes, publications, and formatted HTML research reports." :
               activeTab === "ipos" ? "Track live bidding IPOs, upload PDF deep dives, and manage listing notes." :
               activeTab === "journal" ? "Manage market journal entries and commentaries." :
+              activeTab === "users" ? "View and manage registered Appwrite users, roles, email verification, and authentication status." :
               activeTab === "media" ? "Manage files uploaded to Appwrite storage bucket." : "Database console and sync tools."
             }
           </p>
@@ -1073,6 +1075,7 @@ function AdminPageContent() {
           )}
         </div>
       </div>
+
 
       {/* Main Content Area */}
       {activeTab === "reports" && (
@@ -1651,6 +1654,151 @@ function AdminPageContent() {
                 </span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Users Management Tab */}
+      {activeTab === "users" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {/* Summary Stat Badges */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" }}>
+            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "16px 20px" }}>
+              <div style={{ fontSize: "11.5px", fontWeight: "600", textTransform: "uppercase", color: "#64748b", letterSpacing: "0.04em" }}>Total Registered Users</div>
+              <div style={{ fontSize: "24px", fontWeight: "700", color: "#0f172a", marginTop: "4px" }}>{users.length}</div>
+            </div>
+            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "16px 20px" }}>
+              <div style={{ fontSize: "11.5px", fontWeight: "600", textTransform: "uppercase", color: "#047857", letterSpacing: "0.04em" }}>Active Accounts</div>
+              <div style={{ fontSize: "24px", fontWeight: "700", color: "#047857", marginTop: "4px" }}>
+                {users.filter((u) => u.status === "Active").length}
+              </div>
+            </div>
+            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "16px 20px" }}>
+              <div style={{ fontSize: "11.5px", fontWeight: "600", textTransform: "uppercase", color: "#b45309", letterSpacing: "0.04em" }}>Institutional Members</div>
+              <div style={{ fontSize: "24px", fontWeight: "700", color: "#b45309", marginTop: "4px" }}>
+                {users.filter((u) => u.role === "Institutional" || u.role === "Pro").length}
+              </div>
+            </div>
+          </div>
+
+          {/* Users Table Card */}
+          <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Registered User Directory</h3>
+                <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748b" }}>Synced directly with Appwrite Authentication and database user metadata.</p>
+              </div>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <input
+                  type="text"
+                  placeholder="Search by name, email, or role..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    padding: "7px 14px",
+                    background: "#ffffff",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "6px",
+                    fontSize: "12.5px",
+                    width: "260px",
+                    outline: "none",
+                  }}
+                />
+              </div>
+            </div>
+
+            {users.length > 0 ? (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", color: "#64748b", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <th style={{ padding: "12px 16px" }}>User Info</th>
+                      <th style={{ padding: "12px 16px" }}>Appwrite User ID</th>
+                      <th style={{ padding: "12px 16px" }}>Auth Provider</th>
+                      <th style={{ padding: "12px 16px" }}>Email Status</th>
+                      <th style={{ padding: "12px 16px" }}>Account Status</th>
+                      <th style={{ padding: "12px 16px" }}>Last Active</th>
+                      <th style={{ padding: "12px 16px" }}>Joined Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users
+                      .filter((u) => {
+                        if (!searchQuery.trim()) return true;
+                        const q = searchQuery.toLowerCase();
+                        return (
+                          u.name.toLowerCase().includes(q) ||
+                          u.email.toLowerCase().includes(q) ||
+                          u.id.toLowerCase().includes(q)
+                        );
+                      })
+                      .map((u, idx) => (
+                        <tr key={`${u.id}-${idx}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                          <td style={{ padding: "14px 16px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                              <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#f1f5f9", color: "#0f172a", fontWeight: "700", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", border: "1px solid #cbd5e1", flexShrink: 0, overflow: "hidden" }}>
+                                {u.avatarUrl ? (
+                                  <img src={u.avatarUrl} alt={u.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                ) : (
+                                  u.name.charAt(0).toUpperCase()
+                                )}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: "13.5px", fontWeight: "600", color: "#0f172a" }}>{u.name}</div>
+                                <div style={{ fontSize: "11.5px", color: "#64748b" }}>{u.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td style={{ padding: "14px 16px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: "11.5px", color: "#475569" }}>
+                            {u.id}
+                          </td>
+                          <td style={{ padding: "14px 16px", color: "#64748b", fontSize: "12px" }}>
+                            {u.provider || "Google OAuth2"}
+                          </td>
+                          <td style={{ padding: "14px 16px" }}>
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: "600",
+                                padding: "2px 7px",
+                                borderRadius: "4px",
+                                background: u.emailVerified ? "#ecfdf5" : "#fff7ed",
+                                color: u.emailVerified ? "#047857" : "#c2410c",
+                              }}
+                            >
+                              {u.emailVerified ? "✓ Verified" : "Unverified"}
+                            </span>
+                          </td>
+                          <td style={{ padding: "14px 16px" }}>
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: "600",
+                                padding: "2px 7px",
+                                borderRadius: "4px",
+                                background: u.status === "Active" ? "#ecfdf5" : "#fef2f2",
+                                color: u.status === "Active" ? "#047857" : "#dc2626",
+                              }}
+                            >
+                              {u.status}
+                            </span>
+                          </td>
+                          <td style={{ padding: "14px 16px", color: "#0f172a", fontSize: "12px", fontWeight: "500" }}>
+                            {u.lastActive || "Recently"}
+                          </td>
+                          <td style={{ padding: "14px 16px", color: "#64748b", fontSize: "12px" }}>
+                            {u.joinedDate || "—"}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ padding: "36px 20px", textAlign: "center", color: "#64748b" }}>
+                No users found. Click Sync Database above to fetch registered accounts.
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -379,23 +379,77 @@ export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
   const [withNotesOnly, setWithNotesOnly] = useState(false);
   const [starredSymbols, setStarredSymbols] = useState<Record<string, boolean>>({});
 
-  // Merge server API results with fallback datasets
+  // Merge server API results, admin store state, and fallback datasets
   const dataset = useMemo(() => {
-    return ipos.length > 0 ? ipos : defaultAllIpos;
-  }, [ipos]);
+    const combined = [...ipos];
+
+    if (storeIpos && storeIpos.length > 0) {
+      const seen = new Set(combined.map((i) => (i.slug || i.symbol || "").toLowerCase()));
+      for (const adminIpo of storeIpos) {
+        const key = (adminIpo.slug || adminIpo.company.toLowerCase().replace(/[^a-z0-9]+/g, "-")).toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          combined.push({
+            symbol: adminIpo.slug?.toUpperCase() || key.toUpperCase(),
+            name: adminIpo.company,
+            sector: adminIpo.sector || "General",
+            status: adminIpo.status || "active",
+            is_sme: Boolean(adminIpo.isSme ?? (adminIpo.type === "SME")),
+            type: adminIpo.type,
+            period: adminIpo.period,
+            price: adminIpo.price,
+            issueSize: adminIpo.issueSize,
+            lotSize: adminIpo.lotSize,
+            listing_date: adminIpo.listing || "TBA",
+            min_price: null,
+            max_price: null,
+            issue_price: null,
+            bidding_start_date: null,
+            bidding_end_date: null,
+            listing_price: null,
+            listing_gains: null,
+            allotment_date: null,
+            lot_size: adminIpo.lotSize ? parseInt(adminIpo.lotSize) || null : null,
+            total_subscription_rate: null,
+            document_url: adminIpo.pdfUrl || null,
+            has_aethos_notes: Boolean(adminIpo.hasReport || adminIpo.deepDive || adminIpo.pdfUrl || adminIpo.htmlContent),
+            slug: adminIpo.slug,
+            pdfUrl: adminIpo.pdfUrl,
+            htmlUrl: adminIpo.htmlUrl,
+          });
+        }
+      }
+    }
+
+    return combined.length > 0 ? combined : defaultAllIpos;
+  }, [ipos, storeIpos]);
+
+  // Dynamic sectors extracted from current dataset
+  const availableSectors = useMemo(() => {
+    const secs = new Set<string>();
+    dataset.forEach((i) => {
+      if (i.sector && i.sector.trim()) {
+        secs.add(i.sector.trim());
+      }
+    });
+    return Array.from(secs).sort();
+  }, [dataset]);
+
+  // Helper to normalize status comparison
+  const normalizeStatus = (s: string | undefined) => (s || "").toLowerCase().trim();
 
   // Tab counts
-  const upcomingCount = useMemo(() => dataset.filter(i => i.status === "pre_apply").length, [dataset]);
-  const openCount = useMemo(() => dataset.filter(i => i.status === "active").length, [dataset]);
-  const recentlyListedCount = useMemo(() => dataset.filter(i => i.status === "listed").length, [dataset]);
-  const archiveCount = useMemo(() => dataset.filter(i => i.status === "closed").length || 24, [dataset]);
+  const upcomingCount = useMemo(() => dataset.filter(i => normalizeStatus(i.status) === "pre_apply").length, [dataset]);
+  const openCount = useMemo(() => dataset.filter(i => normalizeStatus(i.status) === "active").length, [dataset]);
+  const recentlyListedCount = useMemo(() => dataset.filter(i => normalizeStatus(i.status) === "listed").length, [dataset]);
+  const archiveCount = useMemo(() => dataset.filter(i => normalizeStatus(i.status) === "closed").length || 24, [dataset]);
 
   // Master dataset filter by selected tab
   const baseTabDataset = useMemo(() => {
-    if (activeTab === "recently_listed") return dataset.filter(i => i.status === "listed");
-    if (activeTab === "upcoming") return dataset.filter(i => i.status === "pre_apply");
-    if (activeTab === "open") return dataset.filter(i => i.status === "active");
-    return dataset.filter(i => i.status === "closed" || i.status === "listed");
+    if (activeTab === "recently_listed") return dataset.filter(i => normalizeStatus(i.status) === "listed");
+    if (activeTab === "upcoming") return dataset.filter(i => normalizeStatus(i.status) === "pre_apply");
+    if (activeTab === "open") return dataset.filter(i => normalizeStatus(i.status) === "active");
+    return dataset.filter(i => normalizeStatus(i.status) === "closed" || normalizeStatus(i.status) === "listed");
   }, [activeTab, dataset]);
 
   // Filtered dataset reactive to search query, segment, sector, and notes toggle
@@ -404,30 +458,27 @@ export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
       // Search query filter
       if (searchQuery.trim() !== "") {
         const q = searchQuery.toLowerCase();
-        const matchesName = item.name.toLowerCase().includes(q);
-        const matchesSymbol = item.symbol.toLowerCase().includes(q);
+        const matchesName = (item.name || item.company || "").toLowerCase().includes(q);
+        const matchesSymbol = (item.symbol || "").toLowerCase().includes(q);
         const matchesSector = (item.sector || "").toLowerCase().includes(q);
         if (!matchesName && !matchesSymbol && !matchesSector) return false;
       }
 
       // Segment filter (Mainboard vs SME)
       const isSmeRecord = Boolean(
-        item.is_sme ??
-        item.isSme ??
-        (item.type && item.type.toUpperCase() === "SME") ??
+        item.is_sme ||
+        item.isSme ||
+        (item.type && item.type.toUpperCase() === "SME") ||
         (item.sector && item.sector.toLowerCase().includes("sme"))
       );
 
       if (segmentFilter === "mainboard" && isSmeRecord) return false;
       if (segmentFilter === "sme" && !isSmeRecord) return false;
 
-      // Sector filter
+      // Dynamic Sector filter
       if (sectorFilter !== "all") {
-        const itemSec = (item.sector || "").toLowerCase();
-        if (sectorFilter === "electrical" && !itemSec.includes("electrical")) return false;
-        if (sectorFilter === "building" && !itemSec.includes("building")) return false;
-        if (sectorFilter === "engineering" && !itemSec.includes("engineering")) return false;
-        if (sectorFilter === "tiles" && !itemSec.includes("tiles")) return false;
+        const itemSec = (item.sector || "").toLowerCase().trim();
+        if (itemSec !== sectorFilter.toLowerCase().trim()) return false;
       }
 
       // Notes filter
@@ -645,10 +696,11 @@ export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
             }}
           >
             <option value="all">Sector: All</option>
-            <option value="electrical">Electrical equipment</option>
-            <option value="building">Building products</option>
-            <option value="engineering">Engineering</option>
-            <option value="tiles">Tiles & surfaces</option>
+            {availableSectors.map((sec) => (
+              <option key={sec} value={sec}>
+                {sec}
+              </option>
+            ))}
           </select>
 
           {/* Date Listed Dropdown */}

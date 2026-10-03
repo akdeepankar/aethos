@@ -46,8 +46,21 @@ export async function GET() {
         year: "numeric",
       });
 
+      const formattedLastActive = u.accessedAt
+        ? new Date(u.accessedAt).toLocaleDateString("en-GB", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : meta.lastActive || "Recently";
+
       let role = meta.role || (u.labels?.includes("admin") ? "Admin" : u.email.includes("deepak") ? "Admin" : "Institutional");
       let status = u.status ? (meta.status || "Active") : "Suspended";
+
+      // Extract avatar URL from prefs or meta if available
+      const avatarUrl = (u.prefs && (u.prefs as any).avatar) || meta.avatarUrl || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(u.name || u.email)}`;
 
       return {
         id: u.$id,
@@ -56,6 +69,8 @@ export async function GET() {
         role: role as "Admin" | "Institutional" | "Pro" | "Standard",
         status: status as "Active" | "Pending" | "Suspended",
         joinedDate: meta.joinedAt || formattedDate,
+        lastActive: formattedLastActive,
+        avatarUrl,
         emailVerified: u.emailVerification,
         provider: "Google OAuth2",
         labels: u.labels || [],

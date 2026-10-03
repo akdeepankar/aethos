@@ -85,16 +85,22 @@ export default function CleanPdfRenderer({
         setLoading(true);
         setError(null);
 
-        // Convert direct Appwrite cloud storage URL to proxy endpoint if needed to bypass HTTP 401 unauthenticated errors
+        // Convert direct Appwrite cloud storage URL or relative URL to proxy endpoint if needed to bypass HTTP 401 unauthenticated / CORS errors
         let targetUrl = pdfUrl;
         const appwriteMatch = pdfUrl.match(/\/files\/([^\/]+)\/(view|download)/);
         if (appwriteMatch && appwriteMatch[1]) {
           targetUrl = `/api/appwrite/media?fileId=${appwriteMatch[1]}`;
         }
 
-        const pdfjs = await loadPdfJsScript();
-        const loadingTask = pdfjs.getDocument(targetUrl);
-        const pdf = await loadingTask.promise;
+        let pdf: PDFDocumentProxy | null = null;
+
+        try {
+          const pdfjs = await loadPdfJsScript();
+          const loadingTask = pdfjs.getDocument(targetUrl);
+          pdf = await loadingTask.promise;
+        } catch (pdfJsErr) {
+          console.warn("PDF.js canvas render failed, falling back to native PDF viewer iframe:", pdfJsErr);
+        }
 
         if (isCancelled) return;
 
@@ -102,69 +108,88 @@ export default function CleanPdfRenderer({
         if (!container) return;
         container.innerHTML = "";
 
-        const baseWidth = Math.min(container.clientWidth - 32, 860);
-        const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+        if (pdf) {
+          const baseWidth = Math.min(container.clientWidth - 32 || 860, 860);
+          const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
 
-        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-          if (isCancelled) return;
+          for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            if (isCancelled) return;
 
-          const page = await pdf.getPage(pageNum);
-          const unscaledViewport = page.getViewport({ scale: 1 });
-          const scale = (baseWidth / unscaledViewport.width) * zoom;
-          const viewport = page.getViewport({ scale });
+            const page = await pdf.getPage(pageNum);
+            const unscaledViewport = page.getViewport({ scale: 1 });
+            const scale = (baseWidth / unscaledViewport.width) * zoom;
+            const viewport = page.getViewport({ scale });
 
-          // Paper Page Card
-          const pageCard = document.createElement("div");
-          pageCard.style.margin = "0 auto 28px auto";
-          pageCard.style.background = "#ffffff";
-          pageCard.style.borderRadius = "8px";
-          pageCard.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.05)";
-          pageCard.style.border = "1px solid #e5e7eb";
-          pageCard.style.overflow = "hidden";
-          pageCard.style.width = `${viewport.width}px`;
-          pageCard.style.maxWidth = "100%";
-          pageCard.style.position = "relative";
+            // Paper Page Card
+            const pageCard = document.createElement("div");
+            pageCard.style.margin = "0 auto 28px auto";
+            pageCard.style.background = "#ffffff";
+            pageCard.style.borderRadius = "8px";
+            pageCard.style.boxShadow = "0 4px 20px rgba(0, 0, 0, 0.05)";
+            pageCard.style.border = "1px solid #e5e7eb";
+            pageCard.style.overflow = "hidden";
+            pageCard.style.width = `${viewport.width}px`;
+            pageCard.style.maxWidth = "100%";
+            pageCard.style.position = "relative";
 
-          const canvas = document.createElement("canvas");
-          const context = canvas.getContext("2d");
-          if (!context) continue;
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+            if (!context) continue;
 
-          canvas.width = Math.floor(viewport.width * dpr);
-          canvas.height = Math.floor(viewport.height * dpr);
-          canvas.style.width = `${viewport.width}px`;
-          canvas.style.height = `${viewport.height}px`;
-          canvas.style.display = "block";
+            canvas.width = Math.floor(viewport.width * dpr);
+            canvas.height = Math.floor(viewport.height * dpr);
+            canvas.style.width = `${viewport.width}px`;
+            canvas.style.height = `${viewport.height}px`;
+            canvas.style.display = "block";
 
-          context.scale(dpr, dpr);
+            context.scale(dpr, dpr);
 
-          const renderContext = {
-            canvasContext: context,
-            viewport: viewport,
-          };
+            const renderContext = {
+              canvasContext: context,
+              viewport: viewport,
+            };
 
-          await page.render(renderContext).promise;
+            await page.render(renderContext).promise;
 
-          // Page Number Indicator
-          const pageFooter = document.createElement("div");
-          pageFooter.style.padding = "6px 14px";
-          pageFooter.style.fontSize = "11px";
-          pageFooter.style.fontWeight = "600";
-          pageFooter.style.color = "#6b7280";
-          pageFooter.style.textAlign = "center";
-          pageFooter.style.background = "#fafafa";
-          pageFooter.style.borderTop = "1px solid #f3f4f6";
-          pageFooter.textContent = `Page ${pageNum} of ${pdf.numPages}`;
+            // Page Number Indicator
+            const pageFooter = document.createElement("div");
+            pageFooter.style.padding = "6px 14px";
+            pageFooter.style.fontSize = "11px";
+            pageFooter.style.fontWeight = "600";
+            pageFooter.style.color = "#6b7280";
+            pageFooter.style.textAlign = "center";
+            pageFooter.style.background = "#fafafa";
+            pageFooter.style.borderTop = "1px solid #f3f4f6";
+            pageFooter.textContent = `Page ${pageNum} of ${pdf.numPages}`;
 
-          pageCard.appendChild(canvas);
-          pageCard.appendChild(pageFooter);
-          container.appendChild(pageCard);
+            pageCard.appendChild(canvas);
+            pageCard.appendChild(pageFooter);
+            container.appendChild(pageCard);
+          }
+        } else {
+          // Native browser iframe embed fallback
+          const iframe = document.createElement("iframe");
+          iframe.src = `${targetUrl}#toolbar=0&navpanes=0&scrollbar=1`;
+          iframe.style.width = "100%";
+          iframe.style.height = "calc(100vh - 100px)";
+          iframe.style.border = "none";
+          iframe.style.borderRadius = "8px";
+          container.appendChild(iframe);
         }
 
         setLoading(false);
       } catch (err) {
         if (!isCancelled) {
           console.error("PDF render error:", err);
-          setError("Unable to render PDF preview directly.");
+          const container = containerRef.current;
+          if (container) {
+            let fallbackTarget = pdfUrl;
+            const appwriteMatch = pdfUrl.match(/\/files\/([^\/]+)\/(view|download)/);
+            if (appwriteMatch && appwriteMatch[1]) {
+              fallbackTarget = `/api/appwrite/media?fileId=${appwriteMatch[1]}`;
+            }
+            container.innerHTML = `<iframe src="${fallbackTarget}" style="width:100%; height:calc(100vh - 100px); border:none; border-radius:8px;"></iframe>`;
+          }
           setLoading(false);
         }
       }
@@ -183,7 +208,7 @@ export default function CleanPdfRenderer({
         width: "100%",
         minHeight: "600px",
         background: "#ffffff",
-        padding: "32px 24px",
+        padding: "20px 16px",
         position: "relative",
       }}
     >
@@ -211,37 +236,6 @@ export default function CleanPdfRenderer({
           />
           <span style={{ fontSize: "13px", fontWeight: "600" }}>Rendering PDF pages...</span>
           <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-        </div>
-      )}
-
-      {error && (
-        <div
-          style={{
-            padding: "36px",
-            textAlign: "center",
-            background: "#fef2f2",
-            borderRadius: "8px",
-            border: "1px solid #fecaca",
-            color: "#991b1b",
-            fontSize: "13px",
-            maxWidth: "600px",
-            margin: "0 auto",
-          }}
-        >
-          <p style={{ margin: "0 0 12px", fontWeight: "600" }}>{error}</p>
-          <a
-            href={pdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              fontSize: "12px",
-              fontWeight: "700",
-              color: "#1d4ed8",
-              textDecoration: "underline",
-            }}
-          >
-            Download PDF directly
-          </a>
         </div>
       )}
 

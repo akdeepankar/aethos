@@ -192,6 +192,16 @@ export function IconArrowLeft() {
   );
 }
 
+export function IconUsers() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="dash-icon">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="9" cy="7" r="4" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 interface NavItem {
   label: string;
   href: string;
@@ -227,6 +237,7 @@ const adminNavItems: AdminNavItem[] = [
   { label: "Aethos Ideas", tab: "ideas", href: "/admin?tab=ideas", icon: IconIdeas },
   { label: "IPOs", tab: "ipos", href: "/admin?tab=ipos", icon: IconIpos },
   { label: "Journal", tab: "journal", href: "/admin?tab=journal", icon: IconJournal },
+  { label: "Users", tab: "users", href: "/admin?tab=users", icon: IconUsers },
   { label: "Files & Media", tab: "media", href: "/admin?tab=media", icon: IconFolder },
   { label: "Database", tab: "database", href: "/admin?tab=database", icon: IconDatabase },
 ];

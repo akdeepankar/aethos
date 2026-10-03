@@ -35,6 +35,8 @@ export interface AdminUser {
   role: "Admin" | "Institutional" | "Pro" | "Standard";
   status: "Active" | "Pending" | "Suspended";
   joinedDate: string;
+  lastActive?: string;
+  avatarUrl?: string;
   emailVerified: boolean;
   provider: string;
 }
@@ -59,6 +61,8 @@ const initialAdminUsers: AdminUser[] = [
     role: "Admin",
     status: "Active",
     joinedDate: "23 Sept 2026",
+    lastActive: "Today, 12:15 PM",
+    avatarUrl: "https://lh3.googleusercontent.com/a/ACg8ocL81P6s...=s96-c",
     emailVerified: true,
     provider: "Google OAuth2",
   },
@@ -69,6 +73,8 @@ const initialAdminUsers: AdminUser[] = [
     role: "Institutional",
     status: "Active",
     joinedDate: "23 Sept 2026",
+    lastActive: "Yesterday",
+    avatarUrl: "https://lh3.googleusercontent.com/a/ACg8ocK...",
     emailVerified: true,
     provider: "Google OAuth2",
   },

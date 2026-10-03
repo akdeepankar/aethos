@@ -40,6 +40,7 @@ export type Ipo = {
   listing: string;
   pdfUrl?: string;
   htmlUrl?: string;
+  documentUrl?: string;
   htmlContent?: string;
   externalId?: string;
   status?: string;

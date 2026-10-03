@@ -136,6 +136,7 @@ export async function GET(req: NextRequest) {
               additionalText: item.additional_text ? String(item.additional_text).slice(0, 500) : "",
               pdfUrl: existing?.pdfUrl || "",
               htmlUrl: existing?.htmlUrl || "",
+              documentUrl: item.document_url || existing?.documentUrl || "",
               lastSyncedAt: new Date().toISOString(),
               closedAt: item.bidding_end_date ? new Date(item.bidding_end_date).toISOString() : undefined,
             };
@@ -252,6 +253,13 @@ export async function GET(req: NextRequest) {
           const rawSector = (r.sector && !r.sector.includes("Segment")) ? r.sector : (r.isSme || r.type === "SME" ? "SME Segment" : "Mainboard Segment");
           const companyName = r.company || r.name || (r.externalId ? String(r.externalId) : r.slug);
 
+          const liveMatch = liveApiIpos.find((item: any) => {
+            const itemSymbol = (item.symbol || item.name || "").toLowerCase();
+            const rSlug = (r.slug || r.externalId || "").toLowerCase();
+            return itemSymbol && rSlug && (rSlug.includes(itemSymbol) || itemSymbol.includes(rSlug));
+          });
+          const rhpDocUrl = r.documentUrl || r.document_url || liveMatch?.document_url || liveMatch?.documentUrl || null;
+
           return {
             ...r,
             symbol: r.externalId || r.slug?.toUpperCase() || r.$id?.toUpperCase(),
@@ -269,6 +277,8 @@ export async function GET(req: NextRequest) {
             lot_size: r.lotSize ? parseInt(r.lotSize) || null : null,
             hasReport: Boolean(r.hasReport || r.deepDive || r.htmlContent || r.pdfUrl || (r.htmlUrl && !r.htmlUrl.startsWith("/"))),
             has_aethos_notes: Boolean(r.hasReport || r.deepDive || r.htmlContent || r.pdfUrl || (r.htmlUrl && !r.htmlUrl.startsWith("/"))),
+            document_url: rhpDocUrl,
+            documentUrl: rhpDocUrl || "",
             action_slug: r.slug,
           };
         });
@@ -392,6 +402,7 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
     "listing",
     "pdfUrl",
     "htmlUrl",
+    "documentUrl",
     "sections",
     "externalId",
     "status",

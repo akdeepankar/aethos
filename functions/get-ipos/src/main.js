@@ -42,18 +42,26 @@ module.exports = async ({ req, res, log, error }) => {
       let updatedCount = 0;
       let newReportsGenerated = 0;
 
+      const existingRes = await databases.listDocuments(databaseId, "ipos").catch(() => ({ documents: [] }));
+      const existingDocs = existingRes.documents || [];
+      const docMap = new Map();
+      existingDocs.forEach((d) => {
+        if (d.slug) docMap.set(d.slug.toLowerCase(), d);
+        if (d.externalId) docMap.set(d.externalId.toLowerCase(), d);
+        if (d.$id) docMap.set(d.$id.toLowerCase(), d);
+      });
+
       for (const item of fetchedListings) {
-        const slug = (item.action_slug || item.symbol || item.name || "")
+        const rawBase = (item.action_slug || item.symbol || item.name || "")
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, "-")
           .replace(/^-|-$/g, "");
 
-        if (!slug) continue;
+        if (!rawBase) continue;
 
-        let existingDoc = null;
-        try {
-          existingDoc = await databases.getDocument(databaseId, "ipos", slug);
-        } catch {}
+        const existingDoc = docMap.get(rawBase) || docMap.get(item.symbol?.toLowerCase());
+        const slug = existingDoc?.slug || rawBase;
+        const rowId = existingDoc?.$id || (slug.length <= 36 ? slug : slug.slice(0, 36));
 
         const hasReport = Boolean(
           existingDoc?.hasReport ||
@@ -85,14 +93,15 @@ module.exports = async ({ req, res, log, error }) => {
           closedAt: item.bidding_end_date ? new Date(item.bidding_end_date).toISOString() : undefined,
           pdfUrl: existingDoc?.pdfUrl || undefined,
           htmlUrl: existingDoc?.htmlUrl || undefined,
+          documentUrl: item.document_url || existingDoc?.documentUrl || undefined,
           htmlContent: existingDoc?.htmlContent || undefined,
         };
 
         try {
           if (existingDoc) {
-            await databases.updateDocument(databaseId, "ipos", slug, rowData);
+            await databases.updateDocument(databaseId, "ipos", rowId, rowData);
           } else {
-            await databases.createDocument(databaseId, "ipos", slug, rowData);
+            await databases.createDocument(databaseId, "ipos", rowId, rowData);
           }
           updatedCount++;
         } catch (writeErr) {

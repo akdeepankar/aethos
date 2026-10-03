@@ -276,6 +276,7 @@ function AdminPageContent() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const htmlFileInputRef = useRef<HTMLInputElement>(null);
   const ipoPdfFileInputRef = useRef<HTMLInputElement>(null);
+  const csvFileInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingIpoPdf, setIsUploadingIpoPdf] = useState(false);
   const [isSavingIpo, setIsSavingIpo] = useState(false);
   const [isDraggingHtml, setIsDraggingHtml] = useState(false);
@@ -910,6 +911,147 @@ function AdminPageContent() {
     }
   };
 
+  // Export Ideas to CSV directly from Appwrite table
+  const handleExportIdeasCsv = async () => {
+    try {
+      showNotification("Fetching records from Appwrite collection...", "info");
+      const res = await fetch("/api/appwrite/records?table=ideas");
+      const data = await res.json();
+
+      let recordsToExport: any[] = [];
+      if (data.success && Array.isArray(data.rows) && data.rows.length > 0) {
+        recordsToExport = data.rows;
+      } else {
+        recordsToExport = ideas;
+      }
+
+      const headers = [
+        "id",
+        "ticker",
+        "company",
+        "sector",
+        "mcap",
+        "sharedPrice",
+        "currentPrice",
+        "sharedDate",
+        "pdfUrl",
+        "htmlUrl",
+        "thesis",
+        "studying",
+        "challenge",
+        "watchNext",
+        "slug"
+      ];
+
+      const escapeCsvCell = (cell: any) => {
+        if (cell === null || cell === undefined) return '""';
+        const str = String(cell);
+        return `"${str.replace(/"/g, '""')}"`;
+      };
+
+      const csvLines = [
+        headers.join(","),
+        ...recordsToExport.map((row) =>
+          headers.map((h) => escapeCsvCell(row[h])).join(",")
+        ),
+      ];
+
+      const csvContent = csvLines.join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `aethos_ideas_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showNotification(`Exported ${recordsToExport.length} idea records to CSV`, "success");
+    } catch (err) {
+      console.error("Export CSV failed:", err);
+      showNotification("Failed to export ideas CSV", "error");
+    }
+  };
+
+  // Import Ideas from CSV directly to Appwrite collection without deleting existing data
+  const handleImportIdeasCsv = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      showNotification("Parsing CSV file...", "info");
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+      if (lines.length < 2) {
+        showNotification("CSV file is empty or missing data rows", "error");
+        return;
+      }
+
+      // Simple CSV line parser respecting double quotes
+      const parseCsvLine = (line: string): string[] => {
+        const result: string[] = [];
+        let current = "";
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+              current += '"';
+              i++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (char === "," && !inQuotes) {
+            result.push(current.trim());
+            current = "";
+          } else {
+            current += char;
+          }
+        }
+        result.push(current.trim());
+        return result;
+      };
+
+      const rawHeaders = parseCsvLine(lines[0]).map((h) => h.replace(/^"|"$/g, "").trim());
+      const rowsData = lines.slice(1).map(parseCsvLine);
+
+      let importedCount = 0;
+      for (const rowVals of rowsData) {
+        if (rowVals.length < 2) continue;
+        const rowObj: Record<string, any> = {};
+        rawHeaders.forEach((h, idx) => {
+          if (h && rowVals[idx] !== undefined) {
+            rowObj[h] = rowVals[idx].replace(/^"|"$/g, "").replace(/""/g, '"');
+          }
+        });
+
+        const ticker = rowObj.ticker || rowObj.company || "";
+        if (!ticker) continue;
+
+        const rowId = rowObj.id || rowObj.slug || ticker.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        
+        await fetch("/api/appwrite/records", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            table: "ideas",
+            id: rowId,
+            data: rowObj,
+          }),
+        }).catch((wErr) => console.warn(`CSV row import warning for ${rowId}:`, wErr));
+
+        importedCount++;
+      }
+
+      syncFromAppwrite();
+      showNotification(`Successfully imported ${importedCount} records to Appwrite collection`, "success");
+    } catch (err) {
+      console.error("Import CSV failed:", err);
+      showNotification("Failed to import CSV file", "error");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
   // Upload file handler
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1044,25 +1186,72 @@ function AdminPageContent() {
           )}
 
           {activeTab === "ideas" && (
-            <button
-              type="button"
-              onClick={() => handleOpenIdeaDrawer()}
-              style={{
-                padding: "7px 16px",
-                background: "#0f172a",
-                border: "1px solid #0f172a",
-                borderRadius: "6px",
-                fontSize: "12px",
-                fontWeight: "600",
-                color: "#ffffff",
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-              }}
-            >
-              <IconPlus /> Add Aethos Idea
-            </button>
+            <>
+              <input
+                type="file"
+                ref={csvFileInputRef}
+                accept=".csv"
+                style={{ display: "none" }}
+                onChange={handleImportIdeasCsv}
+              />
+              <button
+                type="button"
+                onClick={handleExportIdeasCsv}
+                style={{
+                  padding: "7px 14px",
+                  background: "#ffffff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "#334155",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                Export CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => csvFileInputRef.current?.click()}
+                style={{
+                  padding: "7px 14px",
+                  background: "#ffffff",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "#334155",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                Import CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => handleOpenIdeaDrawer()}
+                style={{
+                  padding: "7px 16px",
+                  background: "#0f172a",
+                  border: "1px solid #0f172a",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  color: "#ffffff",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <IconPlus /> Add Aethos Idea
+              </button>
+            </>
           )}
 
           {activeTab === "ipos" && (
@@ -1472,6 +1661,7 @@ function AdminPageContent() {
                   <th style={{ padding: "12px 16px" }}>Price Band</th>
                   <th style={{ padding: "12px 16px" }}>Issue Size</th>
                   <th style={{ padding: "12px 16px" }}>Bidding Period</th>
+                  <th style={{ padding: "12px 16px" }}>Official RHP</th>
                   <th style={{ padding: "12px 16px" }}>Deep Dive Report</th>
                   <th style={{ padding: "12px 16px", textAlign: "right" }}>Actions</th>
                 </tr>
@@ -1488,6 +1678,7 @@ function AdminPageContent() {
                   const hasDeepDive = Boolean(ipo.htmlContent || ipo.pdfUrl || (ipo.deepDive && ipo.htmlUrl && !ipo.htmlUrl.startsWith("/")));
                   const hasHtml = Boolean(ipo.htmlContent || (ipo.htmlUrl && !ipo.htmlUrl.startsWith("/")));
                   const hasPdf = Boolean(ipo.pdfUrl);
+                  const rhpLink = ipo.documentUrl;
 
                   return (
                     <tr key={`${ipo.slug}-${idx}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
@@ -1541,6 +1732,32 @@ function AdminPageContent() {
                       </td>
                       <td style={{ padding: "14px 16px", color: "#64748b" }}>
                         {ipo.period || "—"}
+                      </td>
+                      <td style={{ padding: "14px 16px" }}>
+                        {rhpLink ? (
+                          <a
+                            href={rhpLink}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              fontSize: "11.5px",
+                              fontWeight: "600",
+                              color: "#2563eb",
+                              textDecoration: "none",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              background: "#eff6ff",
+                              border: "1px solid #bfdbfe",
+                              padding: "3px 8px",
+                              borderRadius: "4px",
+                            }}
+                          >
+                            <span>View RHP ↗</span>
+                          </a>
+                        ) : (
+                          <span style={{ fontSize: "11.5px", color: "#94a3b8" }}>—</span>
+                        )}
                       </td>
                       <td style={{ padding: "14px 16px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>

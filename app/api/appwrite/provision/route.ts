@@ -231,6 +231,7 @@ export async function POST(req: NextRequest) {
     await addStringCol("ipos", "listing", 100, false);
     await addStringCol("ipos", "pdfUrl", 1000, false);
     await addStringCol("ipos", "htmlUrl", 1000, false);
+    await addStringCol("ipos", "documentUrl", 2000, false);
     await addStringCol("ipos", "sections", 65535, false);
     await addStringCol("ipos", "externalId", 100, false);
     await addStringCol("ipos", "status", 30, false);

@@ -314,6 +314,7 @@ export function useAdminStore() {
                 isSme: Boolean(ipo.isSme ?? (ipo.type === "SME")),
                 pdfUrl: ipo.pdfUrl,
                 htmlUrl: ipo.htmlUrl || `/${s}.html`,
+                documentUrl: ipo.documentUrl || ipo.document_url || undefined,
                 htmlContent: ipo.htmlContent || undefined,
                 sections: typeof ipo.sections === "string" ? JSON.parse(ipo.sections || "[]") : (ipo.sections || []),
               });

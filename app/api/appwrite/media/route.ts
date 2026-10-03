@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
       name: f.name,
       size: f.sizeOriginal,
       type: f.mimeType || "application/octet-stream",
-      url: `${host}/api/appwrite/media?fileId=${f.$id}`,
+      url: `${endpoint}/storage/buckets/aethos_pdfs/files/${f.$id}/view?project=${projectId}`,
       uploadedAt: new Date(f.$createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
       category: f.name.endsWith(".html") ? "Report HTML" : f.name.endsWith(".pdf") ? "Research PDF" : "General",
     }));
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
       name: created.name,
       size: created.sizeOriginal,
       type: created.mimeType || file.type || "application/octet-stream",
-      url: `${host}/api/appwrite/media?fileId=${created.$id}`,
+      url: `${endpoint}/storage/buckets/aethos_pdfs/files/${created.$id}/view?project=${projectId}`,
       uploadedAt: new Date(created.$createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
       category: file.name.endsWith(".html") ? "Report HTML" : file.name.endsWith(".pdf") ? "Research PDF" : category,
     };

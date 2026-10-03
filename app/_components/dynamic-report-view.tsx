@@ -25,10 +25,15 @@ export default function DynamicReportView({
   pdfButtonLabel = "Download PDF",
   initialFormat = "markdown",
 }: DynamicReportViewProps) {
-  const [activeFormat, setActiveFormat] = useState<"markdown" | "pdf">(initialFormat);
+  const [activeFormat, setActiveFormat] = useState<"markdown" | "pdf">(() => {
+    return pdfUrl ? "pdf" : initialFormat;
+  });
   const [zoomLevel, setZoomLevel] = useState<number>(1.0);
 
   React.useEffect(() => {
+    if (pdfUrl) {
+      setActiveFormat("pdf");
+    }
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const fmt = params.get("format");
@@ -38,7 +43,7 @@ export default function DynamicReportView({
         setActiveFormat("markdown");
       }
     }
-  }, []);
+  }, [pdfUrl]);
 
   const handleZoomIn = () => {
     setZoomLevel((z) => Math.min(+(z + 0.1).toFixed(1), 1.6));

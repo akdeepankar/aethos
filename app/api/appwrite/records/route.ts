@@ -345,7 +345,16 @@ export async function GET(req: NextRequest) {
       results["media"] = [];
     }
 
-    return NextResponse.json({ success: true, databaseId, data: results });
+    return NextResponse.json(
+      { success: true, databaseId, data: results },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
+        },
+      }
+    );
   } catch (error: unknown) {
     console.error("Error fetching from Appwrite:", error);
     return NextResponse.json(

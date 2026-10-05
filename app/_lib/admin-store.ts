@@ -203,7 +203,7 @@ export function useAdminStore() {
   const syncFromAppwrite = useCallback(async () => {
     try {
       // 1. Fetch DB records (reports, ideas, ipos, journal)
-      const res = await fetch("/api/appwrite/records");
+      const res = await fetch("/api/appwrite/records", { cache: "no-store" });
       const json = await res.json();
 
       if (json.success && json.data) {
@@ -356,7 +356,7 @@ export function useAdminStore() {
 
       // 2. Fetch real registered Appwrite Auth users
       try {
-        const userRes = await fetch("/api/appwrite/users");
+        const userRes = await fetch("/api/appwrite/users", { cache: "no-store" });
         const userJson = await userRes.json();
         if (userJson.success && Array.isArray(userJson.users) && userJson.users.length > 0) {
           setUsers(userJson.users);

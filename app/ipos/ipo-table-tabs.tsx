@@ -365,13 +365,9 @@ function renderStatusBadge(status: string) {
   }
 }
 
-export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
+export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[]; deepDives?: any[] }) {
   const { ipos: storeIpos } = useAdminStore();
-  const [activeTab, setActiveTab] = useState<"upcoming" | "open" | "recently_listed" | "archive" | "deep_dives">(() => {
-    if (ipos.some(i => i.status === "active")) return "open";
-    if (ipos.some(i => i.status === "pre_apply")) return "upcoming";
-    return "recently_listed";
-  });
+  const [activeTab, setActiveTab] = useState<"upcoming" | "open" | "recently_listed" | "archive" | "deep_dives">("open");
   const [searchQuery, setSearchQuery] = useState("");
   const [segmentFilter, setSegmentFilter] = useState("all");
   const [sectorFilter, setSectorFilter] = useState("all");
@@ -379,12 +375,62 @@ export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
   const [withNotesOnly, setWithNotesOnly] = useState(false);
   const [starredSymbols, setStarredSymbols] = useState<Record<string, boolean>>({});
 
-  // Merge server API results, admin store state, and fallback datasets
+  // Merge server API results, admin store state, ipo_deep_dives collection, and fallback datasets
   const dataset = useMemo(() => {
     const combined = [...ipos];
+    const seen = new Set(combined.map((i) => (i.slug || i.symbol || "").toLowerCase()));
+
+    // Merge standalone deep dives from ipo_deep_dives collection
+    if (deepDives && deepDives.length > 0) {
+      for (const dd of deepDives) {
+        const key = (dd.slug || dd.company?.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "").toLowerCase();
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          combined.push({
+            symbol: (dd.slug || key).toUpperCase(),
+            name: dd.company || dd.name || dd.slug,
+            sector: dd.sector || "General",
+            status: "closed",
+            is_sme: false,
+            type: "Mainboard",
+            period: "Archived Deep Dive",
+            price: "—",
+            issueSize: "—",
+            lotSize: "—",
+            listing_date: "Archived",
+            min_price: null,
+            max_price: null,
+            issue_price: null,
+            bidding_start_date: null,
+            bidding_end_date: null,
+            listing_price: null,
+            listing_gains: null,
+            allotment_date: null,
+            lot_size: null,
+            total_subscription_rate: null,
+            document_url: dd.pdfUrl || null,
+            has_aethos_notes: true,
+            hasReport: true,
+            deepDive: true,
+            slug: dd.slug,
+            pdfUrl: dd.pdfUrl,
+            htmlUrl: dd.htmlUrl,
+          });
+        } else if (key) {
+          // Enrich existing match with deep dive URLs from ipo_deep_dives collection
+          const existing = combined.find(i => (i.slug || i.symbol || "").toLowerCase() === key);
+          if (existing) {
+            existing.pdfUrl = existing.pdfUrl || dd.pdfUrl;
+            existing.htmlUrl = existing.htmlUrl || dd.htmlUrl;
+            existing.has_aethos_notes = true;
+            existing.hasReport = true;
+            existing.deepDive = true;
+          }
+        }
+      }
+    }
 
     if (storeIpos && storeIpos.length > 0) {
-      const seen = new Set(combined.map((i) => (i.slug || i.symbol || "").toLowerCase()));
       for (const adminIpo of storeIpos) {
         const key = (adminIpo.slug || adminIpo.company.toLowerCase().replace(/[^a-z0-9]+/g, "-")).toLowerCase();
         if (!seen.has(key)) {
@@ -422,7 +468,7 @@ export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
     }
 
     return combined.length > 0 ? combined : defaultAllIpos;
-  }, [ipos, storeIpos]);
+  }, [ipos, storeIpos, deepDives]);
 
   // Dynamic sectors extracted from current dataset
   const availableSectors = useMemo(() => {
@@ -525,7 +571,7 @@ export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
       >
         <button
           type="button"
-          onClick={() => setActiveTab("deep_dives")}
+          onClick={() => setActiveTab("open")}
           style={{
             padding: "16px",
             display: "flex",
@@ -535,16 +581,16 @@ export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
             fontSize: "14px",
             fontWeight: "600",
             border: "none",
-            backgroundColor: activeTab === "deep_dives" ? "#ffffff" : "#fcfcfc",
-            color: activeTab === "deep_dives" ? "#2563eb" : "#71717a",
-            borderBottom: activeTab === "deep_dives" ? "2.5px solid #2563eb" : "1px solid transparent",
+            backgroundColor: activeTab === "open" ? "#ffffff" : "#fcfcfc",
+            color: activeTab === "open" ? "#b45309" : "#71717a",
+            borderBottom: activeTab === "open" ? "2.5px solid #b45309" : "1px solid transparent",
             cursor: "pointer",
             transition: "all 0.15s ease"
           }}
         >
-          Deep Dives
-          <span style={{ fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px", backgroundColor: activeTab === "deep_dives" ? "#eff6ff" : "#f4f4f5", color: activeTab === "deep_dives" ? "#1d4ed8" : "#52525b" }}>
-            {deepDivesCount}
+          Open now
+          <span style={{ fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px", backgroundColor: activeTab === "open" ? "#fef3c7" : "#f4f4f5", color: activeTab === "open" ? "#92400e" : "#52525b" }}>
+            {openCount}
           </span>
         </button>
 
@@ -570,31 +616,6 @@ export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
           Upcoming
           <span style={{ fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px", backgroundColor: activeTab === "upcoming" ? "#fef3c7" : "#f4f4f5", color: activeTab === "upcoming" ? "#92400e" : "#52525b" }}>
             {upcomingCount}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab("open")}
-          style={{
-            padding: "16px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "8px",
-            fontSize: "14px",
-            fontWeight: "600",
-            border: "none",
-            backgroundColor: activeTab === "open" ? "#ffffff" : "#fcfcfc",
-            color: activeTab === "open" ? "#b45309" : "#71717a",
-            borderBottom: activeTab === "open" ? "2.5px solid #b45309" : "1px solid transparent",
-            cursor: "pointer",
-            transition: "all 0.15s ease"
-          }}
-        >
-          Open now
-          <span style={{ fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px", backgroundColor: activeTab === "open" ? "#fef3c7" : "#f4f4f5", color: activeTab === "open" ? "#92400e" : "#52525b" }}>
-            {openCount}
           </span>
         </button>
 
@@ -645,6 +666,31 @@ export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
           Archive
           <span style={{ fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px", backgroundColor: activeTab === "archive" ? "#fef3c7" : "#f4f4f5", color: activeTab === "archive" ? "#92400e" : "#52525b" }}>
             {archiveCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("deep_dives")}
+          style={{
+            padding: "16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            fontSize: "14px",
+            fontWeight: "600",
+            border: "none",
+            backgroundColor: activeTab === "deep_dives" ? "#ffffff" : "#fcfcfc",
+            color: activeTab === "deep_dives" ? "#2563eb" : "#71717a",
+            borderBottom: activeTab === "deep_dives" ? "2.5px solid #2563eb" : "1px solid transparent",
+            cursor: "pointer",
+            transition: "all 0.15s ease"
+          }}
+        >
+          Deep Dives
+          <span style={{ fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px", backgroundColor: activeTab === "deep_dives" ? "#eff6ff" : "#f4f4f5", color: activeTab === "deep_dives" ? "#1d4ed8" : "#52525b" }}>
+            {deepDivesCount}
           </span>
         </button>
       </div>

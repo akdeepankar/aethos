@@ -5,7 +5,6 @@ export const revalidate = 0;
 
 async function getLiveIpos(): Promise<ApiIpo[]> {
   try {
-    // Read cached/persisted IPO records from Appwrite Database table ipos
     const host = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
     const res = await fetch(`${host}/api/appwrite/records?table=ipos`, {
       cache: "no-store",
@@ -25,14 +24,35 @@ async function getLiveIpos(): Promise<ApiIpo[]> {
   }
 }
 
+async function getDeepDives(): Promise<any[]> {
+  try {
+    const host = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const res = await fetch(`${host}/api/appwrite/records?table=ipo_deep_dives`, {
+      cache: "no-store",
+    }).catch(() => null);
+
+    if (res && res.ok) {
+      const json = await res.json().catch(() => null);
+      if (json?.success && Array.isArray(json.rows)) {
+        return json.rows;
+      }
+    }
+    return [];
+  } catch (err) {
+    console.error("Error fetching ipo_deep_dives data:", err);
+    return [];
+  }
+}
+
 export default async function IposPage() {
-  const liveIpos = await getLiveIpos();
+  const [liveIpos, deepDives] = await Promise.all([
+    getLiveIpos(),
+    getDeepDives(),
+  ]);
 
   return (
     <div style={{ padding: "24px 28px 48px 28px", maxWidth: "1400px", margin: "0 auto" }}>
-      <IpoTableTabs ipos={liveIpos} />
+      <IpoTableTabs ipos={liveIpos} deepDives={deepDives} />
     </div>
   );
 }
-
-

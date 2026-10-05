@@ -263,7 +263,7 @@ function AdminPageContent() {
     params.set("tab", tab);
     router.push(`/admin?${params.toString()}`);
   };
-  const [ipoSubTab, setIpoSubTab] = useState<"all" | "open" | "upcoming" | "recently_listed" | "archive" | "deep_dives">("deep_dives");
+  const [ipoSubTab, setIpoSubTab] = useState<"all" | "open" | "upcoming" | "recently_listed" | "archive" | "deep_dives">("open");
   const [searchQuery, setSearchQuery] = useState("");
   const [notification, setNotification] = useState<{ msg: string; type?: "success" | "error" | "info" } | null>(null);
 
@@ -1619,12 +1619,12 @@ function AdminPageContent() {
           {/* IPO Status Sub-Tabs */}
           <div style={{ display: "flex", gap: "8px", padding: "12px 20px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
             {[
-              { id: "deep_dives", label: "Deep Dives Available", count: ipos.filter(i => Boolean(i.htmlContent || i.pdfUrl || i.hasReport || i.deepDive || (i.htmlUrl && !i.htmlUrl.startsWith("/")))).length },
               { id: "open", label: "Open Bidding", count: ipos.filter(i => (i.status || "active") === "active").length },
               { id: "upcoming", label: "Upcoming", count: ipos.filter(i => i.status === "pre_apply").length },
               { id: "recently_listed", label: "Recently Listed", count: ipos.filter(i => i.status === "listed").length },
               { id: "archive", label: "Archive", count: ipos.filter(i => i.status === "closed").length },
               { id: "all", label: "All IPOs", count: ipos.length },
+              { id: "deep_dives", label: "Deep Dives Available", count: ipos.filter(i => Boolean(i.htmlContent || i.pdfUrl || i.hasReport || i.deepDive || (i.htmlUrl && !i.htmlUrl.startsWith("/")))).length },
             ].map(tab => (
               <button
                 key={tab.id}

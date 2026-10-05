@@ -458,10 +458,9 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
             lot_size: adminIpo.lotSize ? parseInt(adminIpo.lotSize) || null : null,
             total_subscription_rate: null,
             document_url: adminIpo.pdfUrl || null,
-            has_aethos_notes: Boolean(adminIpo.hasReport || adminIpo.deepDive || adminIpo.pdfUrl || adminIpo.htmlContent),
+            has_aethos_notes: Boolean(adminIpo.hasReport || adminIpo.deepDive || adminIpo.pdfUrl),
             slug: adminIpo.slug,
             pdfUrl: adminIpo.pdfUrl,
-            htmlUrl: adminIpo.htmlUrl,
           });
         }
       }
@@ -484,8 +483,64 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
   // Helper to normalize status comparison
   const normalizeStatus = (s: string | undefined) => (s || "").toLowerCase().trim();
 
+  // Deep Dives list strictly from ipo_deep_dives collection & active PDF reports
+  const deepDivesDataset = useMemo(() => {
+    const list: ApiIpo[] = [];
+    const seen = new Set<string>();
+
+    if (deepDives && deepDives.length > 0) {
+      for (const dd of deepDives) {
+        const key = (dd.slug || dd.company?.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "").toLowerCase();
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          const matchedIpo = ipos.find(i => (i.slug || i.symbol || "").toLowerCase() === key);
+          list.push({
+            symbol: (dd.slug || key).toUpperCase(),
+            name: dd.company || dd.name || matchedIpo?.name || dd.slug,
+            sector: dd.sector || matchedIpo?.sector || "General",
+            status: matchedIpo?.status || "closed",
+            is_sme: Boolean(matchedIpo?.is_sme ?? matchedIpo?.isSme),
+            type: matchedIpo?.type || "Mainboard",
+            period: matchedIpo?.period || "Archived Deep Dive",
+            price: matchedIpo?.price || "—",
+            issueSize: matchedIpo?.issueSize || "—",
+            lotSize: matchedIpo?.lotSize || "—",
+            listing_date: matchedIpo?.listing_date || "Archived",
+            min_price: matchedIpo?.min_price ?? null,
+            max_price: matchedIpo?.max_price ?? null,
+            issue_price: matchedIpo?.issue_price ?? null,
+            bidding_start_date: matchedIpo?.bidding_start_date ?? null,
+            bidding_end_date: matchedIpo?.bidding_end_date ?? null,
+            listing_price: matchedIpo?.listing_price ?? null,
+            listing_gains: matchedIpo?.listing_gains ?? null,
+            allotment_date: matchedIpo?.allotment_date ?? null,
+            lot_size: matchedIpo?.lot_size ?? null,
+            total_subscription_rate: matchedIpo?.total_subscription_rate ?? null,
+            document_url: matchedIpo?.document_url || null,
+            has_aethos_notes: true,
+            hasReport: true,
+            deepDive: true,
+            slug: dd.slug,
+            pdfUrl: dd.pdfUrl || matchedIpo?.pdfUrl || "",
+          });
+        }
+      }
+    }
+
+    // Include any IPOs in the main dataset that have a pdfUrl attached
+    for (const item of dataset) {
+      const key = (item.slug || item.symbol || "").toLowerCase();
+      if (key && !seen.has(key) && Boolean(item.pdfUrl)) {
+        seen.add(key);
+        list.push(item);
+      }
+    }
+
+    return list;
+  }, [deepDives, ipos, dataset]);
+
   // Tab counts
-  const deepDivesCount = useMemo(() => dataset.filter(i => Boolean(i.has_aethos_notes || i.hasReport || i.deepDive || i.pdfUrl || i.htmlUrl)).length, [dataset]);
+  const deepDivesCount = useMemo(() => deepDivesDataset.length, [deepDivesDataset]);
   const upcomingCount = useMemo(() => dataset.filter(i => normalizeStatus(i.status) === "pre_apply").length, [dataset]);
   const openCount = useMemo(() => dataset.filter(i => normalizeStatus(i.status) === "active").length, [dataset]);
   const recentlyListedCount = useMemo(() => dataset.filter(i => normalizeStatus(i.status) === "listed").length, [dataset]);
@@ -493,12 +548,12 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
 
   // Master dataset filter by selected tab
   const baseTabDataset = useMemo(() => {
-    if (activeTab === "deep_dives") return dataset.filter(i => Boolean(i.has_aethos_notes || i.hasReport || i.deepDive || i.pdfUrl || i.htmlUrl));
+    if (activeTab === "deep_dives") return deepDivesDataset;
     if (activeTab === "recently_listed") return dataset.filter(i => normalizeStatus(i.status) === "listed");
     if (activeTab === "upcoming") return dataset.filter(i => normalizeStatus(i.status) === "pre_apply");
     if (activeTab === "open") return dataset.filter(i => normalizeStatus(i.status) === "active");
     return dataset.filter(i => normalizeStatus(i.status) === "closed" || normalizeStatus(i.status) === "listed");
-  }, [activeTab, dataset]);
+  }, [activeTab, dataset, deepDivesDataset]);
 
   // Filtered dataset reactive to search query, segment, sector, and notes toggle
   const filteredList = useMemo(() => {

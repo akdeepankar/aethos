@@ -1624,7 +1624,7 @@ function AdminPageContent() {
               { id: "recently_listed", label: "Recently Listed", count: ipos.filter(i => i.status === "listed").length },
               { id: "archive", label: "Archive", count: ipos.filter(i => i.status === "closed").length },
               { id: "all", label: "All IPOs", count: ipos.length },
-              { id: "deep_dives", label: "Deep Dives Available", count: ipos.filter(i => Boolean(i.htmlContent || i.pdfUrl || i.hasReport || i.deepDive || (i.htmlUrl && !i.htmlUrl.startsWith("/")))).length },
+              { id: "deep_dives", label: "Deep Dives Available", count: ipos.filter(i => Boolean(i.pdfUrl || i.hasReport || i.deepDive)).length },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -1670,7 +1670,7 @@ function AdminPageContent() {
               <tbody>
                 {ipos.filter(ipo => {
                   const s = ipo.status || "active";
-                  const hasDd = Boolean(ipo.htmlContent || ipo.pdfUrl || ipo.hasReport || ipo.deepDive || (ipo.htmlUrl && !ipo.htmlUrl.startsWith("/")));
+                  const hasDd = Boolean(ipo.pdfUrl || ipo.hasReport || ipo.deepDive);
                   if (ipoSubTab === "deep_dives") return hasDd;
                   if (ipoSubTab === "open") return s === "active";
                   if (ipoSubTab === "upcoming") return s === "pre_apply";
@@ -1678,8 +1678,7 @@ function AdminPageContent() {
                   if (ipoSubTab === "archive") return s === "closed";
                   return true;
                 }).map((ipo, idx) => {
-                  const hasDeepDive = Boolean(ipo.htmlContent || ipo.pdfUrl || (ipo.deepDive && ipo.htmlUrl && !ipo.htmlUrl.startsWith("/")));
-                  const hasHtml = Boolean(ipo.htmlContent || (ipo.htmlUrl && !ipo.htmlUrl.startsWith("/")));
+                  const hasDeepDive = Boolean(ipo.pdfUrl || ipo.deepDive || ipo.hasReport);
                   const hasPdf = Boolean(ipo.pdfUrl);
                   const rhpLink = ipo.documentUrl;
 

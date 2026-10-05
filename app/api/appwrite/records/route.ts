@@ -205,12 +205,10 @@ export async function GET(req: NextRequest) {
               deepDiveMap.get(item.symbol?.toLowerCase());
 
             const pdfUrl = existing?.pdfUrl || archivedDeepDive?.pdfUrl || "";
-            const htmlUrl = existing?.htmlUrl || archivedDeepDive?.htmlUrl || "";
             const deck = existing?.deck || archivedDeepDive?.deck || item.additional_text || "";
 
             const hasReport = Boolean(
               pdfUrl ||
-              htmlUrl ||
               existing?.hasReport ||
               existing?.deepDive ||
               archivedDeepDive ||
@@ -234,7 +232,6 @@ export async function GET(req: NextRequest) {
               isSme: Boolean(item.is_sme),
               additionalText: item.additional_text ? String(item.additional_text).slice(0, 500) : "",
               pdfUrl,
-              htmlUrl,
               documentUrl: item.document_url || existing?.documentUrl || "",
               lastSyncedAt: new Date().toISOString(),
               closedAt: item.bidding_end_date ? new Date(item.bidding_end_date).toISOString() : undefined,
@@ -509,7 +506,6 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
     "lotSize",
     "listing",
     "pdfUrl",
-    "htmlUrl",
     "documentUrl",
     "sections",
     "externalId",
@@ -541,7 +537,6 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
     "company",
     "sector",
     "pdfUrl",
-    "htmlUrl",
     "deck",
     "createdAt",
   ],
@@ -641,19 +636,17 @@ export async function POST(req: NextRequest) {
       payload.company = payload.company || rawPayload.company || "";
       payload.slug = payload.slug || rawPayload.slug || "";
       payload.pdfUrl = payload.pdfUrl !== undefined ? payload.pdfUrl : rawPayload.pdfUrl || "";
-      payload.htmlUrl = payload.htmlUrl || rawPayload.htmlUrl || "";
-      payload.deepDive = Boolean(payload.pdfUrl || payload.htmlContent || payload.deepDive || rawPayload.deepDive);
-      payload.hasReport = Boolean(payload.pdfUrl || payload.htmlContent || payload.hasReport || rawPayload.hasReport);
+      payload.deepDive = Boolean(payload.pdfUrl || payload.deepDive || rawPayload.deepDive);
+      payload.hasReport = Boolean(payload.pdfUrl || payload.hasReport || rawPayload.hasReport);
 
-      // Auto-save a copy to ipo_deep_dives collection for permanent archive access
-      if (payload.deepDive || payload.pdfUrl || payload.htmlUrl || rawPayload.htmlContent) {
+      // Manage ipo_deep_dives collection for permanent archive access or deletion
+      if ((payload.deepDive || payload.pdfUrl) && payload.pdfUrl !== "") {
         try {
           const deepDivePayload = {
             slug: String(payload.slug),
             company: String(payload.company),
             sector: String(rawPayload.sector || "IPO Deep Dive"),
             pdfUrl: String(payload.pdfUrl || ""),
-            htmlUrl: String(payload.htmlUrl || ""),
             deck: String(rawPayload.deck || "").slice(0, 2000),
             createdAt: new Date().toISOString(),
           };
@@ -664,6 +657,13 @@ export async function POST(req: NextRequest) {
           }
         } catch (archErr) {
           console.warn("Could not save copy to ipo_deep_dives collection:", archErr);
+        }
+      } else {
+        // If deep dive / PDF report has been removed, delete the row from ipo_deep_dives
+        try {
+          await tablesDB.deleteRow(databaseId, "ipo_deep_dives", rowId);
+        } catch (delErr) {
+          // Ignore if row did not exist in ipo_deep_dives
         }
       }
     }
@@ -756,6 +756,11 @@ export async function DELETE(req: NextRequest) {
     if (table !== "media") {
       try {
         await tablesDB.deleteRow(databaseId, table, rowId);
+        if (table === "ipos") {
+          try {
+            await tablesDB.deleteRow(databaseId, "ipo_deep_dives", rowId);
+          } catch {}
+        }
       } catch (dbErr) {
         console.warn(`Could not delete row ${rowId} from table ${table}:`, dbErr);
       }

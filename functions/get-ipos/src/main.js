@@ -156,14 +156,10 @@ module.exports = async ({ req, res, log, error }) => {
           deepDiveMap.get(item.symbol?.toLowerCase());
 
         const pdfUrl = existingDoc?.pdfUrl || archivedDeepDive?.pdfUrl || undefined;
-        const htmlUrl = existingDoc?.htmlUrl || archivedDeepDive?.htmlUrl || undefined;
-        const htmlContent = existingDoc?.htmlContent || undefined;
         const deck = existingDoc?.deck || archivedDeepDive?.deck || item.additional_text || "";
 
         const hasReport = Boolean(
           pdfUrl ||
-          htmlUrl ||
-          htmlContent ||
           existingDoc?.hasReport ||
           existingDoc?.deepDive ||
           archivedDeepDive ||
@@ -190,9 +186,7 @@ module.exports = async ({ req, res, log, error }) => {
           lastSyncedAt: new Date().toISOString(),
           closedAt: item.bidding_end_date ? new Date(item.bidding_end_date).toISOString() : undefined,
           pdfUrl,
-          htmlUrl,
           documentUrl: item.document_url || existingDoc?.documentUrl || undefined,
-          htmlContent,
         };
 
         try {

@@ -54,32 +54,120 @@ export async function GET(req: NextRequest) {
             console.warn("Appwrite Functions SDK execution skipped/failed:", fnErr);
           }
 
-          // 2. Fetch live market data (or use function output if available)
+          // 2. Fetch live market data (Try Upstox API first, fallback to Indian API)
           let fetchedListings: any[] = [];
           if (fnOutput?.data && Array.isArray(fnOutput.data)) {
             fetchedListings = fnOutput.data;
           } else {
-            const apiRes = await fetch("https://stock.indianapi.in/ipo", {
-              headers: { "X-Api-Key": process.env.INDIAN_API_KEY || "" },
-              cache: "no-store",
-            });
-            if (apiRes.ok) {
-              const apiData = await apiRes.json();
-              fetchedListings = [
-                ...(apiData.active || []).map((i: any) => ({ ...i, status: "active" })),
-                ...(apiData.pre_apply || []).map((i: any) => ({ ...i, status: "pre_apply" })),
-                ...(apiData.closed || []).slice(0, 5).map((i: any) => ({ ...i, status: "closed" })),
-                ...(apiData.listed || []).slice(0, 8).map((i: any) => ({ ...i, status: "listed" })),
-              ];
+            const upstoxToken = process.env.UPSTOX_ACCESS_TOKEN;
+            if (upstoxToken) {
+              try {
+                const apiRes = await fetch("https://api.upstox.com/v2/ipos", {
+                  headers: {
+                    "Authorization": `Bearer ${upstoxToken}`,
+                    "Accept": "application/json",
+                  },
+                  cache: "no-store",
+                });
+                if (apiRes.ok) {
+                  const json = await apiRes.json();
+                  const rawList = Array.isArray(json?.data) ? json.data : [];
+                  for (const item of rawList) {
+                    let rhpUrl = null;
+                    let lotSize = item.lot_size;
+                    let listingDate = null;
+
+                    if (item.id) {
+                      try {
+                        const detailRes = await fetch(`https://api.upstox.com/v2/ipos/${item.id}`, {
+                          headers: {
+                            "Authorization": `Bearer ${upstoxToken}`,
+                            "Accept": "application/json",
+                          },
+                          cache: "no-store",
+                        });
+                        if (detailRes.ok) {
+                          const detailJson = await detailRes.json();
+                          const d = detailJson?.data || {};
+                          rhpUrl = d.rhp_url || d.drhp_url || null;
+                          lotSize = d.lot_size || lotSize;
+                          listingDate = d.timeline?.listing_date || null;
+                        }
+                      } catch {}
+                    }
+
+                    let normalizedStatus = "active";
+                    if (item.status === "open") normalizedStatus = "active";
+                    else if (item.status === "upcoming" || item.status === "pre_apply") normalizedStatus = "pre_apply";
+                    else if (item.status === "listed") normalizedStatus = "listed";
+                    else if (item.status === "closed") normalizedStatus = "closed";
+
+                    fetchedListings.push({
+                      symbol: item.symbol || item.id,
+                      name: item.name ? item.name.replace(/\s+IPO$/i, "").trim() : item.symbol,
+                      status: normalizedStatus,
+                      is_sme: item.issue_type === "sme",
+                      min_price: item.minimum_price,
+                      max_price: item.maximum_price,
+                      issue_price: item.maximum_price || item.minimum_price,
+                      bidding_start_date: item.bidding_start_date,
+                      bidding_end_date: item.bidding_end_date,
+                      listing_date: listingDate,
+                      lot_size: lotSize,
+                      total_subscription_rate: item.total_subscription,
+                      document_url: rhpUrl,
+                    });
+                  }
+                }
+              } catch (uErr) {
+                console.warn("Upstox fetch error:", uErr);
+              }
+            }
+
+            // Supplementary fetch to capture all statuses (active/open, pre_apply/upcoming, closed, listed)
+            try {
+              const apiRes = await fetch("https://stock.indianapi.in/ipo", {
+                headers: { "X-Api-Key": process.env.INDIAN_API_KEY || "" },
+                cache: "no-store",
+              });
+              if (apiRes.ok) {
+                const apiData = await apiRes.json();
+                const existingSymbols = new Set(fetchedListings.map(i => (i.symbol || i.name || "").toLowerCase()));
+                const additionalItems = [
+                  ...(apiData.active || []).map((i: any) => ({ ...i, status: "active" })),
+                  ...(apiData.pre_apply || apiData.upcoming || []).map((i: any) => ({ ...i, status: "pre_apply" })),
+                  ...(apiData.closed || []).map((i: any) => ({ ...i, status: "closed" })),
+                  ...(apiData.listed || []).map((i: any) => ({ ...i, status: "listed" })),
+                ];
+
+                for (const item of additionalItems) {
+                  const symKey = (item.symbol || item.name || "").toLowerCase();
+                  if (symKey && !existingSymbols.has(symKey)) {
+                    existingSymbols.add(symKey);
+                    fetchedListings.push(item);
+                  }
+                }
+              }
+            } catch (iErr) {
+              console.warn("Indian API fetch error:", iErr);
             }
           }
 
-          // Fetch existing rows from Appwrite DB table "ipos"
+          // Fetch existing rows from Appwrite DB table "ipos" & permanent "ipo_deep_dives"
           const existingRes = await tablesDB.listRows(databaseId, "ipos").catch(() => ({ rows: [] }));
           const existingRows = existingRes.rows || [];
           const existingMap = new Map<string, any>();
           existingRows.forEach((r: any) => {
             if (r.slug) existingMap.set(r.slug.toLowerCase(), r);
+          });
+
+          const deepDivesRes = await tablesDB.listRows(databaseId, "ipo_deep_dives").catch(() => ({ rows: [] }));
+          const deepDivesList = deepDivesRes.rows || [];
+          const deepDiveMap = new Map<string, any>();
+          deepDivesList.forEach((dd: any) => {
+            if (dd.slug) deepDiveMap.set(dd.slug.toLowerCase(), dd);
+            if (dd.company) deepDiveMap.set(dd.company.toLowerCase().replace(/[^a-z0-9]+/g, "-"), dd);
+            if (dd.$id) deepDiveMap.set(dd.$id.toLowerCase(), dd);
           });
 
           let addedCount = 0;
@@ -110,11 +198,22 @@ export async function GET(req: NextRequest) {
             if (!slug) continue;
 
             const existing = existingMap.get(slug);
+
+            // Cross-check ipo_deep_dives by unique identifier
+            const archivedDeepDive = deepDiveMap.get(slug.toLowerCase()) ||
+              deepDiveMap.get(rawBase.toLowerCase()) ||
+              deepDiveMap.get(item.symbol?.toLowerCase());
+
+            const pdfUrl = existing?.pdfUrl || archivedDeepDive?.pdfUrl || "";
+            const htmlUrl = existing?.htmlUrl || archivedDeepDive?.htmlUrl || "";
+            const deck = existing?.deck || archivedDeepDive?.deck || item.additional_text || "";
+
             const hasReport = Boolean(
+              pdfUrl ||
+              htmlUrl ||
               existing?.hasReport ||
-              existing?.htmlContent ||
-              existing?.pdfUrl ||
-              (existing?.htmlUrl && !existing.htmlUrl.startsWith("/")) ||
+              existing?.deepDive ||
+              archivedDeepDive ||
               item.has_aethos_notes
             );
             const rowData = {
@@ -126,7 +225,7 @@ export async function GET(req: NextRequest) {
               type: item.is_sme ? "SME" : "Mainboard",
               deepDive: hasReport,
               hasReport: hasReport,
-              deck: existing?.deck || item.additional_text || "",
+              deck,
               issueSize: item.total_subscription_rate ? `${item.total_subscription_rate}x Subscribed` : existing?.issueSize || "—",
               lotSize: item.lot_size ? `${item.lot_size} shares` : existing?.lotSize || "—",
               listing: item.listing_date || existing?.listing || "TBA",
@@ -134,8 +233,8 @@ export async function GET(req: NextRequest) {
               status: String(item.status || "active"),
               isSme: Boolean(item.is_sme),
               additionalText: item.additional_text ? String(item.additional_text).slice(0, 500) : "",
-              pdfUrl: existing?.pdfUrl || "",
-              htmlUrl: existing?.htmlUrl || "",
+              pdfUrl,
+              htmlUrl,
               documentUrl: item.document_url || existing?.documentUrl || "",
               lastSyncedAt: new Date().toISOString(),
               closedAt: item.bidding_end_date ? new Date(item.bidding_end_date).toISOString() : undefined,
@@ -305,7 +404,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Return overview of all tables
-    const allTables = ["reports", "ideas", "ipos", "journal", "users_meta"];
+    const allTables = ["reports", "ideas", "ipos", "journal", "users_meta", "ipo_deep_dives"];
     const results: Record<string, unknown> = {};
 
     for (const t of allTables) {
@@ -437,6 +536,15 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
     "status",
     "joinedAt",
   ],
+  ipo_deep_dives: [
+    "slug",
+    "company",
+    "sector",
+    "pdfUrl",
+    "htmlUrl",
+    "deck",
+    "createdAt",
+  ],
 };
 
 function toSafeRowId(id: string): string {
@@ -536,6 +644,28 @@ export async function POST(req: NextRequest) {
       payload.htmlUrl = payload.htmlUrl || rawPayload.htmlUrl || "";
       payload.deepDive = Boolean(payload.pdfUrl || payload.htmlContent || payload.deepDive || rawPayload.deepDive);
       payload.hasReport = Boolean(payload.pdfUrl || payload.htmlContent || payload.hasReport || rawPayload.hasReport);
+
+      // Auto-save a copy to ipo_deep_dives collection for permanent archive access
+      if (payload.deepDive || payload.pdfUrl || payload.htmlUrl || rawPayload.htmlContent) {
+        try {
+          const deepDivePayload = {
+            slug: String(payload.slug),
+            company: String(payload.company),
+            sector: String(rawPayload.sector || "IPO Deep Dive"),
+            pdfUrl: String(payload.pdfUrl || ""),
+            htmlUrl: String(payload.htmlUrl || ""),
+            deck: String(rawPayload.deck || "").slice(0, 2000),
+            createdAt: new Date().toISOString(),
+          };
+          try {
+            await tablesDB.updateRow(databaseId, "ipo_deep_dives", rowId, deepDivePayload);
+          } catch {
+            await tablesDB.createRow(databaseId, "ipo_deep_dives", rowId, deepDivePayload);
+          }
+        } catch (archErr) {
+          console.warn("Could not save copy to ipo_deep_dives collection:", archErr);
+        }
+      }
     }
 
     // Default required fields for table 'ideas'

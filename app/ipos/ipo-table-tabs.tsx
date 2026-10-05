@@ -367,7 +367,7 @@ function renderStatusBadge(status: string) {
 
 export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
   const { ipos: storeIpos } = useAdminStore();
-  const [activeTab, setActiveTab] = useState<"upcoming" | "open" | "recently_listed" | "archive">(() => {
+  const [activeTab, setActiveTab] = useState<"upcoming" | "open" | "recently_listed" | "archive" | "deep_dives">(() => {
     if (ipos.some(i => i.status === "active")) return "open";
     if (ipos.some(i => i.status === "pre_apply")) return "upcoming";
     return "recently_listed";
@@ -439,6 +439,7 @@ export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
   const normalizeStatus = (s: string | undefined) => (s || "").toLowerCase().trim();
 
   // Tab counts
+  const deepDivesCount = useMemo(() => dataset.filter(i => Boolean(i.has_aethos_notes || i.hasReport || i.deepDive || i.pdfUrl || i.htmlUrl)).length, [dataset]);
   const upcomingCount = useMemo(() => dataset.filter(i => normalizeStatus(i.status) === "pre_apply").length, [dataset]);
   const openCount = useMemo(() => dataset.filter(i => normalizeStatus(i.status) === "active").length, [dataset]);
   const recentlyListedCount = useMemo(() => dataset.filter(i => normalizeStatus(i.status) === "listed").length, [dataset]);
@@ -446,6 +447,7 @@ export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
 
   // Master dataset filter by selected tab
   const baseTabDataset = useMemo(() => {
+    if (activeTab === "deep_dives") return dataset.filter(i => Boolean(i.has_aethos_notes || i.hasReport || i.deepDive || i.pdfUrl || i.htmlUrl));
     if (activeTab === "recently_listed") return dataset.filter(i => normalizeStatus(i.status) === "listed");
     if (activeTab === "upcoming") return dataset.filter(i => normalizeStatus(i.status) === "pre_apply");
     if (activeTab === "open") return dataset.filter(i => normalizeStatus(i.status) === "active");
@@ -513,7 +515,7 @@ export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          gridTemplateColumns: "repeat(5, 1fr)",
           borderBottom: "1px solid #e4e4e7",
           backgroundColor: "#ffffff",
           borderRadius: "12px 12px 0 0",
@@ -521,6 +523,31 @@ export default function IpoTableTabs({ ipos }: { ipos: ApiIpo[] }) {
           overflow: "hidden"
         }}
       >
+        <button
+          type="button"
+          onClick={() => setActiveTab("deep_dives")}
+          style={{
+            padding: "16px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            fontSize: "14px",
+            fontWeight: "600",
+            border: "none",
+            backgroundColor: activeTab === "deep_dives" ? "#ffffff" : "#fcfcfc",
+            color: activeTab === "deep_dives" ? "#2563eb" : "#71717a",
+            borderBottom: activeTab === "deep_dives" ? "2.5px solid #2563eb" : "1px solid transparent",
+            cursor: "pointer",
+            transition: "all 0.15s ease"
+          }}
+        >
+          Deep Dives
+          <span style={{ fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "10px", backgroundColor: activeTab === "deep_dives" ? "#eff6ff" : "#f4f4f5", color: activeTab === "deep_dives" ? "#1d4ed8" : "#52525b" }}>
+            {deepDivesCount}
+          </span>
+        </button>
+
         <button
           type="button"
           onClick={() => setActiveTab("upcoming")}

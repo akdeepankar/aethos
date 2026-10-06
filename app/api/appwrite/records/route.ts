@@ -123,34 +123,6 @@ export async function GET(req: NextRequest) {
                 console.warn("Upstox fetch error:", uErr);
               }
             }
-
-            // Supplementary fetch to capture all statuses (active/open, pre_apply/upcoming, closed, listed)
-            try {
-              const apiRes = await fetch("https://stock.indianapi.in/ipo", {
-                headers: { "X-Api-Key": process.env.INDIAN_API_KEY || "" },
-                cache: "no-store",
-              });
-              if (apiRes.ok) {
-                const apiData = await apiRes.json();
-                const existingSymbols = new Set(fetchedListings.map(i => (i.symbol || i.name || "").toLowerCase()));
-                const additionalItems = [
-                  ...(apiData.active || []).map((i: any) => ({ ...i, status: "active" })),
-                  ...(apiData.pre_apply || apiData.upcoming || []).map((i: any) => ({ ...i, status: "pre_apply" })),
-                  ...(apiData.closed || []).map((i: any) => ({ ...i, status: "closed" })),
-                  ...(apiData.listed || []).map((i: any) => ({ ...i, status: "listed" })),
-                ];
-
-                for (const item of additionalItems) {
-                  const symKey = (item.symbol || item.name || "").toLowerCase();
-                  if (symKey && !existingSymbols.has(symKey)) {
-                    existingSymbols.add(symKey);
-                    fetchedListings.push(item);
-                  }
-                }
-              }
-            } catch (iErr) {
-              console.warn("Indian API fetch error:", iErr);
-            }
           }
 
           // Fetch existing rows from Appwrite DB table "ipos" & permanent "ipo_deep_dives"
@@ -303,23 +275,6 @@ export async function GET(req: NextRequest) {
 
       if (table === "ipos") {
         let liveApiIpos: any[] = [];
-        try {
-          const apiRes = await fetch("https://stock.indianapi.in/ipo", {
-            headers: { "X-Api-Key": process.env.INDIAN_API_KEY || "" },
-            next: { revalidate: 60 },
-          });
-          if (apiRes.ok) {
-            const apiData = await apiRes.json();
-            liveApiIpos = [
-              ...(apiData.active || []),
-              ...(apiData.pre_apply || []),
-              ...(apiData.closed || []).slice(0, 3),
-              ...(apiData.listed || []).slice(0, 5),
-            ];
-          }
-        } catch (e) {
-          console.warn("Live Indian API fetch fallback error:", e);
-        }
 
         // Merge and normalize Appwrite DB ipos with live API dataset
         const dbRows = (res.rows || []).map((r: any) => {

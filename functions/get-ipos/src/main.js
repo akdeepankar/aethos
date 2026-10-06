@@ -81,35 +81,7 @@ module.exports = async ({ req, res, log, error }) => {
       }
     }
 
-    // Supplementary/Fallback fetch from Indian API to guarantee full coverage of open, closed, listed, and upcoming IPOs
-    try {
-      const indianRes = await fetch("https://stock.indianapi.in/ipo", {
-        headers: { "X-Api-Key": process.env.INDIAN_API_KEY || "" },
-      });
-      if (indianRes.ok) {
-        const data = await indianRes.json();
-        const existingSymbols = new Set(fetchedListings.map(i => (i.symbol || i.name || "").toLowerCase()));
-        
-        const additionalItems = [
-          ...(data.active || []).map((i) => ({ ...i, status: "active" })),
-          ...(data.pre_apply || data.upcoming || []).map((i) => ({ ...i, status: "pre_apply" })),
-          ...(data.closed || []).map((i) => ({ ...i, status: "closed" })),
-          ...(data.listed || []).map((i) => ({ ...i, status: "listed" })),
-        ];
-
-        for (const item of additionalItems) {
-          const symKey = (item.symbol || item.name || "").toLowerCase();
-          if (symKey && !existingSymbols.has(symKey)) {
-            existingSymbols.add(symKey);
-            fetchedListings.push(item);
-          }
-        }
-      }
-    } catch (e) {
-      log(`Indian API fallback/supplementary fetch notice: ${e.message}`);
-    }
-
-    log(`Fetched ${fetchedListings.length} IPO items from exchange API.`);
+    log(`Fetched ${fetchedListings.length} IPO items from Upstox API.`);
 
     // 2. If Appwrite API Key is available, persist/update rows in Appwrite DB table "ipos"
     if (apiKey) {

@@ -2825,14 +2825,135 @@ footer{background:var(--paper);color:var(--muted);padding-top:59px;border-top:1p
     padding: 20px 16px 40px;
   }
 
-  .dash-metrics-row {
-    grid-template-columns: 1fr;
-  }
-
   .dash-welcome-banner {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
 }
+
+/* Responsive IPO Tracker Page Mobile Styling */
+.ipo-page-container {
+  padding: 24px 28px 48px 28px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.ipo-tabs-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  border-bottom: 1px solid #e4e4e7;
+  background-color: #ffffff;
+  border-radius: 12px 12px 0 0;
+  border: 1px solid #e4e4e7;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ipo-tabs-grid button {
+  white-space: nowrap;
+}
+
+.ipo-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background-color: #ffffff;
+  border-left: 1px solid #e4e4e7;
+  border-right: 1px solid #e4e4e7;
+  border-bottom: 1px solid #e4e4e7;
+  gap: 14px;
+}
+
+.ipo-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.ipo-search-box {
+  position: relative;
+  min-width: 240px;
+  flex: 1;
+  max-width: 340px;
+}
+
+.ipo-card-grid {
+  display: none;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  padding: 16px;
+}
+
+.ipo-table-container {
+  display: block;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .ipo-page-container {
+    padding: 16px 12px 36px 12px;
+  }
+
+  .ipo-header-title {
+    font-size: 28px !important;
+  }
+
+  .ipo-header-subtitle {
+    font-size: 13px !important;
+  }
+
+  .ipo-tabs-grid {
+    display: flex !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .ipo-tabs-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ipo-tabs-grid button {
+    flex: 0 0 auto !important;
+    padding: 12px 14px !important;
+    font-size: 13px !important;
+    scroll-snap-align: start;
+  }
+
+  .ipo-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 12px 14px !important;
+    gap: 10px !important;
+  }
+
+  .ipo-toolbar-left {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .ipo-search-box {
+    min-width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .ipo-toolbar-left select {
+    width: 100% !important;
+  }
+
+  .ipo-table-desktop {
+    display: none !important;
+  }
+
+  .ipo-card-grid {
+    display: grid !important;
+  }
+}
+
 

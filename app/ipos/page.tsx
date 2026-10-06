@@ -51,7 +51,7 @@ export default async function IposPage() {
   ]);
 
   return (
-    <div style={{ padding: "24px 28px 48px 28px", maxWidth: "1400px", margin: "0 auto" }}>
+    <div className="ipo-page-container">
       <IpoTableTabs ipos={liveIpos} deepDives={deepDives} />
     </div>
   );

@@ -601,29 +601,17 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
       {/* Top Header Banner */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
         <div>
-          <h1 style={{ fontFamily: 'var(--font-playfair), Georgia, "Times New Roman", serif', fontSize: "42px", fontWeight: "700", lineHeight: 1.1, letterSpacing: "-0.025em", margin: "0 0 6px 0", color: "#0f172a" }}>
+          <h1 className="ipo-header-title" style={{ fontFamily: 'var(--font-playfair), Georgia, "Times New Roman", serif', fontSize: "42px", fontWeight: "700", lineHeight: 1.1, letterSpacing: "-0.025em", margin: "0 0 6px 0", color: "#0f172a" }}>
             IPO Tracker
           </h1>
-          <p style={{ fontSize: "15px", color: "#475569", margin: 0, fontWeight: "400" }}>
+          <p className="ipo-header-subtitle" style={{ fontSize: "15px", color: "#475569", margin: 0, fontWeight: "400" }}>
             The listing is a milestone. The business is the story.
           </p>
         </div>
-
-
       </div>
 
       {/* Main Category Tabs */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(5, 1fr)",
-          borderBottom: "1px solid #e4e4e7",
-          backgroundColor: "#ffffff",
-          borderRadius: "12px 12px 0 0",
-          border: "1px solid #e4e4e7",
-          overflow: "hidden"
-        }}
-      >
+      <div className="ipo-tabs-grid">
         <button
           type="button"
           onClick={() => setActiveTab("open")}
@@ -751,22 +739,10 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
       </div>
 
       {/* Filter Toolbar Bar */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "14px 20px",
-          backgroundColor: "#ffffff",
-          borderLeft: "1px solid #e4e4e7",
-          borderRight: "1px solid #e4e4e7",
-          borderBottom: "1px solid #e4e4e7",
-          gap: "14px"
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1 }}>
+      <div className="ipo-toolbar">
+        <div className="ipo-toolbar-left">
           {/* Search Box */}
-          <div style={{ position: "relative", minWidth: "240px", flex: 1, maxWidth: "340px" }}>
+          <div className="ipo-search-box">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#9ca3af" strokeWidth="1.8" style={{ position: "absolute", left: "12px", top: "10px" }}>
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -907,7 +883,9 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
             </span>
           </div>
 
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          {/* Desktop Table View */}
+          <div className="ipo-table-desktop" style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid #e4e4e7", backgroundColor: "#fafafa" }}>
                 <th style={{ padding: "12px 24px", textAlign: "left", fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", color: "#71717a" }}>
@@ -1066,6 +1044,149 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
               )}
             </tbody>
           </table>
+          </div>
+
+          {/* Mobile Responsive Card List View */}
+          <div className="ipo-card-grid">
+            {filteredList.map((item, idx) => {
+              const rowKey = item.symbol || item.action_slug || item.name || `ipo-card-${idx}`;
+              const isStarred = !!starredSymbols[rowKey];
+              const itemName = (item.name || item.company || "").toLowerCase();
+              const targetSlug = (item.slug || item.action_slug || item.symbol || "").toLowerCase();
+              const storeMatch = storeIpos.find(
+                (i) =>
+                  (i.slug && i.slug.toLowerCase() === targetSlug) ||
+                  (itemName && i.company && i.company.toLowerCase().includes(itemName)) ||
+                  (itemName && i.company && itemName.includes(i.company.toLowerCase()))
+              );
+              const hasReport = Boolean(
+                (storeMatch && (Boolean(storeMatch.pdfUrl?.trim()) || Boolean(storeMatch.htmlContent?.trim()) || (storeMatch.htmlUrl?.trim() && !storeMatch.htmlUrl.startsWith("/")))) ||
+                Boolean(item.pdfUrl?.trim()) ||
+                Boolean(item.hasReport)
+              );
+
+              return (
+                <div
+                  key={`${rowKey}-${idx}`}
+                  style={{
+                    backgroundColor: "#ffffff",
+                    borderRadius: "10px",
+                    border: "1px solid #e4e4e7",
+                    padding: "14px 16px",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px"
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <div style={{ fontSize: "15px", fontWeight: "700", color: "#0f172a" }}>
+                        {item.name || item.company || item.symbol}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#71717a", marginTop: "2px" }}>
+                        {item.sector || (item.is_sme ? "SME Segment" : "Mainboard Segment")}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      {renderStatusBadge(item.status)}
+                      <button
+                        type="button"
+                        onClick={(e) => toggleStar(rowKey, e)}
+                        style={{ background: "none", border: "none", cursor: "pointer", color: isStarred ? "#d97706" : "#d4d4d8", padding: "2px" }}
+                      >
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill={isStarred ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8">
+                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 12px", fontSize: "12px", color: "#52525b", backgroundColor: "#fafafa", padding: "10px 12px", borderRadius: "8px" }}>
+                    <div>
+                      <span style={{ color: "#a1a1aa", fontSize: "10px", textTransform: "uppercase", display: "block" }}>Period</span>
+                      <strong style={{ color: "#3f3f46", fontWeight: "600" }}>
+                        {item.period ? item.period : (item.bidding_start_date && item.bidding_end_date ? `${item.bidding_start_date} - ${item.bidding_end_date}` : item.listing_date || "TBA")}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span style={{ color: "#a1a1aa", fontSize: "10px", textTransform: "uppercase", display: "block" }}>Price Band</span>
+                      <strong style={{ color: "#3f3f46", fontWeight: "600" }}>
+                        {item.min_price && item.max_price && item.min_price !== item.max_price
+                          ? `₹${item.min_price} - ₹${item.max_price}`
+                          : item.price || (item.issue_price ? `₹${item.issue_price}` : "TBA")}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span style={{ color: "#a1a1aa", fontSize: "10px", textTransform: "uppercase", display: "block" }}>Lot Size</span>
+                      <strong style={{ color: "#3f3f46", fontWeight: "600" }}>
+                        {item.lot_size ? `${item.lot_size} shares` : item.lotSize ? item.lotSize : "—"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span style={{ color: "#a1a1aa", fontSize: "10px", textTransform: "uppercase", display: "block" }}>Segment</span>
+                      <strong style={{ color: "#3f3f46", fontWeight: "600" }}>
+                        {item.is_sme || item.type === "SME" ? "SME" : "Mainboard"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: "4px" }}>
+                    {hasReport ? (
+                      <Link
+                        href={`/ipos/${storeMatch?.slug || item.action_slug || "spectraa-technology-solutions"}`}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: "8px 16px",
+                          borderRadius: "6px",
+                          border: "1px solid #d97706",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          color: "#b45309",
+                          textDecoration: "none",
+                          backgroundColor: "#ffffff",
+                          width: "100%",
+                          textAlign: "center"
+                        }}
+                      >
+                        Deep dive →
+                      </Link>
+                    ) : (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: "8px 16px",
+                          borderRadius: "6px",
+                          border: "1px solid #e4e4e7",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          color: "#a1a1aa",
+                          backgroundColor: "#f4f4f5",
+                          width: "100%",
+                          textAlign: "center",
+                          cursor: "not-allowed"
+                        }}
+                      >
+                        No Deep Dive
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {filteredList.length === 0 && (
+              <div style={{ textAlign: "center", padding: "32px 16px", color: "#71717a", fontSize: "13px" }}>
+                No IPO records matched your search filters.
+              </div>
+            )}
+          </div>
 
           {/* Table Footer Stats & Pagination */}
           <div

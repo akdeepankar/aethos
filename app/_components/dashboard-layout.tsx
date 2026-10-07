@@ -217,19 +217,30 @@ interface AdminNavItem {
   icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
 }
 
-const navItems: NavItem[] = [
-  { label: "Overview", href: "/", icon: IconOverview },
-  { label: "Aethos Ideas", href: "/ideas", icon: IconIdeas },
-  { label: "IPO Tracker", href: "/ipos", icon: IconIpos },
-  { label: "Research Library", href: "/research", icon: IconResearch },
-  { label: "Market Pulse", href: "/journal", icon: IconPulse },
-];
+interface NavGroup {
+  title?: string;
+  items: NavItem[];
+}
 
-const secondaryItems: NavItem[] = [
-  { label: "Features", href: "/features", icon: IconFeatures },
-  { label: "Membership", href: "/membership", icon: IconMembership },
-  { label: "About Aethos", href: "/about", icon: IconAbout },
-  { label: "Admin Studio", href: "/admin", icon: IconAdmin, badge: "Admin", badgeType: "live" },
+const navGroups: NavGroup[] = [
+  {
+    title: "Platform",
+    items: [
+      { label: "Overview", href: "/", icon: IconOverview },
+      { label: "Research Library", href: "/research", icon: IconResearch },
+      { label: "Aethos Ideas", href: "/ideas", icon: IconIdeas, badge: "New", badgeType: "pulse" },
+      { label: "IPO Tracker", href: "/ipos", icon: IconIpos },
+      { label: "Market Pulse", href: "/journal", icon: IconPulse },
+    ],
+  },
+  {
+    title: "Explore",
+    items: [
+      { label: "Features", href: "/features", icon: IconFeatures },
+      { label: "Membership", href: "/membership", icon: IconMembership },
+      { label: "About Aethos", href: "/about", icon: IconAbout },
+    ],
+  },
 ];
 
 const adminNavItems: AdminNavItem[] = [
@@ -419,44 +430,57 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="sidebar-nav-container">
-            <div className="nav-group">
-              <nav className="nav-list">
-                {navItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = item.href === "/" 
-                    ? pathname === "/" 
-                    : pathname.startsWith(item.href);
+            {navGroups.map((group, groupIdx) => (
+              <div key={groupIdx} className="nav-group">
+                {group.title && (
+                  <div className="sidebar-group-header">
+                    <span>{group.title}</span>
+                  </div>
+                )}
+                <nav className="nav-list">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = item.href === "/" 
+                      ? pathname === "/" 
+                      : pathname.startsWith(item.href);
 
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`sidebar-link ${isActive ? "active" : ""}`}
-                      onClick={() => setSidebarOpen(false)}
-                      title={item.label}
-                    >
-                      <Icon />
-                      <span className="sidebar-link-text">{item.label}</span>
-                      {item.badge && (
-                        <span className={`sidebar-badge ${item.badgeType || ""}`}>
-                          {item.badge}
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
-              </nav>
-            </div>
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`sidebar-link ${isActive ? "active" : ""}`}
+                        onClick={() => setSidebarOpen(false)}
+                        title={sidebarCollapsed ? item.label : undefined}
+                        data-tooltip={item.label}
+                      >
+                        <div className="sidebar-link-icon-wrap">
+                          <Icon />
+                        </div>
+                        <span className="sidebar-link-text">{item.label}</span>
+                        {item.badge && (
+                          <span className={`sidebar-badge ${item.badgeType || ""}`}>
+                            {item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </div>
+            ))}
           </div>
 
           {/* User Profile in Bottom Sidebar */}
           <div className="sidebar-footer-area">
             {user ? (
-              <Link href="/dashboard" className="sidebar-user-card" style={{ textDecoration: "none" }} title={displayName}>
-                <div className="user-avatar">{initials}</div>
+              <Link href="/dashboard" className="sidebar-user-card" style={{ textDecoration: "none" }} title={displayName} data-tooltip={displayName}>
+                <div className="user-avatar-wrap">
+                  <div className="user-avatar">{initials}</div>
+                  <span className="user-status-dot" />
+                </div>
                 <div className="user-info">
                   <span className="user-name">{user.name || user.email}</span>
-                  <span className="user-status">Active Member</span>
+                  <span className="user-status">Pro Member</span>
                 </div>
                 <span className="user-chevron">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
@@ -466,20 +490,23 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </Link>
             ) : (
               <div
-                className="sidebar-user-card"
+                className="sidebar-user-card guest"
                 onClick={() => signInWithGoogle(pathname)}
                 style={{ textDecoration: "none", cursor: "pointer" }}
                 title="Sign In to Aethos Wealth"
+                data-tooltip="Sign In"
               >
-                <div className="user-avatar" style={{ background: "#e2e8f0", color: "#64748b" }}>
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
+                <div className="user-avatar-wrap">
+                  <div className="user-avatar guest-avatar">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  </div>
                 </div>
                 <div className="user-info">
-                  <span className="user-name">Guest Member</span>
-                  <span className="user-status" style={{ color: "#b45309" }}>Sign In to Unlock</span>
+                  <span className="user-name">Guest Access</span>
+                  <span className="user-status guest-action">Sign In / Unlock</span>
                 </div>
                 <span className="user-chevron">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">

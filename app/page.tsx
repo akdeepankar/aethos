@@ -268,10 +268,10 @@ export default function Home() {
           <div className="dash-card">
             <div className="dash-card-head">
               <h3 className="dash-card-title">
-                <IconIpos /> IPO Intelligence
+                <IconIpos /> Active IPOs
               </h3>
               <Link href="/ipos" className="dash-card-link">
-                View All ({ipos.length}) <ArrowUpRight />
+                View All ({ipos.filter(i => (i.status || "active").toLowerCase() === "active").length}) <ArrowUpRight />
               </Link>
             </div>
             <div className="dash-card-body" style={{ padding: 0 }}>
@@ -281,32 +281,65 @@ export default function Home() {
                     <tr>
                       <th>Company</th>
                       <th>Price</th>
-                      <th style={{ textAlign: 'right' }}>Status</th>
+                      <th style={{ textAlign: 'right' }}>Report</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {ipos.map((ipo) => (
-                      <tr key={ipo.slug}>
-                        <td>
-                          <div className="company-cell">
-                            <span className="company-name" style={{ fontSize: '12px' }}>{ipo.company}</span>
-                            <span className="company-sector">{ipo.sector}</span>
-                          </div>
-                        </td>
-                        <td style={{ fontSize: '11px', fontWeight: '600', color: '#334155' }}>
-                          {ipo.price}
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          {ipo.deepDive ? (
-                            <Link href={`/ipos/${ipo.slug}`} style={{ fontSize: '10px', fontWeight: '700', color: '#b45309', background: '#fef3c7', padding: '3px 8px', borderRadius: '4px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-                              Note <ArrowUpRight />
-                            </Link>
-                          ) : (
-                            <span style={{ fontSize: '10px', color: '#94a3b8', background: '#f1f5f9', padding: '3px 7px', borderRadius: '4px' }}>Active</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {(() => {
+                      const activeIpos = ipos.filter(i => (i.status || "active").toLowerCase() === "active");
+                      if (activeIpos.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={3} style={{ textAlign: 'center', padding: '24px 16px', color: '#94a3b8', fontSize: '12px' }}>
+                              No active bidding IPOs right now.
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return activeIpos.map((ipo) => {
+                        const hasDeepDive = Boolean(ipo.deepDive || ipo.hasReport || ipo.pdfUrl);
+                        return (
+                          <tr key={ipo.slug || ipo.company}>
+                            <td>
+                              <div className="company-cell">
+                                <span className="company-name" style={{ fontSize: '12px' }}>{ipo.company}</span>
+                                <span className="company-sector">{ipo.sector}</span>
+                              </div>
+                            </td>
+                            <td style={{ fontSize: '11px', fontWeight: '600', color: '#334155' }}>
+                              {ipo.price || "TBA"}
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              {hasDeepDive ? (
+                                <Link 
+                                  href={`/ipos/${ipo.slug}`} 
+                                  style={{ 
+                                    fontSize: '10px', 
+                                    fontWeight: '700', 
+                                    color: '#b45309', 
+                                    background: '#fef3c7', 
+                                    border: '1px solid #fde68a',
+                                    padding: '3px 8px', 
+                                    borderRadius: '4px', 
+                                    textDecoration: 'none', 
+                                    display: 'inline-flex', 
+                                    alignItems: 'center', 
+                                    gap: '2px' 
+                                  }}
+                                >
+                                  Deep Dive <ArrowUpRight />
+                                </Link>
+                              ) : (
+                                <span style={{ fontSize: '10px', color: '#94a3b8', background: '#f1f5f9', padding: '3px 7px', borderRadius: '4px' }}>
+                                  No Report
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })()}
                   </tbody>
                 </table>
               </div>

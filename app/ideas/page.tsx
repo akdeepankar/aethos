@@ -65,7 +65,18 @@ export default function IdeasPage() {
     });
   }, [allIdeas, searchQuery, selectedCoverage, savedFilterOnly, savedIdeas]);
 
-  // Sorted Ideas
+  // Helper to parse date strings for sorting
+  const parseIdeaDate = (dateStr?: string): number => {
+    if (!dateStr) return 0;
+    const lower = dateStr.toLowerCase().trim();
+    if (lower === "today") return Date.now();
+    if (lower === "yesterday") return Date.now() - 86400000;
+    const parsed = Date.parse(dateStr);
+    if (!isNaN(parsed)) return parsed;
+    return 0;
+  };
+
+  // Sorted Ideas (Latest published on top by default)
   const sortedIdeas = useMemo(() => {
     const list = [...filteredIdeas];
     if (sortOption === "highest-return") {
@@ -79,6 +90,13 @@ export default function IdeasPage() {
         const valA = parseFloat((a.mcap || "0").replace(/,/g, "")) || 0;
         const valB = parseFloat((b.mcap || "0").replace(/,/g, "")) || 0;
         return valB - valA;
+      });
+    } else {
+      // Default / "latest" / "newest": Sort by published date descending (latest first)
+      list.sort((a, b) => {
+        const dateA = parseIdeaDate(a.published || a.sharedDate);
+        const dateB = parseIdeaDate(b.published || b.sharedDate);
+        return dateB - dateA;
       });
     }
     return list;

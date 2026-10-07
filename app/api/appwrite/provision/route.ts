@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Client, TablesDB, Databases, Storage, Permission, Role } from "node-appwrite";
 import { reports, ipos, posts } from "../../../_lib/content";
 
+export const dynamic = "force-static";
+
 const initialIdeas: any[] = [];
 
 const initialUsers = [

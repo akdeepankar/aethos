@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Client, Storage, Permission, Role } from "node-appwrite";
 import { InputFile } from "node-appwrite/file";
 
+export const dynamic = "force-static";
+
 function getAppwriteStorage() {
   const apiKey = process.env.APPWRITE_API_KEY;
   const endpoint = process.env.APPWRITE_ENDPOINT || "https://sgp.cloud.appwrite.io/v1";

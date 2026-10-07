@@ -1,7 +1,6 @@
 import IpoTableTabs, { ApiIpo } from "./ipo-table-tabs";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export const revalidate = 60;
 
 async function getLiveIpos(): Promise<ApiIpo[]> {
   try {

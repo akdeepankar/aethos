@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { getReportHtml } from "../../../_lib/report-reader";
 import { Client, Storage, TablesDB } from "node-appwrite";
 
+export const dynamic = "force-static";
+
+export function generateStaticParams() {
+  return [
+    { slug: "logistics-stack" },
+    { slug: "indias-transmission-opportunity" },
+    { slug: "indian-affluent-consumer" },
+    { slug: "spectraa-technology-solutions" },
+    { slug: "racl-geartech" },
+  ];
+}
+
 function toSafeRowId(id: string): string {
   const cleaned = id.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/^[^a-zA-Z0-9]+/, "") || "doc";
   if (cleaned.length <= 36) return cleaned;

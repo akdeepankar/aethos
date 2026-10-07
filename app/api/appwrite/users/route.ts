@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Client, Users, TablesDB, ID } from "node-appwrite";
 
+export const dynamic = "force-static";
+
 function getAppwriteServices() {
   const apiKey = process.env.APPWRITE_API_KEY;
   const endpoint = process.env.APPWRITE_ENDPOINT || "https://sgp.cloud.appwrite.io/v1";

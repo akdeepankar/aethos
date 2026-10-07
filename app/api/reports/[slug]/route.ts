@@ -29,7 +29,8 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = await params;
+    const resolvedParams = await Promise.resolve(params);
+    const slug = resolvedParams?.slug;
     if (!slug) {
       return NextResponse.json({ error: "Missing slug parameter" }, { status: 400 });
     }

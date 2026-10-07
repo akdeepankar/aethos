@@ -12,7 +12,7 @@ function getAppwriteClient() {
   const projectId = process.env.APPWRITE_PROJECT_ID || "aethos-wealth";
 
   if (!apiKey) {
-    throw new Error("Missing APPWRITE_API_KEY in environment");
+    return null;
   }
 
   const client = new Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
@@ -28,7 +28,18 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const table = searchParams.get("table");
-    const { tablesDB, storage, databaseId } = getAppwriteClient();
+    const appwriteObj = getAppwriteClient();
+
+    if (!appwriteObj) {
+      return NextResponse.json({
+        success: true,
+        databaseId: "aethos_db",
+        data: { reports: [], ideas: [], ipos: [], journal: [], users_meta: [], media: [] },
+        note: "APPWRITE_API_KEY environment variable is not configured",
+      });
+    }
+
+    const { tablesDB, storage, databaseId } = appwriteObj;
 
     if (table) {
       if (searchParams.get("action") === "sync-ipos" || table === "sync-ipos") {
@@ -43,8 +54,7 @@ export async function GET(req: NextRequest) {
           // 1. Try triggering deployed Appwrite Cloud Function via Functions SDK
           try {
             const { Functions } = await import("node-appwrite");
-            const { client } = getAppwriteClient();
-            const functions = new Functions(client);
+            const functions = new Functions(appwriteObj.client);
             const execution = await functions.createExecution(functionId, "", false);
             if (execution.status === "completed" && execution.responseBody) {
               fnExecuted = true;
@@ -518,7 +528,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { tablesDB, databases, storage, databaseId } = getAppwriteClient();
+    const appwriteObj = getAppwriteClient();
+    if (!appwriteObj) {
+      return NextResponse.json(
+        { success: false, error: "APPWRITE_API_KEY environment variable is not configured" },
+        { status: 500 }
+      );
+    }
+
+    const { tablesDB, databases, storage, databaseId } = appwriteObj;
 
     // Clean raw payload
     const rawPayload: Record<string, unknown> = {};
@@ -694,7 +712,15 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const { tablesDB, storage, databaseId } = getAppwriteClient();
+    const appwriteObj = getAppwriteClient();
+    if (!appwriteObj) {
+      return NextResponse.json(
+        { success: false, error: "APPWRITE_API_KEY environment variable is not configured" },
+        { status: 500 }
+      );
+    }
+
+    const { tablesDB, storage, databaseId } = appwriteObj;
     const rowId = toSafeRowId(id);
 
     // 1. Try to read existing row to extract any stored file URLs before deletion

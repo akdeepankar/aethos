@@ -8,7 +8,7 @@ function getAppwriteStorage() {
   const projectId = process.env.APPWRITE_PROJECT_ID || "aethos-wealth";
 
   if (!apiKey) {
-    throw new Error("Missing APPWRITE_API_KEY in environment");
+    return null;
   }
 
   const client = new Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
@@ -22,7 +22,11 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const fileId = searchParams.get("fileId");
-    const { storage, endpoint, projectId } = getAppwriteStorage();
+    const storageObj = getAppwriteStorage();
+    if (!storageObj) {
+      return NextResponse.json({ success: true, total: 0, files: [] });
+    }
+    const { storage, endpoint, projectId } = storageObj;
 
     // If fileId is passed, stream the file content through backend proxy to bypass unauthenticated 401 errors
     if (fileId) {
@@ -72,7 +76,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "No file provided" }, { status: 400 });
     }
 
-    const { storage, endpoint, projectId } = getAppwriteStorage();
+    const storageObj = getAppwriteStorage();
+    if (!storageObj) {
+      return NextResponse.json({ success: false, error: "APPWRITE_API_KEY environment variable is not configured" }, { status: 500 });
+    }
+    const { storage, endpoint, projectId } = storageObj;
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     const safeFileId = `file_${Math.random().toString(36).substring(2, 9)}_${Date.now().toString(36)}`;
     const inputFile = InputFile.fromBuffer(fileBuffer, file.name);
@@ -112,7 +120,11 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Missing file id parameter" }, { status: 400 });
     }
 
-    const { storage } = getAppwriteStorage();
+    const storageObj = getAppwriteStorage();
+    if (!storageObj) {
+      return NextResponse.json({ success: false, error: "APPWRITE_API_KEY environment variable is not configured" }, { status: 500 });
+    }
+    const { storage } = storageObj;
     await storage.deleteFile("aethos_pdfs", id);
 
     return NextResponse.json({ success: true, action: "deleted", id });

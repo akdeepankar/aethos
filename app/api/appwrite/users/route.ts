@@ -7,7 +7,7 @@ function getAppwriteServices() {
   const projectId = process.env.APPWRITE_PROJECT_ID || "aethos-wealth";
 
   if (!apiKey) {
-    throw new Error("Missing APPWRITE_API_KEY in environment");
+    return null;
   }
 
   const client = new Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
@@ -21,7 +21,11 @@ function getAppwriteServices() {
 // GET /api/appwrite/users — Fetches all registered Appwrite Auth users + their roles from users_meta
 export async function GET() {
   try {
-    const { users, tablesDB, databaseId } = getAppwriteServices();
+    const services = getAppwriteServices();
+    if (!services) {
+      return NextResponse.json({ success: true, total: 0, users: [] });
+    }
+    const { users, tablesDB, databaseId } = services;
 
     // 1. Fetch real Appwrite Auth accounts
     const authList = await users.list();
@@ -114,7 +118,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Email is required" }, { status: 400 });
     }
 
-    const { users, tablesDB, databaseId } = getAppwriteServices();
+    const services = getAppwriteServices();
+    if (!services) {
+      return NextResponse.json({ success: false, error: "APPWRITE_API_KEY environment variable is not configured" }, { status: 500 });
+    }
+    const { users, tablesDB, databaseId } = services;
     const userId = ID.unique();
 
     // Create user in Appwrite Auth
@@ -180,7 +188,11 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: "User ID is required" }, { status: 400 });
     }
 
-    const { users, tablesDB, databaseId } = getAppwriteServices();
+    const services = getAppwriteServices();
+    if (!services) {
+      return NextResponse.json({ success: false, error: "APPWRITE_API_KEY environment variable is not configured" }, { status: 500 });
+    }
+    const { users, tablesDB, databaseId } = services;
 
     // 1. Update Auth name if provided
     if (name) {
@@ -260,7 +272,11 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: false, error: "User ID is required" }, { status: 400 });
     }
 
-    const { users, tablesDB, databaseId } = getAppwriteServices();
+    const services = getAppwriteServices();
+    if (!services) {
+      return NextResponse.json({ success: false, error: "APPWRITE_API_KEY environment variable is not configured" }, { status: 500 });
+    }
+    const { users, tablesDB, databaseId } = services;
 
     // 1. Delete from users_meta
     try {

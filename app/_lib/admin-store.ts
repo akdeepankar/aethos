@@ -202,9 +202,10 @@ export function useAdminStore() {
   // Sync from Appwrite DB on mount
   const syncFromAppwrite = useCallback(async () => {
     try {
-      // 1. Fetch DB records (reports, ideas, ipos, journal)
-      const res = await fetch("/api/appwrite/records", { cache: "no-store" });
-      const json = await res.json();
+      const res = await fetch("/api/appwrite/records", { cache: "no-store" }).catch(() => null);
+      if (!res || !res.ok) return;
+      const json = await res.json().catch(() => null);
+      if (!json) return;
 
       if (json.success && json.data) {
         const d = json.data;

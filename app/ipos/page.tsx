@@ -4,8 +4,8 @@ export const revalidate = 60;
 
 async function getLiveIpos(): Promise<ApiIpo[]> {
   try {
-    const host = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
-    const fetchUrl = host ? `${host}/api/appwrite/records?table=ipos` : `/api/appwrite/records?table=ipos`;
+    const host = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
+    const fetchUrl = `${host}/api/appwrite/records?table=ipos`;
     const res = await fetch(fetchUrl, {
       cache: "no-store",
     }).catch(() => null);
@@ -26,8 +26,8 @@ async function getLiveIpos(): Promise<ApiIpo[]> {
 
 async function getDeepDives(): Promise<any[]> {
   try {
-    const host = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
-    const fetchUrl = host ? `${host}/api/appwrite/records?table=ipo_deep_dives` : `/api/appwrite/records?table=ipo_deep_dives`;
+    const host = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
+    const fetchUrl = `${host}/api/appwrite/records?table=ipo_deep_dives`;
     const res = await fetch(fetchUrl, {
       cache: "no-store",
     }).catch(() => null);

@@ -6,7 +6,9 @@ export const revalidate = 0;
 async function getLiveIpos(): Promise<ApiIpo[]> {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
-    const fetchUrl = baseUrl ? `${baseUrl.replace(/\/$/, "")}/api/appwrite/records?table=ipos` : `http://localhost:3000/api/appwrite/records?table=ipos`;
+    const fetchUrl = baseUrl
+      ? `${baseUrl.replace(/\/$/, "")}/api/appwrite/records?table=ipos`
+      : `https://aethos.appwrite.network/api/appwrite/records?table=ipos`;
     
     console.log(`[IposPage] SSR Fetching live IPOs from URL: "${fetchUrl}" (baseUrl env: "${process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL || 'none'}")`);
     const res = await fetch(fetchUrl, { cache: "no-store" }).catch((err) => {
@@ -46,7 +48,9 @@ async function getLiveIpos(): Promise<ApiIpo[]> {
 async function getDeepDives(): Promise<any[]> {
   try {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
-    const fetchUrl = baseUrl ? `${baseUrl.replace(/\/$/, "")}/api/appwrite/records?table=ipo_deep_dives` : `http://localhost:3000/api/appwrite/records?table=ipo_deep_dives`;
+    const fetchUrl = baseUrl
+      ? `${baseUrl.replace(/\/$/, "")}/api/appwrite/records?table=ipo_deep_dives`
+      : `https://aethos.appwrite.network/api/appwrite/records?table=ipo_deep_dives`;
     
     const res = await fetch(fetchUrl, { cache: "no-store" }).catch(() => null);
     if (res && res.ok) {

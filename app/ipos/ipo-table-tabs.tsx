@@ -560,7 +560,7 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
   const upcomingCount = useMemo(() => dataset.filter(i => normalizeStatus(i.status) === "pre_apply").length, [dataset]);
   const openCount = useMemo(() => dataset.filter(i => normalizeStatus(i.status) === "active").length, [dataset]);
   const recentlyListedCount = useMemo(() => dataset.filter(i => normalizeStatus(i.status) === "listed").length, [dataset]);
-  const archiveCount = useMemo(() => dataset.filter(i => normalizeStatus(i.status) === "closed").length || 24, [dataset]);
+  const archiveCount = useMemo(() => dataset.filter(i => normalizeStatus(i.status) === "closed").length, [dataset]);
 
   // Master dataset filter by selected tab
   const baseTabDataset = useMemo(() => {
@@ -568,7 +568,7 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
     if (activeTab === "recently_listed") return dataset.filter(i => normalizeStatus(i.status) === "listed");
     if (activeTab === "upcoming") return dataset.filter(i => normalizeStatus(i.status) === "pre_apply");
     if (activeTab === "open") return dataset.filter(i => normalizeStatus(i.status) === "active");
-    return dataset.filter(i => normalizeStatus(i.status) === "closed" || normalizeStatus(i.status) === "listed");
+    return dataset.filter(i => normalizeStatus(i.status) === "closed");
   }, [activeTab, dataset, deepDivesDataset]);
 
   // Filtered dataset reactive to search query, segment, sector, and notes toggle

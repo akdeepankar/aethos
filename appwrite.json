@@ -17,6 +17,10 @@
             "logging": true,
             "entrypoint": "src/main.js",
             "commands": "npm install",
+            "scopes": [
+                "documents.read",
+                "documents.write"
+            ],
             "path": "functions/get-ipos"
         },
         {

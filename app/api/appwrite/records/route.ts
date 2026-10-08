@@ -274,7 +274,8 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      const res = await tablesDB.listRows(databaseId, table);
+      const { Query } = await import("node-appwrite");
+      const res = await tablesDB.listRows(databaseId, table, [Query.limit(200)]);
       if (table === "ideas") {
         const rowsWithHtml = res.rows.map((r: any) => ({
           ...r,

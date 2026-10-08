@@ -23,16 +23,19 @@ export default function IpoDetailClient({ slug }: { slug: string }) {
       setIpo(found);
     }
 
-    // 2. Fetch raw HTML if available
+    // 2. Fetch raw HTML or PDF if available
     fetch(`/api/reports/${slug}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.found && data.html) {
           setRawReportHtml(data.html);
         }
+        if (data.pdfUrl) {
+          setIpo((prev) => (prev ? { ...prev, pdfUrl: data.pdfUrl } : prev));
+        }
       })
       .catch((err) => {
-        console.warn("Failed to check raw HTML for IPO:", err);
+        console.warn("Failed to check report for IPO:", err);
       })
       .finally(() => {
         setLoading(false);
@@ -51,10 +54,10 @@ export default function IpoDetailClient({ slug }: { slug: string }) {
     );
   }
 
-  if (rawReportHtml) {
+  if (rawReportHtml || ipo?.pdfUrl) {
     return (
       <DynamicReportView
-        htmlContent={rawReportHtml}
+        htmlContent={rawReportHtml || ""}
         backUrl="/ipos"
         backLabel="Back to IPO Tracker"
         title={ipo?.company}

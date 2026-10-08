@@ -173,6 +173,28 @@ export async function GET(
       } catch (dbErr) {
         console.warn("DB fallback check error:", dbErr);
       }
+      // 4. Check Appwrite Storage bucket for PDF documents matching slug
+      try {
+        const storageList = await storage.listFiles(bucketId);
+        const pdfFile = storageList.files.find((f) => {
+          const lowerName = f.name.toLowerCase();
+          const lowerSlug = slug.toLowerCase();
+          return (
+            lowerName.endsWith(".pdf") &&
+            (lowerName === `${lowerSlug}.pdf` ||
+              lowerName.replace(/[^a-z0-9]/g, "").includes(lowerSlug.replace(/[^a-z0-9]/g, "")))
+          );
+        });
+
+        if (pdfFile) {
+          const endpoint = process.env.APPWRITE_ENDPOINT || "https://sgp.cloud.appwrite.io/v1";
+          const projectId = process.env.APPWRITE_PROJECT_ID || "aethos-wealth";
+          const pdfUrl = `${endpoint}/storage/buckets/${bucketId}/files/${pdfFile.$id}/view?project=${projectId}`;
+          return NextResponse.json({ found: true, html: null, pdfUrl });
+        }
+      } catch (pdfErr) {
+        console.warn("Storage PDF search error:", pdfErr);
+      }
     }
 
     return NextResponse.json({ found: false, html: null });

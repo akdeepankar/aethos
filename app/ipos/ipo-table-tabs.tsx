@@ -1031,9 +1031,11 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                           );
                         }
 
+                        const targetParam = storeMatch?.slug || item.action_slug || item.slug || (item.name || item.company || item.symbol || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
                         return (
                           <Link
-                            href={`/ipos/${storeMatch?.slug || item.action_slug || "spectraa-technology-solutions"}`}
+                            href={`/view-deep-dives?slug=${encodeURIComponent(targetParam)}`}
                             style={{
                               display: "inline-flex",
                               alignItems: "center",
@@ -1353,11 +1355,11 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                   (itemName && i.company && i.company.toLowerCase().includes(itemName)) ||
                   (itemName && i.company && itemName.includes(i.company.toLowerCase()))
               );
-              const deepDiveSlug = storeMatch?.slug || selectedIpo.action_slug || selectedIpo.slug || "spectraa-technology-solutions";
+              const targetParam = storeMatch?.slug || selectedIpo.action_slug || selectedIpo.slug || (selectedIpo.name || selectedIpo.company || selectedIpo.symbol || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
               return (
                 <Link
-                  href={`/ipos/${deepDiveSlug}`}
+                  href={`/view-deep-dives?slug=${encodeURIComponent(targetParam)}`}
                   style={{
                     display: "flex",
                     alignItems: "center",

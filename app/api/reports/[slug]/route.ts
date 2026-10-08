@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getReportHtml } from "../../../_lib/report-reader";
 import { Client, Storage, TablesDB } from "node-appwrite";
 
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 
 export function generateStaticParams() {
   return [
@@ -86,11 +86,13 @@ export async function GET(
         const matchedFile = storageList.files.find((f) => {
           const lowerName = f.name.toLowerCase();
           const lowerSlug = slug.toLowerCase();
+          const isTextDoc = lowerName.endsWith(".html") || lowerName.endsWith(".md") || lowerName.endsWith(".txt");
           return (
-            lowerName === `${lowerSlug}.html` ||
-            lowerName === `${lowerSlug}.md` ||
-            lowerName === `${lowerSlug}.txt` ||
-            lowerName.replace(/[^a-z0-9]/g, "").includes(lowerSlug.replace(/[^a-z0-9]/g, ""))
+            isTextDoc &&
+            (lowerName === `${lowerSlug}.html` ||
+              lowerName === `${lowerSlug}.md` ||
+              lowerName === `${lowerSlug}.txt` ||
+              lowerName.replace(/[^a-z0-9]/g, "").includes(lowerSlug.replace(/[^a-z0-9]/g, "")))
           );
         });
 
@@ -125,7 +127,12 @@ export async function GET(
 
         if (row) {
           if (row.pdfUrl && typeof row.pdfUrl === "string" && row.pdfUrl.trim()) {
-            return NextResponse.json({ found: true, html: row.htmlContent || null, pdfUrl: row.pdfUrl });
+            let finalPdfUrl = row.pdfUrl;
+            const match = row.pdfUrl.match(/\/files\/([^\/]+)\/(view|download)/);
+            if (match && match[1]) {
+              finalPdfUrl = `/api/appwrite/media?fileId=${match[1]}`;
+            }
+            return NextResponse.json({ found: true, html: row.htmlContent || null, pdfUrl: finalPdfUrl });
           }
 
           // If row has inline htmlContent
@@ -191,9 +198,7 @@ export async function GET(
         });
 
         if (pdfFile) {
-          const endpoint = process.env.APPWRITE_ENDPOINT || "https://sgp.cloud.appwrite.io/v1";
-          const projectId = process.env.APPWRITE_PROJECT_ID || "aethos-wealth";
-          const pdfUrl = `${endpoint}/storage/buckets/${bucketId}/files/${pdfFile.$id}/view?project=${projectId}`;
+          const pdfUrl = `/api/appwrite/media?fileId=${pdfFile.$id}`;
           return NextResponse.json({ found: true, html: null, pdfUrl });
         }
       } catch (pdfErr) {

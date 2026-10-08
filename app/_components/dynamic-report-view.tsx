@@ -212,14 +212,18 @@ export default function DynamicReportView({
           flexDirection: "column",
         }}
       >
-        {activeFormat === "markdown" ? (
+        {activeFormat === "markdown" && htmlContent && !htmlContent.trim().startsWith('{"success":true,"total":') ? (
           <DynamicReportFrame htmlContent={htmlContent} zoom={zoomLevel} height="100%" minHeight="100%" style={{ borderRadius: 0 }} />
         ) : pdfUrl ? (
           <div style={{ flex: 1, overflowY: "auto", height: "100%" }}>
             <CleanPdfRenderer pdfUrl={pdfUrl} zoom={zoomLevel} />
           </div>
-        ) : (
+        ) : htmlContent && !htmlContent.trim().startsWith('{"success":true,"total":') ? (
           <DynamicReportFrame htmlContent={htmlContent} zoom={zoomLevel} height="100%" minHeight="100%" style={{ borderRadius: 0 }} />
+        ) : (
+          <div style={{ padding: "40px", textAlign: "center", color: "#64748b" }}>
+            <h3>No HTML or PDF document available for this report.</h3>
+          </div>
         )}
       </div>
     </div>

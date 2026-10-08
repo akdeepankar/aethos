@@ -71,7 +71,7 @@ export async function GET(
           const fileBuffer = await storage.getFileDownload(bucketId, fileId);
           if (fileBuffer) {
             const html = Buffer.from(fileBuffer).toString("utf-8");
-            if (html && html.trim()) {
+            if (html && html.trim() && !html.trim().startsWith('{"success":true,"total":')) {
               return NextResponse.json({ found: true, html });
             }
           }
@@ -97,9 +97,9 @@ export async function GET(
         if (matchedFile) {
           const fileBuffer = await storage.getFileDownload(bucketId, matchedFile.$id);
           if (fileBuffer) {
-            const html = Buffer.from(fileBuffer).toString("utf-8");
-            if (html && html.trim()) {
-              return NextResponse.json({ found: true, html });
+            const content = Buffer.from(fileBuffer).toString("utf-8");
+            if (content && content.trim() && !content.trim().startsWith('{"success":true,"total":')) {
+              return NextResponse.json({ found: true, html: content });
             }
           }
         }

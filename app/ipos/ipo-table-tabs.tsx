@@ -367,7 +367,8 @@ function renderStatusBadge(status: string) {
 
 export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[]; deepDives?: any[] }) {
   const { ipos: storeIpos } = useAdminStore();
-  const [activeTab, setActiveTab] = useState<"upcoming" | "open" | "recently_listed" | "archive" | "deep_dives">("open");
+  const [selectedIpo, setSelectedIpo] = useState<ApiIpo | null>(null);
+  const [activeTab, setActiveTab] = useState<"upcoming" | "open" | "recently_listed" | "archive" | "deep_dives">("upcoming");
   const [searchQuery, setSearchQuery] = useState("");
   const [segmentFilter, setSegmentFilter] = useState("all");
   const [sectorFilter, setSectorFilter] = useState("all");
@@ -606,11 +607,22 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
       {/* Top Header Banner */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
         <div>
-          <h1 className="ipo-header-title" style={{ fontFamily: 'var(--font-playfair), Georgia, "Times New Roman", serif', fontSize: "42px", fontWeight: "700", lineHeight: 1.1, letterSpacing: "-0.025em", margin: "0 0 6px 0", color: "#0f172a" }}>
-            IPO Tracker
+          <div style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.1em", color: "#b45309", marginBottom: "4px" }}>
+            IPO TRACKER
+          </div>
+          <h1 className="ipo-header-title" style={{ fontFamily: 'var(--font-playfair), Georgia, "Times New Roman", serif', fontSize: "38px", fontWeight: "700", lineHeight: 1.1, letterSpacing: "-0.025em", margin: "0 0 6px 0", color: "#0f172a" }}>
+            {activeTab === "upcoming" && "Upcoming IPOs"}
+            {activeTab === "open" && "Open IPOs"}
+            {activeTab === "recently_listed" && "Recently Listed IPOs"}
+            {activeTab === "archive" && "Archived IPOs"}
+            {activeTab === "deep_dives" && "Aethos Deep Dives"}
           </h1>
           <p className="ipo-header-subtitle" style={{ fontSize: "15px", color: "#475569", margin: 0, fontWeight: "400" }}>
-            The listing is a milestone. The business is the story.
+            {activeTab === "upcoming" && "See what is coming, and what to understand before the offer opens."}
+            {activeTab === "open" && "Live issue subscriptions and active offer details open for application."}
+            {activeTab === "recently_listed" && "Post-listing performance track, listing gains, and secondary market analysis."}
+            {activeTab === "archive" && "Historical offer documents, archived prospectuses, and research notes."}
+            {activeTab === "deep_dives" && "Comprehensive institutional research notes and detailed financial models."}
           </p>
         </div>
       </div>
@@ -918,12 +930,16 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                 const isGain = (item.since_issue || "").startsWith("+");
                 const rowKey = item.symbol || item.action_slug || item.name || `ipo-${idx}`;
                 const isStarred = !!starredSymbols[rowKey];
+                const isSelected = selectedIpo?.symbol === item.symbol || (selectedIpo?.slug && selectedIpo.slug === item.slug);
+
                 return (
                   <tr
                     key={`${rowKey}-${idx}`}
+                    onClick={() => setSelectedIpo(item)}
                     style={{
                       borderBottom: "1px solid #f4f4f5",
-                      backgroundColor: "#ffffff",
+                      backgroundColor: isSelected ? "#fef8ee" : "#ffffff",
+                      cursor: "pointer",
                       transition: "background-color 0.15s ease"
                     }}
                   >
@@ -1227,6 +1243,150 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
       <div style={{ marginTop: "24px", textAlign: "right", fontSize: "11px", color: "#a1a1aa" }}>
         Design preview · Illustrative data. Not investment advice or recommendations.
       </div>
+
+      {/* Right Slide-Over Details Drawer */}
+      {selectedIpo && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            right: 0,
+            bottom: 0,
+            width: "420px",
+            maxWidth: "90vw",
+            backgroundColor: "#ffffff",
+            boxShadow: "-4px 0 24px rgba(0,0,0,0.12)",
+            zIndex: 1000,
+            overflowY: "auto",
+            padding: "32px 28px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "20px",
+            borderLeft: "1px solid #e4e4e7"
+          }}
+        >
+          {/* Header & Close Button */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <h3 style={{ fontSize: "24px", fontWeight: "700", fontFamily: 'var(--font-playfair), Georgia, serif', margin: "0 0 4px 0", color: "#0f172a" }}>
+                {selectedIpo.name || selectedIpo.company || selectedIpo.symbol}
+              </h3>
+              <div style={{ fontSize: "13px", color: "#64748b" }}>
+                {selectedIpo.sector || "Auto components"} &nbsp;|&nbsp; {selectedIpo.is_sme || selectedIpo.isSme ? "SME" : "Mainboard"}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedIpo(null)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: "20px", padding: "4px" }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Status Badges */}
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "6px", backgroundColor: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              📄 RHP available
+            </span>
+            <span style={{ fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "6px", backgroundColor: "#fffbeb", color: "#b45309", border: "1px solid #fde68a", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              📅 Opens {selectedIpo.bidding_start_date || "09 Oct"} • Expected
+            </span>
+          </div>
+
+          {/* Issue details section */}
+          <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
+            <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0" }}>
+              Issue details <span style={{ fontWeight: "400", textTransform: "none", color: "#94a3b8" }}>(Illustrative)</span>
+            </h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                <span>Issue size (₹ Cr)</span>
+                <span style={{ fontWeight: "600", color: "#0f172a" }}>{selectedIpo.issueSize ? selectedIpo.issueSize.replace(/[^0-9.]/g, "") || "240" : "240"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                <span>Fresh issue (₹ Cr)</span>
+                <span style={{ fontWeight: "600", color: "#0f172a" }}>180</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                <span>Offer for sale (₹ Cr)</span>
+                <span style={{ fontWeight: "600", color: "#0f172a" }}>60</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                <span>Price band (₹)</span>
+                <span style={{ fontWeight: "600", color: "#0f172a" }}>{selectedIpo.min_price && selectedIpo.max_price ? `${selectedIpo.min_price} – ${selectedIpo.max_price}` : selectedIpo.price || "118 – 124"}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Key dates section */}
+          <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
+            <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0" }}>
+              Key dates <span style={{ fontWeight: "400", textTransform: "none", color: "#94a3b8" }}>(Expected)</span>
+            </h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                <span>Opens</span>
+                <span style={{ fontWeight: "500", color: "#0f172a" }}>{selectedIpo.bidding_start_date || "09 Oct 2026"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                <span>Closes</span>
+                <span style={{ fontWeight: "500", color: "#0f172a" }}>{selectedIpo.bidding_end_date || "11 Oct 2026"}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                <span>Tentative listing</span>
+                <span style={{ fontWeight: "500", color: "#0f172a" }}>{selectedIpo.listing_date || "16 Oct 2026"}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Use of proceeds section */}
+          <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
+            <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0" }}>
+              Use of proceeds <span style={{ fontWeight: "400", textTransform: "none", color: "#94a3b8" }}>(Illustrative)</span>
+            </h4>
+            <ul style={{ margin: "0", paddingLeft: "18px", fontSize: "13px", color: "#475569", lineHeight: "1.6" }}>
+              <li>Expansion of manufacturing capacity</li>
+              <li>Working capital requirements</li>
+              <li>General corporate purposes</li>
+            </ul>
+          </div>
+
+          {/* Anchor investor details section */}
+          <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
+            <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px 0" }}>
+              Anchor investor details
+            </h4>
+            <div style={{ fontSize: "13px", color: "#94a3b8" }}>
+              Not announced
+            </div>
+          </div>
+
+          {/* Pre-IPO Note Action Button */}
+          <div style={{ marginTop: "auto", paddingTop: "16px" }}>
+            <Link
+              href={selectedIpo.action_slug ? `/ipos/${selectedIpo.action_slug}` : selectedIpo.slug ? `/ipos/${selectedIpo.slug}` : "/research"}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                width: "100%",
+                padding: "12px 16px",
+                borderRadius: "8px",
+                backgroundColor: "#fffbeb",
+                border: "1px solid #fcd34d",
+                color: "#b45309",
+                fontWeight: "600",
+                fontSize: "13px",
+                textDecoration: "none"
+              }}
+            >
+              📄 Read Aethos pre-IPO note →
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

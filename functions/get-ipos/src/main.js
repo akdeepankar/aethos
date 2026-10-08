@@ -77,7 +77,7 @@ module.exports = async ({ req, res, log, error }) => {
       }
 
       let normalizedStatus = "active";
-      if (item.status === "upcoming" || item.status === "pre_apply") normalizedStatus = "upcoming";
+      if (item.status === "upcoming" || item.status === "pre_apply") normalizedStatus = "pre_apply";
       else if (item.status === "listed") normalizedStatus = "listed";
       else if (item.status === "closed") normalizedStatus = "closed";
 

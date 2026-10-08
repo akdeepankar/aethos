@@ -311,7 +311,6 @@ function renderStatusBadge(status: string) {
         </span>
       );
     case "pre_apply":
-    case "upcoming":
       return (
         <span
           style={{
@@ -481,11 +480,12 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
     return Array.from(secs).sort();
   }, [dataset]);
 
-  // Helper to normalize status comparison
+  // Helper to normalize status comparison across API & Appwrite DB formats
   const normalizeStatus = (s: string | undefined) => {
-    const val = (s || "").toLowerCase().trim();
-    if (val === "upcoming") return "pre_apply";
-    return val;
+    const st = (s || "").toLowerCase().trim();
+    if (st === "upcoming" || st === "pre_apply") return "pre_apply";
+    if (st === "open" || st === "active") return "active";
+    return st;
   };
 
   // Deep Dives list strictly from ipo_deep_dives collection & active PDF reports

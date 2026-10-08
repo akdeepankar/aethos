@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Client, TablesDB, Databases, Storage } from "node-appwrite";
+import { Client, TablesDB, Databases, Storage, Query } from "node-appwrite";
 import fs from "node:fs";
 import path from "node:path";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
 export const revalidate = 0;
 
 function getAppwriteClient() {
@@ -103,7 +103,7 @@ export async function GET(req: NextRequest) {
                           lotSize = d.lot_size || lotSize;
                           listingDate = d.timeline?.listing_date || null;
                         }
-                      } catch {}
+                      } catch { }
                     }
 
                     let normalizedStatus = "active";
@@ -274,7 +274,6 @@ export async function GET(req: NextRequest) {
         }
       }
 
-      const { Query } = await import("node-appwrite");
       const res = await tablesDB.listRows(databaseId, table, [Query.limit(200)]);
       if (table === "ideas") {
         const rowsWithHtml = res.rows.map((r: any) => ({
@@ -678,8 +677,8 @@ export async function POST(req: NextRequest) {
           delete activePayload[unknownAttr];
           // Try to create the missing attribute in Appwrite database for future writes
           try {
-            databases.createStringAttribute(databaseId, table, unknownAttr, 1000, false).catch(() => {});
-          } catch {}
+            databases.createStringAttribute(databaseId, table, unknownAttr, 1000, false).catch(() => { });
+          } catch { }
           continue;
         }
 
@@ -741,7 +740,7 @@ export async function DELETE(req: NextRequest) {
         if (table === "ipos") {
           try {
             await tablesDB.deleteRow(databaseId, "ipo_deep_dives", rowId);
-          } catch {}
+          } catch { }
         }
       } catch (dbErr) {
         console.warn(`Could not delete row ${rowId} from table ${table}:`, dbErr);

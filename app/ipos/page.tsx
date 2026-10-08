@@ -1,11 +1,12 @@
 import IpoTableTabs, { ApiIpo } from "./ipo-table-tabs";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 async function getLiveIpos(): Promise<ApiIpo[]> {
   try {
-    const host = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
-    const fetchUrl = `${host}/api/appwrite/records?table=ipos`;
+    const host = process.env.NEXT_PUBLIC_APP_URL;
+    const fetchUrl = host ? `${host.replace(/\/$/, "")}/api/appwrite/records?table=ipos` : `http://localhost:3000/api/appwrite/records?table=ipos`;
     const res = await fetch(fetchUrl, {
       cache: "no-store",
     }).catch(() => null);
@@ -26,8 +27,8 @@ async function getLiveIpos(): Promise<ApiIpo[]> {
 
 async function getDeepDives(): Promise<any[]> {
   try {
-    const host = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
-    const fetchUrl = `${host}/api/appwrite/records?table=ipo_deep_dives`;
+    const host = process.env.NEXT_PUBLIC_APP_URL;
+    const fetchUrl = host ? `${host.replace(/\/$/, "")}/api/appwrite/records?table=ipo_deep_dives` : `http://localhost:3000/api/appwrite/records?table=ipo_deep_dives`;
     const res = await fetch(fetchUrl, {
       cache: "no-store",
     }).catch(() => null);

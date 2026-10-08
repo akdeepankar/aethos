@@ -8,8 +8,8 @@ export const revalidate = 0;
 
 function getAppwriteClient() {
   const apiKey = process.env.APPWRITE_API_KEY;
-  const endpoint = process.env.APPWRITE_ENDPOINT || "https://sgp.cloud.appwrite.io/v1";
-  const projectId = process.env.APPWRITE_PROJECT_ID || "aethos-wealth";
+  const endpoint = process.env.APPWRITE_ENDPOINT || process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || "https://sgp.cloud.appwrite.io/v1";
+  const projectId = process.env.APPWRITE_PROJECT_ID || process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || "aethos-wealth";
 
   if (!apiKey) {
     return null;

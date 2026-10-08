@@ -217,32 +217,6 @@ function ViewDeepDivesContent() {
               +
             </button>
           </div>
-
-          {/* Download PDF button if PDF is available */}
-          {result.pdfUrl && (
-            <a
-              href={result.pdfUrl}
-              target="_blank"
-              rel="noreferrer"
-              download={result.fileName || "document.pdf"}
-              style={{
-                fontSize: "12px",
-                fontWeight: "600",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-                color: "#b45309",
-                background: "#fef3c7",
-                border: "1px solid #fde68a",
-                borderRadius: "6px",
-                padding: "5px 12px",
-                textDecoration: "none",
-                lineHeight: 1.2,
-              }}
-            >
-              ⬇ Download PDF
-            </a>
-          )}
         </div>
       </div>
 

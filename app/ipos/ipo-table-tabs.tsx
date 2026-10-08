@@ -1286,9 +1286,11 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
 
           {/* Status Badges */}
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "6px", backgroundColor: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-              📄 RHP available
-            </span>
+            {Boolean(selectedIpo.has_aethos_notes || selectedIpo.hasReport || selectedIpo.deepDive || selectedIpo.pdfUrl) && (
+              <span style={{ fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "6px", backgroundColor: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                📄 Deep dive available
+              </span>
+            )}
             <span style={{ fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "6px", backgroundColor: "#fffbeb", color: "#b45309", border: "1px solid #fde68a", display: "inline-flex", alignItems: "center", gap: "6px" }}>
               📅 Opens {selectedIpo.bidding_start_date || "09 Oct"} • Expected
             </span>
@@ -1338,6 +1340,44 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                 <span style={{ fontWeight: "500", color: "#0f172a" }}>{selectedIpo.listing_date || "16 Oct 2026"}</span>
               </div>
             </div>
+          </div>
+
+          {/* Deep Dive Action Button */}
+          <div style={{ marginTop: "auto", paddingTop: "20px" }}>
+            {(() => {
+              const itemName = (selectedIpo.name || selectedIpo.company || "").toLowerCase();
+              const targetSlug = (selectedIpo.slug || selectedIpo.action_slug || selectedIpo.symbol || "").toLowerCase();
+              const storeMatch = storeIpos.find(
+                (i) =>
+                  (i.slug && i.slug.toLowerCase() === targetSlug) ||
+                  (itemName && i.company && i.company.toLowerCase().includes(itemName)) ||
+                  (itemName && i.company && itemName.includes(i.company.toLowerCase()))
+              );
+              const deepDiveSlug = storeMatch?.slug || selectedIpo.action_slug || selectedIpo.slug || "spectraa-technology-solutions";
+
+              return (
+                <Link
+                  href={`/ipos/${deepDiveSlug}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    width: "100%",
+                    padding: "12px 16px",
+                    borderRadius: "8px",
+                    backgroundColor: "#fffbeb",
+                    border: "1px solid #fcd34d",
+                    color: "#b45309",
+                    fontWeight: "600",
+                    fontSize: "13px",
+                    textDecoration: "none"
+                  }}
+                >
+                  📄 Open Deep Dive →
+                </Link>
+              );
+            })()}
           </div>
         </div>
       )}

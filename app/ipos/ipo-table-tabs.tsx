@@ -439,7 +439,7 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
             symbol: adminIpo.slug?.toUpperCase() || key.toUpperCase(),
             name: adminIpo.company,
             sector: adminIpo.sector || "General",
-            status: adminIpo.status || "active",
+            status: adminIpo.status,
             is_sme: Boolean(adminIpo.isSme ?? (adminIpo.type === "SME")),
             type: adminIpo.type,
             period: adminIpo.period,

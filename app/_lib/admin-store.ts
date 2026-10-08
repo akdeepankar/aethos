@@ -310,7 +310,7 @@ export function useAdminStore() {
                 issueSize: ipo.issueSize,
                 lotSize: ipo.lotSize,
                 listing: ipo.listing,
-                status: ipo.status || "active",
+                status: ipo.status,
                 externalId: ipo.externalId,
                 isSme: Boolean(ipo.isSme ?? (ipo.type === "SME")),
                 pdfUrl: ipo.pdfUrl,

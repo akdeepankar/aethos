@@ -326,7 +326,7 @@ export async function GET(req: NextRequest) {
             symbol: r.externalId || r.slug?.toUpperCase() || r.$id?.toUpperCase(),
             name: companyName,
             sector: rawSector,
-            status: r.status || "active",
+            status: r.status,
             is_sme: Boolean(r.isSme ?? (r.type === "SME")),
             min_price: minPrice,
             max_price: maxPrice,

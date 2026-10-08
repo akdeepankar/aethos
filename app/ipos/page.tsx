@@ -1,4 +1,5 @@
 import IpoTableTabs, { ApiIpo } from "./ipo-table-tabs";
+import { Client, TablesDB, Query } from "node-appwrite";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -15,7 +16,6 @@ async function getLiveIpos(): Promise<ApiIpo[]> {
       return [];
     }
 
-    const { Client, TablesDB, Query } = await import("node-appwrite");
     const client = new Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
     const tablesDB = new TablesDB(client);
 
@@ -87,7 +87,6 @@ async function getDeepDives(): Promise<any[]> {
 
     if (!apiKey) return [];
 
-    const { Client, TablesDB, Query } = await import("node-appwrite");
     const client = new Client().setEndpoint(endpoint).setProject(projectId).setKey(apiKey);
     const tablesDB = new TablesDB(client);
 

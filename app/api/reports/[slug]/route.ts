@@ -111,7 +111,7 @@ export async function GET(
       try {
         const rowId = toSafeRowId(slug);
         let row: Record<string, any> | null = null;
-        for (const table of ["reports", "ideas"]) {
+        for (const table of ["ipos", "ipo_deep_dives", "reports", "ideas"]) {
           try {
             row = await tablesDB.getRow(databaseId, table, rowId);
             if (row) break;
@@ -124,6 +124,10 @@ export async function GET(
         }
 
         if (row) {
+          if (row.pdfUrl && typeof row.pdfUrl === "string" && row.pdfUrl.trim()) {
+            return NextResponse.json({ found: true, html: row.htmlContent || null, pdfUrl: row.pdfUrl });
+          }
+
           // If row has inline htmlContent
           if (row.htmlContent && typeof row.htmlContent === "string" && row.htmlContent.trim()) {
             return NextResponse.json({ found: true, html: row.htmlContent });
@@ -135,7 +139,7 @@ export async function GET(
               const extRes = await fetch(row.htmlUrl);
               if (extRes.ok) {
                 const extText = await extRes.text();
-                if (extText && extText.trim()) {
+                if (extText && extText.trim() && !extText.trim().startsWith('{"success":true,"total":')) {
                   return NextResponse.json({ found: true, html: extText });
                 }
               }

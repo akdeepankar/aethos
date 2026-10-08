@@ -1339,52 +1339,6 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
               </div>
             </div>
           </div>
-
-          {/* Use of proceeds section */}
-          <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
-            <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0" }}>
-              Use of proceeds <span style={{ fontWeight: "400", textTransform: "none", color: "#94a3b8" }}>(Illustrative)</span>
-            </h4>
-            <ul style={{ margin: "0", paddingLeft: "18px", fontSize: "13px", color: "#475569", lineHeight: "1.6" }}>
-              <li>Expansion of manufacturing capacity</li>
-              <li>Working capital requirements</li>
-              <li>General corporate purposes</li>
-            </ul>
-          </div>
-
-          {/* Anchor investor details section */}
-          <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
-            <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 8px 0" }}>
-              Anchor investor details
-            </h4>
-            <div style={{ fontSize: "13px", color: "#94a3b8" }}>
-              Not announced
-            </div>
-          </div>
-
-          {/* Pre-IPO Note Action Button */}
-          <div style={{ marginTop: "auto", paddingTop: "16px" }}>
-            <Link
-              href={selectedIpo.action_slug ? `/ipos/${selectedIpo.action_slug}` : selectedIpo.slug ? `/ipos/${selectedIpo.slug}` : "/research"}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                width: "100%",
-                padding: "12px 16px",
-                borderRadius: "8px",
-                backgroundColor: "#fffbeb",
-                border: "1px solid #fcd34d",
-                color: "#b45309",
-                fontWeight: "600",
-                fontSize: "13px",
-                textDecoration: "none"
-              }}
-            >
-              📄 Read Aethos pre-IPO note →
-            </Link>
-          </div>
         </div>
       )}
     </div>

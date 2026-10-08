@@ -286,8 +286,6 @@ export async function GET(req: NextRequest) {
       if (table === "ipos") {
         let liveApiIpos: any[] = [];
 
-        console.log(`[Appwrite Records API] Fetching IPO records from 'ipos' collection (Total DB rows returned: ${res.rows?.length || 0})`);
-
         // Merge and normalize Appwrite DB ipos with live API dataset
         const dbRows = (res.rows || []).map((r: any) => {
           let minPrice: number | null = null;
@@ -345,16 +343,6 @@ export async function GET(req: NextRequest) {
             action_slug: r.slug,
           };
         });
-
-        // Log breakdown of fetched status values
-        const statusCounts = dbRows.reduce((acc: Record<string, number>, curr: any) => {
-          const st = curr.status || "unknown";
-          acc[st] = (acc[st] || 0) + 1;
-          return acc;
-        }, {});
-
-        console.log(`[Appwrite Records API] IPO records processed count: ${dbRows.length}. Status breakdown:`, statusCounts);
-        console.log(`[Appwrite Records API] Sample IPO items:`, dbRows.slice(0, 3).map((r: any) => ({ name: r.name, slug: r.slug, status: r.status })));
 
         return NextResponse.json(
           {

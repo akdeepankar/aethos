@@ -488,17 +488,6 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
     return st;
   };
 
-  // Log dataset details on render to debug tab counts
-  if (typeof window !== "undefined" && process.env.NODE_ENV !== "test") {
-    console.log("[Client IpoTableTabs] Total IPO dataset received:", dataset.length);
-    const clientStatusCounts = dataset.reduce((acc: Record<string, number>, curr: ApiIpo) => {
-      const norm = normalizeStatus(curr.status);
-      acc[norm] = (acc[norm] || 0) + 1;
-      return acc;
-    }, {});
-    console.log("[Client IpoTableTabs] Normalized status breakdown:", clientStatusCounts);
-  }
-
   // Deep Dives list strictly from ipo_deep_dives collection & active PDF reports
   const deepDivesDataset = useMemo(() => {
     const list: ApiIpo[] = [];

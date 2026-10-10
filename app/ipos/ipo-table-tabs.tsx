@@ -36,6 +36,8 @@ export type ApiIpo = {
   action_label?: string;
   action_slug?: string;
   has_aethos_notes?: boolean;
+  mcap?: string | null;
+  gmp?: string | null;
   pdfUrl?: string;
   htmlUrl?: string;
   deepDive?: boolean;
@@ -490,6 +492,8 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
             issueSize: adminIpo.issueSize,
             lotSize: adminIpo.lotSize,
             listing_date: adminIpo.listing || "TBA",
+            mcap: adminIpo.mcap || null,
+            gmp: adminIpo.gmp || null,
             min_price: null,
             max_price: null,
             issue_price: null,
@@ -505,6 +509,16 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
             slug: adminIpo.slug,
             pdfUrl: adminIpo.pdfUrl,
           });
+        } else {
+          const existing = combined.find(
+            (i) =>
+              (i.slug || i.symbol || "").toLowerCase() === key ||
+              (i.name && adminIpo.company && i.name.toLowerCase() === adminIpo.company.toLowerCase())
+          );
+          if (existing) {
+            if (adminIpo.mcap) existing.mcap = adminIpo.mcap;
+            if (adminIpo.gmp) existing.gmp = adminIpo.gmp;
+          }
         }
       }
     }
@@ -958,6 +972,12 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                 <th style={{ padding: "12px 16px", textAlign: "right", fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", color: "#71717a" }}>
                   LOT SIZE ▾
                 </th>
+                <th style={{ padding: "12px 16px", textAlign: "right", fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", color: "#71717a" }}>
+                  GMP ▾
+                </th>
+                <th style={{ padding: "12px 16px", textAlign: "right", fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", color: "#71717a" }}>
+                  MCAP ▾
+                </th>
                 <th style={{ padding: "12px 24px", textAlign: "right", fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", color: "#71717a" }}>
                   RESEARCH
                 </th>
@@ -1040,6 +1060,31 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                       {item.lot_size ? `${item.lot_size} shares` : item.lotSize ? item.lotSize : item.latest_price ? `₹${item.latest_price}` : "—"}
                     </td>
 
+                    <td style={{ padding: "16px 16px", fontSize: "13px", textAlign: "right" }}>
+                      {item.gmp ? (
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            color: item.gmp.startsWith("-") ? "#dc2626" : "#15803d",
+                            backgroundColor: item.gmp.startsWith("-") ? "#fef2f2" : "#f0fdf4",
+                            padding: "3px 8px",
+                            borderRadius: "5px",
+                            border: item.gmp.startsWith("-") ? "1px solid #fecaca" : "1px solid #bbf7d0",
+                            display: "inline-block",
+                          }}
+                        >
+                          {item.gmp}
+                        </span>
+                      ) : (
+                        <span style={{ color: "#a1a1aa" }}>—</span>
+                      )}
+                    </td>
+
+                    <td style={{ padding: "16px 16px", fontSize: "13px", fontWeight: "600", color: "#0f172a", textAlign: "right" }}>
+                      {item.mcap ? item.mcap : "—"}
+                    </td>
+
                     <td style={{ padding: "16px 24px", textAlign: "right" }}>
                       {(() => {
                         const itemName = (item.name || item.company || "").toLowerCase();
@@ -1111,7 +1156,7 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
 
               {filteredList.length === 0 && (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: "center", padding: "48px 24px", color: "#71717a", fontSize: "14px" }}>
+                  <td colSpan={8} style={{ textAlign: "center", padding: "48px 24px", color: "#71717a", fontSize: "14px" }}>
                     No IPO records matched your search filters.
                   </td>
                 </tr>
@@ -1220,6 +1265,20 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                       <span style={{ color: "#a1a1aa", fontSize: "10px", textTransform: "uppercase", display: "block" }}>Segment</span>
                       <strong style={{ color: "#3f3f46", fontWeight: "600" }}>
                         {item.is_sme || item.type === "SME" ? "SME" : "Mainboard"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span style={{ color: "#a1a1aa", fontSize: "10px", textTransform: "uppercase", display: "block" }}>GMP</span>
+                      <strong style={{ color: item.gmp && item.gmp.startsWith("-") ? "#dc2626" : "#15803d", fontWeight: "600" }}>
+                        {item.gmp || "—"}
+                      </strong>
+                    </div>
+
+                    <div>
+                      <span style={{ color: "#a1a1aa", fontSize: "10px", textTransform: "uppercase", display: "block" }}>MCAP</span>
+                      <strong style={{ color: "#0f172a", fontWeight: "600" }}>
+                        {item.mcap || "—"}
                       </strong>
                     </div>
                   </div>
@@ -1378,6 +1437,16 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
 
                 {/* Status Badges */}
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  {item.gmp && (
+                    <span style={{ fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "6px", backgroundColor: item.gmp.startsWith("-") ? "#fef2f2" : "#f0fdf4", color: item.gmp.startsWith("-") ? "#dc2626" : "#15803d", border: item.gmp.startsWith("-") ? "1px solid #fecaca" : "1px solid #bbf7d0", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                      📈 GMP: {item.gmp}
+                    </span>
+                  )}
+                  {item.mcap && (
+                    <span style={{ fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "6px", backgroundColor: "#f8fafc", color: "#0f172a", border: "1px solid #e2e8f0", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                      💼 MCAP: {item.mcap}
+                    </span>
+                  )}
                   {isDeepDiveAvailable && (
                     <span style={{ fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "6px", backgroundColor: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0", display: "inline-flex", alignItems: "center", gap: "6px" }}>
                       📄 Deep dive available
@@ -1396,6 +1465,18 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                     Issue details <span style={{ fontWeight: "400", textTransform: "none", color: "#94a3b8" }}>(Illustrative)</span>
                   </h4>
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+                    {item.mcap && (
+                      <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                        <span>Market Cap (MCAP)</span>
+                        <span style={{ fontWeight: "600", color: "#0f172a" }}>{item.mcap}</span>
+                      </div>
+                    )}
+                    {item.gmp && (
+                      <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                        <span>Grey Market Premium (GMP)</span>
+                        <span style={{ fontWeight: "600", color: item.gmp.startsWith("-") ? "#dc2626" : "#15803d" }}>{item.gmp}</span>
+                      </div>
+                    )}
                     <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
                       <span>Issue size (₹ Cr)</span>
                       <span style={{ fontWeight: "600", color: "#0f172a" }}>{item.issueSize ? item.issueSize.replace(/[^0-9.]/g, "") || "240" : "240"}</span>

@@ -239,6 +239,8 @@ export async function POST(req: NextRequest) {
     await addStringCol("ipos", "status", 30, false);
     await addBoolCol("ipos", "isSme", false);
     await addStringCol("ipos", "additionalText", 500, false);
+    await addStringCol("ipos", "mcap", 100, false);
+    await addStringCol("ipos", "gmp", 100, false);
     try {
       await tablesDB.createDatetimeColumn(databaseId, "ipos", "lastSyncedAt", false);
       addLog("  + Added datetime column 'lastSyncedAt' to 'ipos'");

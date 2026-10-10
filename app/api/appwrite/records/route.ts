@@ -336,6 +336,8 @@ export async function GET(req: NextRequest) {
             bidding_end_date: biddingEnd,
             listing_date: r.listing && r.listing !== "TBA" ? r.listing : (r.period || "TBA"),
             lot_size: r.lotSize ? parseInt(r.lotSize) || null : null,
+            mcap: r.mcap || null,
+            gmp: r.gmp || null,
             hasReport: Boolean(r.hasReport || r.deepDive || r.htmlContent || r.pdfUrl || (r.htmlUrl && !r.htmlUrl.startsWith("/"))),
             has_aethos_notes: Boolean(r.hasReport || r.deepDive || r.htmlContent || r.pdfUrl || (r.htmlUrl && !r.htmlUrl.startsWith("/"))),
             document_url: rhpDocUrl,
@@ -499,6 +501,8 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
     "additionalText",
     "lastSyncedAt",
     "closedAt",
+    "mcap",
+    "gmp",
   ],
   journal: [
     "slug",

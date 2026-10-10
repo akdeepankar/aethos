@@ -510,6 +510,8 @@ function AdminPageContent() {
     issueSize: "₹500 crore",
     lotSize: "100 shares",
     listing: "30 Sep 2026",
+    mcap: "",
+    gmp: "",
     pdfUrl: "",
     htmlUrl: "",
     htmlContent: "",
@@ -594,6 +596,8 @@ function AdminPageContent() {
         issueSize: ipo.issueSize || "",
         lotSize: ipo.lotSize || "",
         listing: ipo.listing || "",
+        mcap: ipo.mcap || "",
+        gmp: ipo.gmp || "",
         pdfUrl: ipo.pdfUrl || "",
         htmlUrl: "",
         htmlContent: "",
@@ -612,6 +616,8 @@ function AdminPageContent() {
         issueSize: "",
         lotSize: "",
         listing: "",
+        mcap: "",
+        gmp: "",
         pdfUrl: "",
         htmlUrl: "",
         htmlContent: "",
@@ -828,6 +834,8 @@ function AdminPageContent() {
       issueSize: ipoForm.issueSize,
       lotSize: ipoForm.lotSize,
       listing: ipoForm.listing,
+      mcap: ipoForm.mcap.trim(),
+      gmp: ipoForm.gmp.trim(),
       pdfUrl: ipoForm.pdfUrl.trim() || "",
       htmlUrl: finalHtmlUrl,
       htmlContent: ipoForm.htmlContent.trim() || undefined,
@@ -1672,6 +1680,8 @@ function AdminPageContent() {
                   <th style={{ padding: "12px 16px" }}>Type</th>
                   <th style={{ padding: "12px 16px" }}>Price Band</th>
                   <th style={{ padding: "12px 16px" }}>Issue Size</th>
+                  <th style={{ padding: "12px 16px" }}>MCAP</th>
+                  <th style={{ padding: "12px 16px" }}>GMP</th>
                   <th style={{ padding: "12px 16px" }}>Bidding Period</th>
                   <th style={{ padding: "12px 16px" }}>Official RHP</th>
                   <th style={{ padding: "12px 16px" }}>Deep Dive Report</th>
@@ -1694,7 +1704,7 @@ function AdminPageContent() {
                   if (filtered.length === 0) {
                     return (
                       <tr>
-                        <td colSpan={8} style={{ padding: "36px 16px", textAlign: "center", color: "#64748b" }}>
+                        <td colSpan={10} style={{ padding: "36px 16px", textAlign: "center", color: "#64748b" }}>
                           No IPOs found in this category.
                         </td>
                       </tr>
@@ -1755,6 +1765,28 @@ function AdminPageContent() {
                       </td>
                       <td style={{ padding: "14px 16px", color: "#64748b" }}>
                         {ipo.issueSize || "—"}
+                      </td>
+                      <td style={{ padding: "14px 16px", fontWeight: "600", color: "#0f172a" }}>
+                        {ipo.mcap || "—"}
+                      </td>
+                      <td style={{ padding: "14px 16px" }}>
+                        {ipo.gmp ? (
+                          <span
+                            style={{
+                              fontSize: "12px",
+                              fontWeight: "600",
+                              color: ipo.gmp.startsWith("-") ? "#dc2626" : "#16a34a",
+                              background: ipo.gmp.startsWith("-") ? "#fef2f2" : "#f0fdf4",
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              display: "inline-block",
+                            }}
+                          >
+                            {ipo.gmp}
+                          </span>
+                        ) : (
+                          <span style={{ color: "#94a3b8" }}>—</span>
+                        )}
                       </td>
                       <td style={{ padding: "14px 16px", color: "#64748b" }}>
                         {ipo.period || "—"}
@@ -4197,6 +4229,33 @@ function AdminPageContent() {
                         value={ipoForm.period}
                         onChange={(e) => setIpoForm((prev) => ({ ...prev, period: e.target.value }))}
                         placeholder="18 — 22 Sep 2026"
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        Market Cap (MCAP)
+                      </label>
+                      <input
+                        type="text"
+                        value={ipoForm.mcap}
+                        onChange={(e) => setIpoForm((prev) => ({ ...prev, mcap: e.target.value }))}
+                        placeholder="₹144.6 Cr / ₹500 Cr"
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        Grey Market Premium (GMP)
+                      </label>
+                      <input
+                        type="text"
+                        value={ipoForm.gmp}
+                        onChange={(e) => setIpoForm((prev) => ({ ...prev, gmp: e.target.value }))}
+                        placeholder="+₹18 (15.2%) / +25%"
                         style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
                       />
                     </div>

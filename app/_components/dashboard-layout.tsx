@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useCallback, createContext, useContext, Suspense } from "react";
 import { useAuth } from "../_context/auth-context";
 import { AuthGate } from "./auth-gate";
 
@@ -291,11 +291,32 @@ function AdminNavbarTabs() {
   );
 }
 
+export interface SidebarContextValue {
+  sidebarOpen: boolean;
+  setSidebarOpen: (open: boolean) => void;
+  sidebarCollapsed: boolean;
+  toggleSidebarCollapsed: () => void;
+  requestSidebarCollapse: (collapse: boolean) => void;
+}
+
+export const SidebarContext = createContext<SidebarContextValue>({
+  sidebarOpen: false,
+  setSidebarOpen: () => {},
+  sidebarCollapsed: false,
+  toggleSidebarCollapsed: () => {},
+  requestSidebarCollapse: () => {},
+});
+
+export function useSidebar() {
+  return useContext(SidebarContext);
+}
+
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAdminRoute = pathname.startsWith("/admin");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [userCollapsedPref, setUserCollapsedPref] = useState(false);
+  const [tempCollapseRequested, setTempCollapseRequested] = useState(false);
   const { user, signOut, signInWithGoogle } = useAuth();
 
   // Load user sidebar preference from localStorage
@@ -303,20 +324,41 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     try {
       const saved = localStorage.getItem("aethos_main_sidebar_collapsed");
       if (saved !== null) {
-        setSidebarCollapsed(saved === "true");
+        setUserCollapsedPref(saved === "true");
       }
     } catch {}
   }, []);
 
+  // Listen for window event requests
+  useEffect(() => {
+    const handleCollapseEvent = (e: Event) => {
+      const customEvent = e as CustomEvent<{ collapse: boolean }>;
+      if (customEvent.detail && typeof customEvent.detail.collapse === "boolean") {
+        setTempCollapseRequested(customEvent.detail.collapse);
+      }
+    };
+    window.addEventListener("aethos:sidebar-collapse-request", handleCollapseEvent);
+    return () => {
+      window.removeEventListener("aethos:sidebar-collapse-request", handleCollapseEvent);
+    };
+  }, []);
+
+  const requestSidebarCollapse = useCallback((collapse: boolean) => {
+    setTempCollapseRequested(collapse);
+  }, []);
+
   const toggleSidebarCollapsed = () => {
-    setSidebarCollapsed((prev) => {
+    setUserCollapsedPref((prev) => {
       const next = !prev;
       try {
         localStorage.setItem("aethos_main_sidebar_collapsed", String(next));
       } catch {}
       return next;
     });
+    setTempCollapseRequested(false);
   };
+
+  const sidebarCollapsed = tempCollapseRequested || userCollapsedPref;
 
   const isAuthRoute =
     pathname.startsWith("/auth") ||
@@ -382,7 +424,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     .toUpperCase() || "AW";
 
   return (
-    <div className={`dashboard-root ${isAdminRoute ? "admin-root-layout" : ""}`}>
+    <SidebarContext.Provider
+      value={{
+        sidebarOpen,
+        setSidebarOpen,
+        sidebarCollapsed,
+        toggleSidebarCollapsed,
+        requestSidebarCollapse,
+      }}
+    >
+      <div className={`dashboard-root ${isAdminRoute ? "admin-root-layout" : ""}`}>
       {/* Mobile Backdrop */}
       {sidebarOpen && !isAdminRoute && (
         <div 
@@ -672,5 +723,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
+    </SidebarContext.Provider>
   );
 }

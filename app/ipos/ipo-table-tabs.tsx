@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useAdminStore } from "../_lib/admin-store";
+import { useSidebar } from "../_components/dashboard-layout";
 
 export type ApiIpo = {
   symbol: string;
@@ -376,7 +377,39 @@ export const normalizeIpoStatus = (s: string | undefined) => {
 
 export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[]; deepDives?: any[] }) {
   const { ipos: storeIpos } = useAdminStore();
+  const { requestSidebarCollapse } = useSidebar();
   const [selectedIpo, setSelectedIpo] = useState<ApiIpo | null>(null);
+  const [displayedIpo, setDisplayedIpo] = useState<ApiIpo | null>(null);
+
+  // Automatically minimize main sidebar when IPO sidebar opens, and restore when it closes
+  useEffect(() => {
+    const shouldCollapse = Boolean(selectedIpo);
+    requestSidebarCollapse(shouldCollapse);
+    window.dispatchEvent(
+      new CustomEvent("aethos:sidebar-collapse-request", {
+        detail: { collapse: shouldCollapse }
+      })
+    );
+    return () => {
+      requestSidebarCollapse(false);
+      window.dispatchEvent(
+        new CustomEvent("aethos:sidebar-collapse-request", {
+          detail: { collapse: false }
+        })
+      );
+    };
+  }, [selectedIpo, requestSidebarCollapse]);
+
+  useEffect(() => {
+    if (selectedIpo) {
+      setDisplayedIpo(selectedIpo);
+    } else {
+      const timer = setTimeout(() => {
+        setDisplayedIpo(null);
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedIpo]);
   const [activeTab, setActiveTab] = useState<"upcoming" | "open" | "recently_listed" | "archive" | "deep_dives">("upcoming");
   const [searchQuery, setSearchQuery] = useState("");
   const [segmentFilter, setSegmentFilter] = useState("all");
@@ -882,11 +915,12 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
         </div>
       </div>
 
-      {/* Full-Width Layout (Without Sidepanel) */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "24px", marginTop: "20px" }}>
-        
-        {/* Post-listing Watch Table Container */}
-        <div
+      {/* Split layout: Table on left, smooth animated column on right */}
+      <div className="ipo-layout-split" style={{ gap: selectedIpo ? "20px" : "0px", marginTop: "20px" }}>
+        {/* Main Table Column */}
+        <div className="ipo-main-column">
+          {/* Post-listing Watch Table Container */}
+          <div
           style={{
             backgroundColor: "#ffffff",
             borderRadius: "12px",
@@ -934,12 +968,24 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                 const isGain = (item.since_issue || "").startsWith("+");
                 const rowKey = item.symbol || item.action_slug || item.name || `ipo-${idx}`;
                 const isStarred = !!starredSymbols[rowKey];
-                const isSelected = selectedIpo?.symbol === item.symbol || (selectedIpo?.slug && selectedIpo.slug === item.slug);
+                const isSelected = Boolean(
+                  (selectedIpo?.symbol && selectedIpo.symbol === item.symbol) ||
+                  (selectedIpo?.slug && item.slug && selectedIpo.slug === item.slug) ||
+                  (selectedIpo?.action_slug && item.action_slug && selectedIpo.action_slug === item.action_slug)
+                );
 
                 return (
                   <tr
                     key={`${rowKey}-${idx}`}
-                    onClick={() => setSelectedIpo(item)}
+                    onClick={() =>
+                      setSelectedIpo((prev) => {
+                        const match =
+                          (prev?.symbol && prev.symbol === item.symbol) ||
+                          (prev?.slug && item.slug && prev.slug === item.slug) ||
+                          (prev?.action_slug && item.action_slug && prev.action_slug === item.action_slug);
+                        return match ? null : item;
+                      })
+                    }
                     style={{
                       borderBottom: "1px solid #f4f4f5",
                       backgroundColor: isSelected ? "#fef8ee" : "#ffffff",
@@ -1040,6 +1086,7 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                         return (
                           <Link
                             href={`/view-deep-dives?slug=${encodeURIComponent(targetParam)}`}
+                            onClick={(e) => e.stopPropagation()}
                             style={{
                               display: "inline-flex",
                               alignItems: "center",
@@ -1092,17 +1139,34 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                 Boolean(item.hasReport)
               );
 
+              const isSelected = Boolean(
+                (selectedIpo?.symbol && selectedIpo.symbol === item.symbol) ||
+                (selectedIpo?.slug && item.slug && selectedIpo.slug === item.slug) ||
+                (selectedIpo?.action_slug && item.action_slug && selectedIpo.action_slug === item.action_slug)
+              );
+
               return (
                 <div
                   key={`${rowKey}-${idx}`}
+                  onClick={() =>
+                    setSelectedIpo((prev) => {
+                      const match =
+                        (prev?.symbol && prev.symbol === item.symbol) ||
+                        (prev?.slug && item.slug && prev.slug === item.slug) ||
+                        (prev?.action_slug && item.action_slug && prev.action_slug === item.action_slug);
+                      return match ? null : item;
+                    })
+                  }
                   style={{
-                    backgroundColor: "#ffffff",
+                    backgroundColor: isSelected ? "#fef8ee" : "#ffffff",
                     borderRadius: "10px",
-                    border: "1px solid #e4e4e7",
+                    border: isSelected ? "1px solid #fcd34d" : "1px solid #e4e4e7",
                     padding: "14px 16px",
                     display: "flex",
                     flexDirection: "column",
-                    gap: "10px"
+                    gap: "10px",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease"
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -1164,6 +1228,7 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                     {hasReport ? (
                       <Link
                         href={`/ipos/${storeMatch?.slug || item.action_slug || "spectraa-technology-solutions"}`}
+                        onClick={(e) => e.stopPropagation()}
                         style={{
                           display: "inline-flex",
                           alignItems: "center",
@@ -1243,150 +1308,164 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
           </div>
         </div>
 
-      </div>
-
-      {/* Footer copyright preview note */}
-      <div style={{ marginTop: "24px", textAlign: "right", fontSize: "11px", color: "#a1a1aa" }}>
-        Design preview · Illustrative data. Not investment advice or recommendations.
-      </div>
-
-      {/* Right Slide-Over Details Drawer */}
-      {selectedIpo && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            right: 0,
-            bottom: 0,
-            width: "420px",
-            maxWidth: "90vw",
-            backgroundColor: "#ffffff",
-            boxShadow: "-4px 0 24px rgba(0,0,0,0.12)",
-            zIndex: 1000,
-            overflowY: "auto",
-            padding: "32px 28px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "20px",
-            borderLeft: "1px solid #e4e4e7"
-          }}
-        >
-          {/* Header & Close Button */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-              <h3 style={{ fontSize: "24px", fontWeight: "700", fontFamily: 'var(--font-playfair), Georgia, serif', margin: "0 0 4px 0", color: "#0f172a" }}>
-                {selectedIpo.name || selectedIpo.company || selectedIpo.symbol}
-              </h3>
-              <div style={{ fontSize: "13px", color: "#64748b" }}>
-                {selectedIpo.sector || "Auto components"} &nbsp;|&nbsp; {selectedIpo.is_sme || selectedIpo.isSme ? "SME" : "Mainboard"}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSelectedIpo(null)}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: "20px", padding: "4px" }}
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Status Badges */}
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            {Boolean(selectedIpo.has_aethos_notes || selectedIpo.hasReport || selectedIpo.deepDive || selectedIpo.pdfUrl) && (
-              <span style={{ fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "6px", backgroundColor: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                📄 Deep dive available
-              </span>
-            )}
-            <span style={{ fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "6px", backgroundColor: "#fffbeb", color: "#b45309", border: "1px solid #fde68a", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-              📅 Opens {selectedIpo.bidding_start_date || "09 Oct"} • Expected
-            </span>
-          </div>
-
-          {/* Issue details section */}
-          <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
-            <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0" }}>
-              Issue details <span style={{ fontWeight: "400", textTransform: "none", color: "#94a3b8" }}>(Illustrative)</span>
-            </h4>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                <span>Issue size (₹ Cr)</span>
-                <span style={{ fontWeight: "600", color: "#0f172a" }}>{selectedIpo.issueSize ? selectedIpo.issueSize.replace(/[^0-9.]/g, "") || "240" : "240"}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                <span>Fresh issue (₹ Cr)</span>
-                <span style={{ fontWeight: "600", color: "#0f172a" }}>180</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                <span>Offer for sale (₹ Cr)</span>
-                <span style={{ fontWeight: "600", color: "#0f172a" }}>60</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                <span>Price band (₹)</span>
-                <span style={{ fontWeight: "600", color: "#0f172a" }}>{selectedIpo.min_price && selectedIpo.max_price ? `${selectedIpo.min_price} – ${selectedIpo.max_price}` : selectedIpo.price || "118 – 124"}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Key dates section */}
-          <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
-            <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0" }}>
-              Key dates <span style={{ fontWeight: "400", textTransform: "none", color: "#94a3b8" }}>(Expected)</span>
-            </h4>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                <span>Opens</span>
-                <span style={{ fontWeight: "500", color: "#0f172a" }}>{selectedIpo.bidding_start_date || "09 Oct 2026"}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                <span>Closes</span>
-                <span style={{ fontWeight: "500", color: "#0f172a" }}>{selectedIpo.bidding_end_date || "11 Oct 2026"}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                <span>Tentative listing</span>
-                <span style={{ fontWeight: "500", color: "#0f172a" }}>{selectedIpo.listing_date || "16 Oct 2026"}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Deep Dive Action Button */}
-          <div style={{ marginTop: "auto", paddingTop: "20px" }}>
-            {(() => {
-              const itemName = (selectedIpo.name || selectedIpo.company || "").toLowerCase();
-              const targetSlug = (selectedIpo.slug || selectedIpo.action_slug || selectedIpo.symbol || "").toLowerCase();
-              const storeMatch = storeIpos.find(
-                (i) =>
-                  (i.slug && i.slug.toLowerCase() === targetSlug) ||
-                  (itemName && i.company && i.company.toLowerCase().includes(itemName)) ||
-                  (itemName && i.company && itemName.includes(i.company.toLowerCase()))
-              );
-              const targetParam = storeMatch?.slug || selectedIpo.action_slug || selectedIpo.slug || (selectedIpo.name || selectedIpo.company || selectedIpo.symbol || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
-
-              return (
-                <Link
-                  href={`/view-deep-dives?slug=${encodeURIComponent(targetParam)}`}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    width: "100%",
-                    padding: "12px 16px",
-                    borderRadius: "8px",
-                    backgroundColor: "#fffbeb",
-                    border: "1px solid #fcd34d",
-                    color: "#b45309",
-                    fontWeight: "600",
-                    fontSize: "13px",
-                    textDecoration: "none"
-                  }}
-                >
-                  📄 Open Deep Dive →
-                </Link>
-              );
-            })()}
-          </div>
+        {/* Footer copyright preview note */}
+        <div style={{ marginTop: "24px", textAlign: "right", fontSize: "11px", color: "#a1a1aa" }}>
+          Design preview · Illustrative data. Not investment advice or recommendations.
         </div>
-      )}
+      </div>
+
+        {/* Mobile Backdrop */}
+        <div
+          className={`ipo-sidebar-backdrop ${selectedIpo ? "is-open" : ""}`}
+          onClick={() => setSelectedIpo(null)}
+        />
+
+        {/* Smooth Transition Right Sidebar Column */}
+        <aside
+          className={`ipo-side-column ${selectedIpo ? "is-open" : "is-closed"}`}
+          aria-hidden={!selectedIpo}
+        >
+          {displayedIpo && (() => {
+            const item = displayedIpo;
+            const itemName = (item.name || item.company || "").toLowerCase();
+            const targetSlug = (item.slug || item.action_slug || item.symbol || "").toLowerCase();
+            const storeMatch = storeIpos.find(
+              (i) =>
+                (i.slug && i.slug.toLowerCase() === targetSlug) ||
+                (itemName && i.company && i.company.toLowerCase().trim() === itemName.trim()) ||
+                (itemName && i.company && (i.company.toLowerCase().includes(itemName) || itemName.includes(i.company.toLowerCase())))
+            );
+            const ddMatch = deepDives.some(
+              (dd: any) =>
+                (dd.slug && (dd.slug.toLowerCase() === targetSlug || dd.slug.toLowerCase() === (item.slug || "").toLowerCase())) ||
+                (dd.company && itemName && dd.company.toLowerCase() === itemName)
+            );
+            const isDeepDiveAvailable = Boolean(
+              item.pdfUrl?.trim() ||
+              (item.htmlUrl?.trim() && !item.htmlUrl.startsWith("/")) ||
+              item.deepDive ||
+              item.hasReport ||
+              ddMatch ||
+              (storeMatch && (Boolean(storeMatch.pdfUrl?.trim()) || Boolean(storeMatch.htmlContent?.trim()) || Boolean(storeMatch.deepDive) || Boolean(storeMatch.hasReport)))
+            );
+            const targetParam =
+              storeMatch?.slug ||
+              item.slug ||
+              item.action_slug ||
+              (item.name || item.company || item.symbol || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+            return (
+              <div className="ipo-side-column-card">
+                {/* Header & Close Button */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <h3 style={{ fontSize: "22px", fontWeight: "700", fontFamily: 'var(--font-playfair), Georgia, serif', margin: "0 0 4px 0", color: "#0f172a" }}>
+                      {item.name || item.company || item.symbol}
+                    </h3>
+                    <div style={{ fontSize: "13px", color: "#64748b" }}>
+                      {item.sector || "Auto components"} &nbsp;|&nbsp; {item.is_sme || item.isSme ? "SME" : "Mainboard"}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedIpo(null)}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: "20px", padding: "4px" }}
+                    title="Close sidebar"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Status Badges */}
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  {isDeepDiveAvailable && (
+                    <span style={{ fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "6px", backgroundColor: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                      📄 Deep dive available
+                    </span>
+                  )}
+                  {item.bidding_start_date && (
+                    <span style={{ fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "6px", backgroundColor: "#fffbeb", color: "#b45309", border: "1px solid #fde68a", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                      📅 Opens {item.bidding_start_date} • Expected
+                    </span>
+                  )}
+                </div>
+
+                {/* Issue details section */}
+                <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
+                  <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0" }}>
+                    Issue details <span style={{ fontWeight: "400", textTransform: "none", color: "#94a3b8" }}>(Illustrative)</span>
+                  </h4>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                      <span>Issue size (₹ Cr)</span>
+                      <span style={{ fontWeight: "600", color: "#0f172a" }}>{item.issueSize ? item.issueSize.replace(/[^0-9.]/g, "") || "240" : "240"}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                      <span>Fresh issue (₹ Cr)</span>
+                      <span style={{ fontWeight: "600", color: "#0f172a" }}>180</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                      <span>Offer for sale (₹ Cr)</span>
+                      <span style={{ fontWeight: "600", color: "#0f172a" }}>60</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                      <span>Price band (₹)</span>
+                      <span style={{ fontWeight: "600", color: "#0f172a" }}>{item.min_price && item.max_price ? `${item.min_price} – ${item.max_price}` : item.price || "118 – 124"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Key dates section */}
+                <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
+                  <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0" }}>
+                    Key dates <span style={{ fontWeight: "400", textTransform: "none", color: "#94a3b8" }}>(Expected)</span>
+                  </h4>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                      <span>Opens</span>
+                      <span style={{ fontWeight: "500", color: "#0f172a" }}>{item.bidding_start_date || "09 Oct 2026"}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                      <span>Closes</span>
+                      <span style={{ fontWeight: "500", color: "#0f172a" }}>{item.bidding_end_date || "11 Oct 2026"}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
+                      <span>Tentative listing</span>
+                      <span style={{ fontWeight: "500", color: "#0f172a" }}>{item.listing_date || "16 Oct 2026"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Deep Dive Action Button (Only shown if deep dive is available) */}
+                {isDeepDiveAvailable && (
+                  <div style={{ marginTop: "auto", paddingTop: "20px" }}>
+                    <Link
+                      href={`/view-deep-dives?slug=${encodeURIComponent(targetParam)}`}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        width: "100%",
+                        padding: "12px 16px",
+                        borderRadius: "8px",
+                        backgroundColor: "#fffbeb",
+                        border: "1px solid #fcd34d",
+                        color: "#b45309",
+                        fontWeight: "600",
+                        fontSize: "13px",
+                        textDecoration: "none"
+                      }}
+                    >
+                      📄 Open Deep Dive →
+                    </Link>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </aside>
+      </div>
     </div>
   );
 }

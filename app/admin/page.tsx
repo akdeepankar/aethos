@@ -263,7 +263,7 @@ function AdminPageContent() {
     params.set("tab", tab);
     router.push(`/admin?${params.toString()}`);
   };
-  const [ipoSubTab, setIpoSubTab] = useState<"all" | "open" | "upcoming" | "recently_listed" | "archive" | "deep_dives">("open");
+  const [ipoSubTab, setIpoSubTab] = useState<"open" | "upcoming" | "recently_listed" | "archive" | "deep_dives">("open");
   const [searchQuery, setSearchQuery] = useState("");
   const [notification, setNotification] = useState<{ msg: string; type?: "success" | "error" | "info" } | null>(null);
 
@@ -1619,11 +1619,22 @@ function AdminPageContent() {
           {/* IPO Status Sub-Tabs */}
           <div style={{ display: "flex", gap: "8px", padding: "12px 20px", borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
             {[
-              { id: "open", label: "Open Bidding", count: ipos.filter(i => (i.status || "active") === "active").length },
-              { id: "upcoming", label: "Upcoming", count: ipos.filter(i => i.status === "pre_apply").length },
-              { id: "recently_listed", label: "Recently Listed", count: ipos.filter(i => i.status === "listed").length },
-              { id: "archive", label: "Archive", count: ipos.filter(i => i.status === "closed").length },
-              { id: "all", label: "All IPOs", count: ipos.length },
+              { id: "open", label: "Open Bidding", count: ipos.filter(i => {
+                const s = (i.status || "").toLowerCase().trim();
+                return s === "active" || s === "open";
+              }).length },
+              { id: "upcoming", label: "Upcoming", count: ipos.filter(i => {
+                const s = (i.status || "").toLowerCase().trim();
+                return s === "upcoming" || s === "pre_apply";
+              }).length },
+              { id: "recently_listed", label: "Recently Listed", count: ipos.filter(i => {
+                const s = (i.status || "").toLowerCase().trim();
+                return s === "listed" || s === "recently_listed";
+              }).length },
+              { id: "archive", label: "Archive", count: ipos.filter(i => {
+                const s = (i.status || "").toLowerCase().trim();
+                return s === "closed" || s === "archive";
+              }).length },
               { id: "deep_dives", label: "Deep Dives Available", count: ipos.filter(i => Boolean(i.pdfUrl || i.hasReport || i.deepDive)).length },
             ].map(tab => (
               <button
@@ -1668,16 +1679,29 @@ function AdminPageContent() {
                 </tr>
               </thead>
               <tbody>
-                {ipos.filter(ipo => {
-                  const s = ipo.status || "active";
-                  const hasDd = Boolean(ipo.pdfUrl || ipo.hasReport || ipo.deepDive);
-                  if (ipoSubTab === "deep_dives") return hasDd;
-                  if (ipoSubTab === "open") return s === "active";
-                  if (ipoSubTab === "upcoming") return s === "pre_apply";
-                  if (ipoSubTab === "recently_listed") return s === "listed";
-                  if (ipoSubTab === "archive") return s === "closed";
-                  return true;
-                }).map((ipo, idx) => {
+                {(() => {
+                  const filtered = ipos.filter(ipo => {
+                    const s = (ipo.status || "").toLowerCase().trim();
+                    const hasDd = Boolean(ipo.pdfUrl || ipo.hasReport || ipo.deepDive);
+                    if (ipoSubTab === "deep_dives") return hasDd;
+                    if (ipoSubTab === "open") return s === "active" || s === "open";
+                    if (ipoSubTab === "upcoming") return s === "upcoming" || s === "pre_apply";
+                    if (ipoSubTab === "recently_listed") return s === "listed" || s === "recently_listed";
+                    if (ipoSubTab === "archive") return s === "closed" || s === "archive";
+                    return true;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={8} style={{ padding: "36px 16px", textAlign: "center", color: "#64748b" }}>
+                          No IPOs found in this category.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return filtered.map((ipo, idx) => {
                   const hasDeepDive = Boolean(ipo.pdfUrl || ipo.deepDive || ipo.hasReport);
                   const hasPdf = Boolean(ipo.pdfUrl);
                   const rhpLink = ipo.documentUrl;
@@ -1840,7 +1864,8 @@ function AdminPageContent() {
                       </td>
                     </tr>
                   );
-                })}
+                });
+              })()}
               </tbody>
             </table>
           </div>

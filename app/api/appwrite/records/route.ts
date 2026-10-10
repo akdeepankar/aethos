@@ -371,7 +371,7 @@ export async function GET(req: NextRequest) {
 
     for (const t of allTables) {
       try {
-        const res = await tablesDB.listRows(databaseId, t);
+        const res = await tablesDB.listRows(databaseId, t, [Query.limit(200)]);
         if (t === "ideas") {
           results[t] = res.rows.map((r: any) => ({
             ...r,
@@ -384,6 +384,26 @@ export async function GET(req: NextRequest) {
         console.warn(`Could not list rows for table ${t}:`, err);
         results[t] = [];
       }
+    }
+
+    // Link ipo_deep_dives into ipos
+    const ipoDeepDives = (results["ipo_deep_dives"] as any[]) || [];
+    if (Array.isArray(results["ipos"]) && ipoDeepDives.length > 0) {
+      results["ipos"] = (results["ipos"] as any[]).map((ipo: any) => {
+        const matchedDd = ipoDeepDives.find((dd: any) =>
+          (dd.slug && ipo.slug && dd.slug.toLowerCase() === ipo.slug.toLowerCase()) ||
+          (dd.company && ipo.company && dd.company.toLowerCase() === ipo.company.toLowerCase())
+        );
+        if (matchedDd) {
+          return {
+            ...ipo,
+            deepDive: true,
+            hasReport: true,
+            pdfUrl: ipo.pdfUrl || matchedDd.pdfUrl,
+          };
+        }
+        return ipo;
+      });
     }
 
     // Also include live files from Appwrite Storage bucket

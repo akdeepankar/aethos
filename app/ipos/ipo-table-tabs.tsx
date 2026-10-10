@@ -43,7 +43,7 @@ export type ApiIpo = {
 };
 
 // Rich default dataset covering Open, Upcoming, Listed, and Archive IPOs
-const defaultAllIpos: ApiIpo[] = [
+export const defaultAllIpos: ApiIpo[] = [
   {
     symbol: "KANOHAR",
     name: "Kanohar Electricals",
@@ -151,7 +151,7 @@ const defaultAllIpos: ApiIpo[] = [
     latest_price: 450,
     since_issue: "Bidding Open",
     action_label: "Apply Now →",
-    action_slug: "spectraa-technology-solutions",
+    action_slug: "nexgen-renewable-energy",
     min_price: 425,
     max_price: 450,
     bidding_start_date: "28 Sep 2026",
@@ -175,7 +175,7 @@ const defaultAllIpos: ApiIpo[] = [
     latest_price: 120,
     since_issue: "Bidding Open",
     action_label: "Apply Now →",
-    action_slug: "spectraa-technology-solutions",
+    action_slug: "apex-life-sciences",
     min_price: 115,
     max_price: 120,
     bidding_start_date: "29 Sep 2026",
@@ -199,7 +199,7 @@ const defaultAllIpos: ApiIpo[] = [
     latest_price: 680,
     since_issue: "Pre-apply",
     action_label: "Pre-apply →",
-    action_slug: "spectraa-technology-solutions",
+    action_slug: "orion-robotics-automation",
     min_price: 650,
     max_price: 680,
     bidding_start_date: "10 Oct 2026",
@@ -223,7 +223,7 @@ const defaultAllIpos: ApiIpo[] = [
     latest_price: 95,
     since_issue: "Pre-apply",
     action_label: "Pre-apply →",
-    action_slug: "spectraa-technology-solutions",
+    action_slug: "cerafloor-decor",
     min_price: 90,
     max_price: 95,
     bidding_start_date: "12 Oct 2026",
@@ -247,7 +247,7 @@ const defaultAllIpos: ApiIpo[] = [
     latest_price: 165,
     since_issue: "+17.8%",
     action_label: "Deep dive →",
-    action_slug: "spectraa-technology-solutions",
+    action_slug: "adroit-industries",
     min_price: 140,
     max_price: 140,
     bidding_start_date: null,
@@ -271,7 +271,7 @@ const defaultAllIpos: ApiIpo[] = [
     latest_price: 355,
     since_issue: "+10.9%",
     action_label: "Updated →",
-    action_slug: "spectraa-technology-solutions",
+    action_slug: "gulf-lloyds-tech",
     min_price: 320,
     max_price: 320,
     bidding_start_date: null,
@@ -364,6 +364,15 @@ function renderStatusBadge(status: string) {
       );
   }
 }
+
+export const normalizeIpoStatus = (s: string | undefined) => {
+  const st = (s || "").toLowerCase().trim();
+  if (st === "upcoming" || st === "pre_apply") return "pre_apply";
+  if (st === "open" || st === "active") return "active";
+  if (st === "listed" || st === "recently_listed") return "listed";
+  if (st === "closed" || st === "archive") return "closed";
+  return st;
+};
 
 export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[]; deepDives?: any[] }) {
   const { ipos: storeIpos } = useAdminStore();
@@ -482,12 +491,7 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
   }, [dataset]);
 
   // Helper to normalize status comparison across API & Appwrite DB formats
-  const normalizeStatus = (s: string | undefined) => {
-    const st = (s || "").toLowerCase().trim();
-    if (st === "upcoming" || st === "pre_apply") return "pre_apply";
-    if (st === "open" || st === "active") return "active";
-    return st;
-  };
+  const normalizeStatus = normalizeIpoStatus;
 
   // Deep Dives list strictly from ipo_deep_dives collection & active PDF reports
   const deepDivesDataset = useMemo(() => {

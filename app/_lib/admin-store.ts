@@ -296,7 +296,7 @@ export function useAdminStore() {
             const s = (ipo.slug || ipo.$id || "").trim();
             if (s && !seen.has(s.toLowerCase())) {
               seen.add(s.toLowerCase());
-              const hasReportContent = Boolean(ipo.htmlContent || ipo.pdfUrl || (ipo.deepDive && ipo.htmlUrl && !ipo.htmlUrl.startsWith("/")));
+              const hasReportContent = Boolean(ipo.htmlContent || ipo.pdfUrl || ipo.deepDive || ipo.hasReport || (ipo.deepDive && ipo.htmlUrl && !ipo.htmlUrl.startsWith("/")));
               parsedIpos.push({
                 slug: s,
                 company: ipo.company,
@@ -313,7 +313,7 @@ export function useAdminStore() {
                 status: ipo.status,
                 externalId: ipo.externalId,
                 isSme: Boolean(ipo.isSme ?? (ipo.type === "SME")),
-                pdfUrl: ipo.pdfUrl,
+                pdfUrl: ipo.pdfUrl || undefined,
                 htmlUrl: ipo.htmlUrl || `/${s}.html`,
                 documentUrl: ipo.documentUrl || ipo.document_url || undefined,
                 htmlContent: ipo.htmlContent || undefined,

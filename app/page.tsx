@@ -1,565 +1,688 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useAdminStore } from "./_lib/admin-store";
-import { ApiIpo, defaultAllIpos, normalizeIpoStatus } from "./ipos/ipo-table-tabs";
-import { 
-  IconResearch, 
-  IconIpos, 
-  IconJournal, 
-  IconChevronRight 
-} from "./_components/dashboard-layout";
+import Image from "next/image";
+import { useAuth } from "./_context/auth-context";
 
-const ArrowUpRight = () => (
-  <svg viewBox="0 0 24 24" aria-hidden="true" className="dash-icon sm">
-    <path d="M7 17 17 7M9 7h8v8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
+// Icons for 6 features
+function IconAethosIdeas() {
+  return (
+    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#c59b27" strokeWidth="1.6">
+      <rect x="5" y="4" width="14" height="14" rx="2" transform="rotate(-6 12 11)" />
+      <rect x="5" y="4" width="14" height="14" rx="2" transform="rotate(3 12 11)" />
+      <rect x="5" y="4" width="14" height="14" rx="2" fill="#FAF8F5" />
+    </svg>
+  );
+}
 
-export default function Home() {
-  const { reports, ipos: storeIpos, journal: posts, ideas } = useAdminStore();
-  const featuredReport = reports && reports.length > 0 ? reports[0] : null;
+function IconThemesSectors() {
+  return (
+    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#c59b27" strokeWidth="1.6">
+      <circle cx="6" cy="6" r="3" />
+      <circle cx="18" cy="6" r="3" />
+      <circle cx="12" cy="18" r="3" />
+      <line x1="8.5" y1="7.5" x2="15.5" y2="7.5" />
+      <line x1="7.5" y1="8.5" x2="10.5" y2="15.5" />
+      <line x1="16.5" y1="8.5" x2="13.5" y2="15.5" />
+    </svg>
+  );
+}
 
-  const [liveIpos, setLiveIpos] = useState<ApiIpo[]>(defaultAllIpos);
-  const [liveDeepDives, setLiveDeepDives] = useState<any[]>([]);
+function IconIpoTracking() {
+  return (
+    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#c59b27" strokeWidth="1.6">
+      <rect x="4" y="3" width="12" height="18" rx="1" />
+      <line x1="16" y1="21" x2="21" y2="21" />
+      <line x1="16" y1="17" x2="19" y2="17" />
+    </svg>
+  );
+}
 
-  useEffect(() => {
-    let isMounted = true;
-    async function fetchIpoData() {
-      try {
-        const [iposRes, ddRes] = await Promise.all([
-          fetch("/api/appwrite/records?table=ipos").then(r => r.ok ? r.json() : null).catch(() => null),
-          fetch("/api/appwrite/records?table=ipo_deep_dives").then(r => r.ok ? r.json() : null).catch(() => null),
-        ]);
-        if (isMounted) {
-          if (iposRes?.success && Array.isArray(iposRes.rows) && iposRes.rows.length > 0) {
-            setLiveIpos(iposRes.rows);
-          }
-          if (ddRes?.success && Array.isArray(ddRes.rows)) {
-            setLiveDeepDives(ddRes.rows);
-          }
-        }
-      } catch {
-        // Fallback already in place
-      }
-    }
-    fetchIpoData();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+function IconResearchLibrary() {
+  return (
+    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#c59b27" strokeWidth="1.6">
+      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+      <line x1="8" y1="6" x2="16" y2="6" />
+      <line x1="8" y1="10" x2="16" y2="10" />
+      <line x1="8" y1="14" x2="13" y2="14" />
+    </svg>
+  );
+}
 
-  const ipoDataset = useMemo(() => {
-    const combined = [...liveIpos];
-    const seen = new Set(combined.map((i) => (i.slug || i.symbol || "").toLowerCase()));
+function IconMarketPulse() {
+  return (
+    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#c59b27" strokeWidth="1.6">
+      <circle cx="12" cy="12" r="9" />
+      <line x1="12" y1="3" x2="12" y2="21" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <circle cx="12" cy="12" r="3" fill="#c59b27" />
+    </svg>
+  );
+}
 
-    // Merge standalone deep dives from ipo_deep_dives collection
-    if (liveDeepDives && liveDeepDives.length > 0) {
-      for (const dd of liveDeepDives) {
-        const key = (dd.slug || dd.company?.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "").toLowerCase();
-        if (key && !seen.has(key)) {
-          seen.add(key);
-          combined.push({
-            symbol: (dd.slug || key).toUpperCase(),
-            name: dd.company || dd.name || dd.slug,
-            sector: dd.sector || "General",
-            status: "closed",
-            is_sme: false,
-            listing_date: "Archived",
-            min_price: null,
-            max_price: null,
-            issue_price: null,
-            bidding_start_date: null,
-            bidding_end_date: null,
-            listing_price: null,
-            listing_gains: null,
-            allotment_date: null,
-            lot_size: null,
-            total_subscription_rate: null,
-            document_url: dd.pdfUrl || null,
-          });
-        }
-      }
-    }
+function IconDirectMessage() {
+  return (
+    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#c59b27" strokeWidth="1.6">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.38 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.38 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    </svg>
+  );
+}
 
-    if (storeIpos && storeIpos.length > 0) {
-      for (const adminIpo of storeIpos) {
-        const key = (adminIpo.slug || adminIpo.company?.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "").toLowerCase();
-        if (!seen.has(key)) {
-          seen.add(key);
-          combined.push({
-            symbol: adminIpo.slug?.toUpperCase() || key.toUpperCase(),
-            name: adminIpo.company,
-            sector: adminIpo.sector || "General",
-            status: adminIpo.status || "pre_apply",
-            is_sme: Boolean(adminIpo.isSme ?? (adminIpo.type === "SME")),
-            type: adminIpo.type,
-            period: adminIpo.period,
-            price: adminIpo.price,
-            issueSize: adminIpo.issueSize,
-            lotSize: adminIpo.lotSize,
-            listing_date: adminIpo.listing || "TBA",
-            min_price: null,
-            max_price: null,
-            issue_price: null,
-            bidding_start_date: null,
-            bidding_end_date: null,
-            listing_price: null,
-            listing_gains: null,
-            allotment_date: null,
-            lot_size: adminIpo.lotSize ? parseInt(adminIpo.lotSize) || null : null,
-            total_subscription_rate: null,
-            document_url: adminIpo.pdfUrl || null,
-            slug: adminIpo.slug,
-            pdfUrl: adminIpo.pdfUrl,
-          });
-        }
-      }
-    }
+function CheckIcon() {
+  return (
+    <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "#c59b27", color: "#ffffff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "bold", flexShrink: 0 }}>
+      ✓
+    </div>
+  );
+}
 
-    return combined.length > 0 ? combined : defaultAllIpos;
-  }, [liveIpos, storeIpos, liveDeepDives]);
+function CrossIcon() {
+  return (
+    <div style={{ width: "20px", height: "20px", borderRadius: "50%", border: "1.5px solid #a88a40", color: "#a88a40", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "bold", flexShrink: 0 }}>
+      ✕
+    </div>
+  );
+}
 
-  const activeIpos = useMemo(() => {
-    return ipoDataset.filter(i => normalizeIpoStatus(i.status) === "active");
-  }, [ipoDataset]);
-
-  const upcomingIpos = useMemo(() => {
-    return ipoDataset.filter(i => normalizeIpoStatus(i.status) === "pre_apply");
-  }, [ipoDataset]);
+export default function LandingPage() {
+  const { user } = useAuth();
 
   return (
-    <div className="dash-overview-page">
-      {/* Welcome Header */}
-      <div className="dash-welcome-banner">
-        <div className="dash-welcome-copy">
-          <h1>Research Overview</h1>
-          <p>Institutional analysis on Indian equities, sector dynamics, and IPO markets.</p>
-        </div>
-      </div>
+    <div style={{ background: "#090a0d", color: "#f8fafc", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", minHeight: "100vh" }}>
+      
+      {/* ── Top Navigation Header ── */}
+      <header
+        style={{
+          borderBottom: "1px solid rgba(212, 175, 55, 0.15)",
+          background: "#08090b",
+          padding: "16px 36px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+        }}
+      >
+        <Link href="/" style={{ display: "flex", alignItems: "center", gap: "12px", textDecoration: "none" }}>
+          <div
+            style={{
+              width: "36px",
+              height: "36px",
+              borderRadius: "50%",
+              border: "1px solid #c59b27",
+              overflow: "hidden",
+              position: "relative",
+              flexShrink: 0,
+            }}
+          >
+            <Image src="/aethos-eagle-logo.jpeg" alt="Aethos Eagle" fill style={{ objectFit: "cover" }} priority />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{ fontSize: "15px", fontWeight: "800", letterSpacing: "0.12em", color: "#f8fafc", lineHeight: "1.1" }}>
+              AETHOS WEALTH
+            </span>
+            <span style={{ fontSize: "9.5px", color: "#c59b27", letterSpacing: "0.05em", fontWeight: "500" }}>
+              Perspective that creates value
+            </span>
+          </div>
+        </Link>
 
-      {/* Metrics Row */}
-      <div className="dash-metrics-row">
-        <div className="dash-metric-card">
-          <div className="metric-header">
-            <span>Research Reports</span>
-            <IconResearch />
-          </div>
-          <div className="metric-body">
-            <span className="metric-value">{reports.length}</span>
-            <span className="metric-trend up">Live</span>
-          </div>
-          <div className="metric-footer">Deep dives & sector notes</div>
-        </div>
-
-        {/* IPOs Tracked Card with Active and Upcoming sub-cards */}
-        <div className="dash-metric-card" style={{ padding: "14px 16px" }}>
-          <div className="metric-header" style={{ marginBottom: "8px" }}>
-            <span>IPOs Tracked</span>
-            <IconIpos />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "2px" }}>
-            {/* Active IPOs mini-card */}
+        <nav style={{ display: "flex", alignItems: "center", gap: "28px" }}>
+          <a
+            href="#features"
+            onClick={(e) => {
+              e.preventDefault();
+              document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+            }}
+            style={{ color: "#d1d5db", fontSize: "13.5px", textDecoration: "none", fontWeight: "500", cursor: "pointer" }}
+          >
+            Features
+          </a>
+          <a
+            href="#pricing"
+            onClick={(e) => {
+              e.preventDefault();
+              document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
+            }}
+            style={{ color: "#d1d5db", fontSize: "13.5px", textDecoration: "none", fontWeight: "500", cursor: "pointer" }}
+          >
+            Pricing
+          </a>
+          {user ? (
             <Link
-              href="/ipos"
+              href="/overview"
               style={{
-                background: "#f8fafc",
-                border: "1px solid #e2e8f0",
-                borderRadius: "8px",
-                padding: "8px 10px",
+                color: "#e2c275",
+                fontSize: "13.5px",
                 textDecoration: "none",
-                display: "flex",
-                flexDirection: "column",
-                gap: "2px",
-                transition: "all 0.15s ease",
+                fontWeight: "600",
               }}
-              className="ipo-subcard"
             >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.04em", color: "#16a34a" }}>
-                  Active
-                </span>
-                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#16a34a" }} />
-              </div>
-              <div style={{ fontSize: "18px", fontWeight: "700", color: "#0f172a", letterSpacing: "-0.02em" }}>
-                {activeIpos.length}
-              </div>
-              <div style={{ fontSize: "9.5px", color: "#64748b", fontWeight: "500" }}>
-                Open for bid
-              </div>
+              Go to Portal →
             </Link>
-
-            {/* Upcoming IPOs mini-card */}
-            <Link
-              href="/ipos"
-              style={{
-                background: "#fffbeb",
-                border: "1px solid #fef3c7",
-                borderRadius: "8px",
-                padding: "8px 10px",
-                textDecoration: "none",
-                display: "flex",
-                flexDirection: "column",
-                gap: "2px",
-                transition: "all 0.15s ease",
-              }}
-              className="ipo-subcard"
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.04em", color: "#b45309" }}>
-                  Upcoming
-                </span>
-                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#f59e0b" }} />
-              </div>
-              <div style={{ fontSize: "18px", fontWeight: "700", color: "#0f172a", letterSpacing: "-0.02em" }}>
-                {upcomingIpos.length}
-              </div>
-              <div style={{ fontSize: "9.5px", color: "#64748b", fontWeight: "500" }}>
-                Pipeline offers
-              </div>
+          ) : (
+            <Link href="/signin" style={{ color: "#d1d5db", fontSize: "13.5px", textDecoration: "none", fontWeight: "500" }}>
+              Log in
             </Link>
-          </div>
-        </div>
-
-        <div className="dash-metric-card">
-          <div className="metric-header">
-            <span>Journal Memos</span>
-            <IconJournal />
-          </div>
-          <div className="metric-body">
-            <span className="metric-value">{posts.length}</span>
-            <span className="metric-trend up">Published</span>
-          </div>
-          <div className="metric-footer">Market insights & commentary</div>
-        </div>
-
-        <div className="dash-metric-card">
-          <div className="metric-header">
-            <span>Aethos Ideas</span>
-            <span className="metric-trend up">Active</span>
-          </div>
-          <div className="metric-body">
-            <span className="metric-value">{ideas.length}</span>
-          </div>
-          <div className="metric-footer">High-conviction stock theses</div>
-        </div>
-      </div>
-
-      {/* Main Grid Layout */}
-      <div className="dash-grid-layout">
-        <div className="dash-main-column">
-          {/* Featured Research Hero Banner */}
-          {featuredReport && (
-            <div className="featured-research-hero">
-              <div>
-                <div className="featured-kicker-badge">
-                  <span>★ Featured Deep Dive</span>
-                  <span>•</span>
-                  <span>{featuredReport.readTime || "10 Min Read"}</span>
-                </div>
-                <div className="featured-content-wrap">
-                  <h2>{featuredReport.title}</h2>
-                  <p>{featuredReport.deck}</p>
-                </div>
-              </div>
-
-              <div className="featured-action-bar">
-                <span className="featured-meta-info">Published {featuredReport.date}  ·  {featuredReport.sector || featuredReport.tag}</span>
-                <Link href={`/research/${featuredReport.slug}`} className="button button-gold" style={{ height: '36px', padding: '0 16px', fontSize: '12px', borderRadius: '6px' }}>
-                  Read Deep Dive <ArrowUpRight />
-                </Link>
-              </div>
-            </div>
           )}
+          <Link
+            href="/membership"
+            style={{
+              border: "1px solid #c59b27",
+              color: "#e2c275",
+              padding: "7px 18px",
+              borderRadius: "4px",
+              fontSize: "13px",
+              fontWeight: "600",
+              textDecoration: "none",
+              transition: "all 0.2s ease",
+            }}
+          >
+            Subscribe
+          </Link>
+        </nav>
+      </header>
 
-          {/* Recent Research Library */}
-          <div className="dash-card">
-            <div className="dash-card-head">
-              <h3 className="dash-card-title">
-                <IconResearch /> Latest Research Reports
-              </h3>
-              <Link href="/research" className="dash-card-link">
-                View All ({reports.length}) <ArrowUpRight />
-              </Link>
-            </div>
-            <div className="dash-card-body" style={{ padding: 0 }}>
-              {reports.length > 0 ? (
-                <>
-                  {/* Desktop Table View */}
-                  <div className="dash-table-wrap overview-table-desktop">
-                    <table className="dash-table">
-                      <thead>
-                        <tr>
-                          <th>Title & Focus</th>
-                          <th>Category</th>
-                          <th>Access</th>
-                          <th>Published</th>
-                          <th style={{ textAlign: 'right' }}>Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {reports.map((report) => (
-                          <tr key={report.slug}>
-                            <td>
-                              <div className="company-cell">
-                                <Link href={`/research/${report.slug}`} className="company-name" style={{ textDecoration: 'none', color: 'inherit' }}>
-                                  {report.title}
-                                </Link>
-                                <span className="company-sector">{report.deck ? (report.deck.length > 75 ? `${report.deck.slice(0, 75)}...` : report.deck) : ""}</span>
-                              </div>
-                            </td>
-                            <td>
-                              <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--muted)' }}>
-                                {report.tag}
-                              </span>
-                            </td>
-                            <td>
-                              <span style={{ 
-                                fontSize: '9px', 
-                                fontWeight: '700', 
-                                padding: '3px 8px', 
-                                borderRadius: '4px',
-                                background: report.free ? '#ecfdf5' : '#fef3c7',
-                                color: report.free ? '#047857' : '#b45309'
-                              }}>
-                                {report.free ? 'FREE' : 'PRO'}
-                              </span>
-                            </td>
-                            <td style={{ color: 'var(--muted)', fontSize: '11px' }}>
-                              {report.date}
-                            </td>
-                            <td style={{ textAlign: 'right' }}>
-                              <Link href={`/research/${report.slug}`} className="dash-card-link" style={{ justifyContent: 'flex-end' }}>
-                                Open <ArrowUpRight />
-                              </Link>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+      {/* ── Hero Container (Full Viewport) ── */}
+      <div style={{ minHeight: "calc(100vh - 68px)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+        {/* Hero Section */}
+        <section style={{ position: "relative", overflow: "hidden", padding: "40px 36px", maxWidth: "1280px", margin: "auto", width: "100%" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "40px", alignItems: "center" }}>
+            {/* Left Hero Text */}
+            <div>
+              <div style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.18em", color: "#c59b27", textTransform: "uppercase", marginBottom: "20px" }}>
+                INDEPENDENT THINKING STARTS WITH DEEPER RESEARCH
+              </div>
 
-                  {/* Mobile Cards View */}
-                  <div className="overview-mobile-cards">
-                    {reports.map((report) => (
-                      <Link 
-                        key={report.slug} 
-                        href={`/research/${report.slug}`} 
-                        className="mobile-item-card"
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                          <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748b' }}>{report.tag}</span>
-                          <span style={{ 
-                            fontSize: '9px', 
-                            fontWeight: '700', 
-                            padding: '2px 6px', 
-                            borderRadius: '4px',
-                            background: report.free ? '#ecfdf5' : '#fef3c7',
-                            color: report.free ? '#047857' : '#b45309'
-                          }}>
-                            {report.free ? 'FREE' : 'PRO'}
-                          </span>
-                        </div>
-                        <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', margin: '6px 0 4px', lineHeight: '1.3' }}>
-                          {report.title}
-                        </h4>
-                        <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 8px', lineHeight: '1.4' }}>
-                          {report.deck ? (report.deck.length > 90 ? `${report.deck.slice(0, 90)}...` : report.deck) : ""}
-                        </p>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#94a3b8', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
-                          <span>{report.date}</span>
-                          <span style={{ color: '#b45309', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                            Read Report <ArrowUpRight />
-                          </span>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div style={{ padding: '32px 20px', textAlign: 'center', color: '#64748b' }}>
-                  <p style={{ fontSize: '13px', margin: 0 }}>No research reports published yet.</p>
-                </div>
-              )}
-            </div>
-          </div>
+              <h1
+                style={{
+                  fontSize: "clamp(38px, 4.5vw, 62px)",
+                  fontWeight: "800",
+                  color: "#ffffff",
+                  lineHeight: "1.08",
+                  letterSpacing: "-0.02em",
+                  marginBottom: "24px",
+                }}
+              >
+                Ignore the noise.<br />
+                Build your own<br />
+                <span
+                  style={{
+                    fontFamily: "var(--font-playfair), Georgia, serif",
+                    fontStyle: "italic",
+                    color: "#e2c275",
+                    fontWeight: "400",
+                  }}
+                >
+                  perspective.
+                </span>
+              </h1>
 
-          {/* Journal Memos */}
-          <div className="dash-card">
-            <div className="dash-card-head">
-              <h3 className="dash-card-title">
-                <IconJournal /> Market Journal & Memos
-              </h3>
-              <Link href="/journal" className="dash-card-link">
-                Visit Journal <ArrowUpRight />
-              </Link>
-            </div>
-            <div className="dash-card-body">
-              <div className="journal-memos-grid">
-                {posts.map((post) => (
-                  <Link 
-                    key={post.slug} 
-                    href={`/journal/${post.slug}`}
-                    className="journal-memo-card"
-                  >
-                    <div>
-                      <span className="memo-category">
-                        {post.category}
-                      </span>
-                      <h4 className="memo-title">
-                        {post.title}
-                      </h4>
-                    </div>
-                    <div className="memo-footer">
-                      <span>{post.date}</span>
-                      <ArrowUpRight />
-                    </div>
-                  </Link>
-                ))}
+              <p style={{ fontSize: "16px", color: "#94a3b8", lineHeight: "1.65", maxWidth: "520px", marginBottom: "32px" }}>
+                Explore businesses, sectors and IPOs through research that connects the numbers, the narrative and the risks.
+              </p>
+
+              <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", alignItems: "center", marginBottom: "20px" }}>
+                <Link
+                  href="/overview"
+                  style={{
+                    background: "#e2c275",
+                    color: "#090a0d",
+                    padding: "13px 28px",
+                    borderRadius: "4px",
+                    fontSize: "14px",
+                    fontWeight: "700",
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    boxShadow: "0 4px 20px rgba(226, 194, 117, 0.25)",
+                  }}
+                >
+                  Explore sample access →
+                </Link>
+                <Link
+                  href="/membership"
+                  style={{
+                    border: "1px solid rgba(197, 155, 39, 0.6)",
+                    background: "rgba(9, 10, 13, 0.6)",
+                    color: "#ffffff",
+                    padding: "13px 28px",
+                    borderRadius: "4px",
+                    fontSize: "14px",
+                    fontWeight: "600",
+                    textDecoration: "none",
+                  }}
+                >
+                  Discover membership
+                </Link>
+              </div>
+
+              <div style={{ fontSize: "12.5px", color: "#64748b" }}>
+                For curious investors. Built for independent thinking.
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Right Sidebar Column */}
-        <div className="dash-side-column">
-          {/* Live IPO Tracker */}
-          <div className="dash-card">
-            <div className="dash-card-head">
-              <h3 className="dash-card-title">
-                <IconIpos /> Active IPOs
-              </h3>
-              <Link href="/ipos" className="dash-card-link">
-                View All ({activeIpos.length}) <ArrowUpRight />
-              </Link>
-            </div>
-            <div className="dash-card-body" style={{ padding: 0 }}>
-              <div className="dash-table-wrap">
-                <table className="dash-table">
-                  <thead>
-                    <tr>
-                      <th>Company</th>
-                      <th>Price</th>
-                      <th style={{ textAlign: 'right' }}>Report</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      if (activeIpos.length === 0) {
-                        return (
-                          <tr>
-                            <td colSpan={3} style={{ textAlign: 'center', padding: '24px 16px', color: '#94a3b8', fontSize: '12px' }}>
-                              No active bidding IPOs right now.
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      return activeIpos.map((ipo, idx) => {
-                        const displayName = ipo.company || ipo.name;
-                        const priceDisplay = ipo.price || (ipo.min_price && ipo.max_price ? `₹${ipo.min_price} - ₹${ipo.max_price}` : ipo.min_price ? `₹${ipo.min_price}` : "TBA");
-                        const hasDeepDive = Boolean(ipo.deepDive || ipo.hasReport || ipo.pdfUrl);
-                        const slug = ipo.slug || ipo.symbol?.toLowerCase();
-                        const uniqueKey = `${ipo.slug || ipo.symbol || displayName}-${idx}`;
-
-                        return (
-                          <tr key={uniqueKey}>
-                            <td>
-                              <div className="company-cell">
-                                <span className="company-name" style={{ fontSize: '12px' }}>{displayName}</span>
-                                <span className="company-sector">{ipo.sector || "General"}</span>
-                              </div>
-                            </td>
-                            <td style={{ fontSize: '11px', fontWeight: '600', color: '#334155' }}>
-                              {priceDisplay}
-                            </td>
-                            <td style={{ textAlign: 'right' }}>
-                              {hasDeepDive ? (
-                                <Link 
-                                  href={slug ? `/view-deep-dives?slug=${slug}` : `/ipos`} 
-                                  style={{ 
-                                    fontSize: '10px', 
-                                    fontWeight: '700', 
-                                    color: '#b45309', 
-                                    background: '#fef3c7', 
-                                    border: '1px solid #fde68a',
-                                    padding: '3px 8px', 
-                                    borderRadius: '4px', 
-                                    textDecoration: 'none', 
-                                    display: 'inline-flex', 
-                                    alignItems: 'center', 
-                                    gap: '2px' 
-                                  }}
-                                >
-                                  Deep Dive <ArrowUpRight />
-                                </Link>
-                              ) : (
-                                <span style={{ fontSize: '10px', color: '#94a3b8', background: '#f1f5f9', padding: '3px 7px', borderRadius: '4px' }}>
-                                  No Report
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      });
-                    })()}
-                  </tbody>
-                </table>
+            {/* Right Hero Eagle Graphic */}
+            <div style={{ position: "relative", display: "flex", justifyContent: "center", alignItems: "center" }}>
+              <div
+                style={{
+                  position: "absolute",
+                  width: "500px",
+                  height: "500px",
+                  borderRadius: "50%",
+                  background: "radial-gradient(circle, rgba(197, 155, 39, 0.22) 0%, rgba(9, 10, 13, 0) 70%)",
+                  pointerEvents: "none",
+                }}
+              />
+              <div style={{ position: "relative", width: "100%", maxWidth: "520px", height: "480px" }}>
+                <Image
+                  src="/eagle.png"
+                  alt="Aethos Eagle Artwork"
+                  fill
+                  style={{ objectFit: "contain", filter: "drop-shadow(0 10px 30px rgba(197, 155, 39, 0.15))" }}
+                  priority
+                  unoptimized
+                />
               </div>
             </div>
           </div>
 
-          {/* Quick Platform Shortcuts */}
-          <div className="dash-card">
-            <div className="dash-card-head">
-              <h3 className="dash-card-title">Quick Actions</h3>
-            </div>
-            <div className="dash-card-body">
-              <div className="quick-action-list">
-                <Link href="/research" className="quick-action-item">
-                  <div className="action-left">
-                    <div className="action-icon">
-                      <IconResearch />
-                    </div>
-                    <div className="action-text">
-                      <span className="action-title">Browse Library</span>
-                      <span className="action-desc">Explore institutional research reports</span>
-                    </div>
-                  </div>
-                  <IconChevronRight />
-                </Link>
-
-                <Link href="/ipos" className="quick-action-item">
-                  <div className="action-left">
-                    <div className="action-icon">
-                      <IconIpos />
-                    </div>
-                    <div className="action-text">
-                      <span className="action-title">Track Live IPOs</span>
-                      <span className="action-desc">Check upcoming BSE/NSE listings</span>
-                    </div>
-                  </div>
-                  <IconChevronRight />
-                </Link>
-
-                <Link href="/membership" className="quick-action-item">
-                  <div className="action-left">
-                    <div className="action-icon">
-                      <IconJournal />
-                    </div>
-                    <div className="action-text">
-                      <span className="action-title">Membership Access</span>
-                      <span className="action-desc">Unlock premium deep dives</span>
-                    </div>
-                  </div>
-                  <IconChevronRight />
-                </Link>
-              </div>
-            </div>
+          {/* Hero Bottom Tagline */}
+          <div style={{ textAlign: "right", marginTop: "20px", fontSize: "11px", letterSpacing: "0.22em", color: "#c59b27", textTransform: "uppercase", fontWeight: "600" }}>
+            VISION. PRECISION. INTEGRITY.
           </div>
+        </section>
+
+        {/* ── Golden Ticker Banner ── */}
+        <div
+          style={{
+            borderTop: "1px solid rgba(197, 155, 39, 0.2)",
+            borderBottom: "1px solid rgba(197, 155, 39, 0.2)",
+            background: "#0d0e12",
+            padding: "14px 24px",
+            textAlign: "center",
+            fontSize: "11.5px",
+            fontWeight: "700",
+            letterSpacing: "0.2em",
+            color: "#c59b27",
+            textTransform: "uppercase",
+          }}
+        >
+          DEPTH OVER SPEED. &nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp; EVIDENCE OVER EXCITEMENT. &nbsp;&nbsp;&nbsp;•&nbsp;&nbsp;&nbsp; PERSPECTIVE OVER NOISE.
         </div>
       </div>
+
+      {/* ── Section 2: INSIDE AETHOS (Cream Light Background - Full Viewport) ── */}
+      <section id="features" style={{ background: "#faf8f5", color: "#0f172a", minHeight: "100vh", display: "flex", alignItems: "center", padding: "60px 36px" }}>
+        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
+          <div style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.18em", color: "#c59b27", textTransform: "uppercase", marginBottom: "12px" }}>
+            INSIDE AETHOS
+          </div>
+          <h2
+            style={{
+              fontSize: "clamp(30px, 3.5vw, 46px)",
+              fontWeight: "800",
+              fontFamily: "var(--font-playfair), Georgia, serif",
+              color: "#0f172a",
+              marginBottom: "50px",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            Better questions. Deeper research.
+          </h2>
+
+          {/* 6 Grid items (3 Columns) */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "40px 36px" }}>
+            
+            {/* 1. AETHOS IDEAS */}
+            <div style={{ borderLeft: "1px solid #e2e8f0", paddingLeft: "24px" }}>
+              <div style={{ marginBottom: "16px" }}>
+                <IconAethosIdeas />
+              </div>
+              <div style={{ fontSize: "10.5px", fontWeight: "700", letterSpacing: "0.15em", color: "#c59b27", textTransform: "uppercase", marginBottom: "8px" }}>
+                AETHOS IDEAS
+              </div>
+              <h3 style={{ fontSize: "18px", fontWeight: "700", fontFamily: "var(--font-playfair), serif", fontStyle: "italic", color: "#0f172a", marginBottom: "10px" }}>
+                What makes a business worth a closer look?
+              </h3>
+              <p style={{ fontSize: "14px", color: "#64748b", lineHeight: "1.6", margin: 0 }}>
+                Stock deep dives into business models, competitive strengths, growth drivers, valuation and risks.
+              </p>
+            </div>
+
+            {/* 2. THEMES & SECTORS */}
+            <div style={{ borderLeft: "1px solid #e2e8f0", paddingLeft: "24px" }}>
+              <div style={{ marginBottom: "16px" }}>
+                <IconThemesSectors />
+              </div>
+              <div style={{ fontSize: "10.5px", fontWeight: "700", letterSpacing: "0.15em", color: "#c59b27", textTransform: "uppercase", marginBottom: "8px" }}>
+                THEMES &amp; SECTORS
+              </div>
+              <h3 style={{ fontSize: "18px", fontWeight: "700", fontFamily: "var(--font-playfair), serif", fontStyle: "italic", color: "#0f172a", marginBottom: "10px" }}>
+                Where is the next structural shift?
+              </h3>
+              <p style={{ fontSize: "14px", color: "#64748b", lineHeight: "1.6", margin: 0 }}>
+                Understand industry economics, emerging themes and the companies shaping them.
+              </p>
+            </div>
+
+            {/* 3. IPO TRACKING */}
+            <div style={{ borderLeft: "1px solid #e2e8f0", paddingLeft: "24px" }}>
+              <div style={{ marginBottom: "16px" }}>
+                <IconIpoTracking />
+              </div>
+              <div style={{ fontSize: "10.5px", fontWeight: "700", letterSpacing: "0.15em", color: "#c59b27", textTransform: "uppercase", marginBottom: "8px" }}>
+                IPO TRACKING
+              </div>
+              <h3 style={{ fontSize: "18px", fontWeight: "700", fontFamily: "var(--font-playfair), serif", fontStyle: "italic", color: "#0f172a", marginBottom: "10px" }}>
+                What happens after the listing-day noise?
+              </h3>
+              <p style={{ fontSize: "14px", color: "#64748b", lineHeight: "1.6", margin: 0 }}>
+                Detailed IPO notes and continued tracking to explore post-listing opportunities.
+              </p>
+            </div>
+
+            {/* 4. FULL RESEARCH LIBRARY */}
+            <div style={{ borderLeft: "1px solid #e2e8f0", paddingLeft: "24px" }}>
+              <div style={{ marginBottom: "16px" }}>
+                <IconResearchLibrary />
+              </div>
+              <div style={{ fontSize: "10.5px", fontWeight: "700", letterSpacing: "0.15em", color: "#c59b27", textTransform: "uppercase", marginBottom: "8px" }}>
+                FULL RESEARCH LIBRARY
+              </div>
+              <h3 style={{ fontSize: "18px", fontWeight: "700", fontFamily: "var(--font-playfair), serif", fontStyle: "italic", color: "#0f172a", marginBottom: "10px" }}>
+                Can you connect today&apos;s update to the bigger picture?
+              </h3>
+              <p style={{ fontSize: "14px", color: "#64748b", lineHeight: "1.6", margin: 0 }}>
+                Revisit a growing, searchable archive of reports, company notes and past developments.
+              </p>
+            </div>
+
+            {/* 5. MARKET PULSE */}
+            <div style={{ borderLeft: "1px solid #e2e8f0", paddingLeft: "24px" }}>
+              <div style={{ marginBottom: "16px" }}>
+                <IconMarketPulse />
+              </div>
+              <div style={{ fontSize: "10.5px", fontWeight: "700", letterSpacing: "0.15em", color: "#c59b27", textTransform: "uppercase", marginBottom: "8px" }}>
+                MARKET PULSE
+              </div>
+              <h3 style={{ fontSize: "18px", fontWeight: "700", fontFamily: "var(--font-playfair), serif", fontStyle: "italic", color: "#0f172a", marginBottom: "10px" }}>
+                What changed—and why does it matter?
+              </h3>
+              <p style={{ fontSize: "14px", color: "#64748b", lineHeight: "1.6", margin: 0 }}>
+                Track company announcements, fundraises, special situations and corporate actions.
+              </p>
+            </div>
+
+            {/* 6. DIRECT MESSAGE ACCESS */}
+            <div style={{ borderLeft: "1px solid #e2e8f0", paddingLeft: "24px" }}>
+              <div style={{ marginBottom: "16px" }}>
+                <IconDirectMessage />
+              </div>
+              <div style={{ fontSize: "10.5px", fontWeight: "700", letterSpacing: "0.15em", color: "#c59b27", textTransform: "uppercase", marginBottom: "8px" }}>
+                DIRECT MESSAGE ACCESS
+              </div>
+              <h3 style={{ fontSize: "18px", fontWeight: "700", fontFamily: "var(--font-playfair), serif", fontStyle: "italic", color: "#0f172a", marginBottom: "10px" }}>
+                What would you like to understand better?
+              </h3>
+              <p style={{ fontSize: "14px", color: "#64748b", lineHeight: "1.6", margin: 0 }}>
+                Discuss published research, clarify an assumption or suggest a company to explore.
+              </p>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section 3: THE THINKING BEHIND OUR NAME (Dark Background) ── */}
+      <section style={{ background: "#090a0d", minHeight: "100vh", display: "flex", alignItems: "center", borderTop: "1px solid rgba(197, 155, 39, 0.15)", borderBottom: "1px solid rgba(197, 155, 39, 0.15)", padding: "60px 36px" }}>
+        <div style={{ maxWidth: "1200px", width: "100%", margin: "0 auto" }}>
+          <div style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.18em", color: "#c59b27", textTransform: "uppercase", marginBottom: "16px" }}>
+            THE THINKING BEHIND OUR NAME
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "40px", alignItems: "stretch" }}>
+            <div>
+              <h2
+                style={{
+                  fontSize: "clamp(32px, 4vw, 52px)",
+                  fontWeight: "800",
+                  fontFamily: "var(--font-playfair), Georgia, serif",
+                  color: "#ffffff",
+                  lineHeight: "1.1",
+                  marginBottom: "40px",
+                }}
+              >
+                Aetos + Ethos = <span style={{ color: "#e2c275" }}>Aethos</span>
+              </h2>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "32px" }}>
+                <div style={{ borderLeft: "1px solid rgba(197, 155, 39, 0.3)", paddingLeft: "20px" }}>
+                  <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#e2c275", marginBottom: "4px" }}>
+                    Aetos <span style={{ fontSize: "14px", color: "#94a3b8", fontWeight: "400" }}>/ The eagle</span>
+                  </h3>
+                  <div style={{ fontSize: "14px", fontWeight: "600", color: "#ffffff", marginBottom: "8px" }}>
+                    Vision &amp; precision
+                  </div>
+                  <p style={{ fontSize: "13.5px", color: "#94a3b8", lineHeight: "1.5", margin: 0 }}>
+                    The depth to look closer. The discipline to see beyond the obvious.
+                  </p>
+                </div>
+
+                <div style={{ borderLeft: "1px solid rgba(197, 155, 39, 0.3)", paddingLeft: "20px" }}>
+                  <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#e2c275", marginBottom: "4px" }}>
+                    Ethos <span style={{ fontSize: "14px", color: "#94a3b8", fontWeight: "400" }}>/ Character &amp; integrity</span>
+                  </h3>
+                  <div style={{ fontSize: "14px", fontWeight: "600", color: "#ffffff", marginBottom: "8px" }}>
+                    Conviction, grounded in evidence
+                  </div>
+                  <p style={{ fontSize: "13.5px", color: "#94a3b8", lineHeight: "1.5", margin: 0 }}>
+                    Question assumptions. Acknowledge risks. Stay open to a better perspective.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Quote Card */}
+            <div
+              style={{
+                border: "1px solid rgba(197, 155, 39, 0.3)",
+                borderRadius: "8px",
+                background: "radial-gradient(circle at top right, rgba(197, 155, 39, 0.1), rgba(9, 10, 13, 0.95))",
+                padding: "40px 32px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                position: "relative",
+              }}
+            >
+              <blockquote
+                style={{
+                  fontSize: "clamp(22px, 2.5vw, 32px)",
+                  fontFamily: "var(--font-playfair), Georgia, serif",
+                  fontStyle: "italic",
+                  color: "#f8fafc",
+                  lineHeight: "1.35",
+                  margin: 0,
+                  textAlign: "center",
+                }}
+              >
+                &ldquo;We believe wealth built on conviction outlasts wealth built on noise.&rdquo;
+              </blockquote>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section 4: A Clear Lens / Deliberate Filter (Cream Background) ── */}
+      <section style={{ background: "#faf8f5", color: "#0f172a", minHeight: "100vh", display: "flex", alignItems: "center", padding: "60px 36px" }}>
+        <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
+          <h2
+            style={{
+              fontSize: "clamp(28px, 3.5vw, 44px)",
+              fontWeight: "800",
+              fontFamily: "var(--font-playfair), Georgia, serif",
+              color: "#0f172a",
+              marginBottom: "48px",
+            }}
+          >
+            A clear lens. A deliberate filter.
+          </h2>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "60px" }}>
+            {/* What we cover */}
+            <div>
+              <h3 style={{ fontSize: "20px", fontWeight: "700", fontFamily: "var(--font-playfair), serif", color: "#0f172a", marginBottom: "24px" }}>
+                What we cover
+              </h3>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "16px" }}>
+                <li style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "15px", color: "#334155", fontWeight: "500" }}>
+                  <CheckIcon />
+                  Businesses beyond the familiar names
+                </li>
+                <li style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "15px", color: "#334155", fontWeight: "500" }}>
+                  <CheckIcon />
+                  Capacity, execution and cash generation
+                </li>
+                <li style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "15px", color: "#334155", fontWeight: "500" }}>
+                  <CheckIcon />
+                  Industry shifts and company developments
+                </li>
+                <li style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "15px", color: "#334155", fontWeight: "500" }}>
+                  <CheckIcon />
+                  Valuation, governance and the downside
+                </li>
+              </ul>
+            </div>
+
+            {/* What we ignore */}
+            <div>
+              <h3 style={{ fontSize: "20px", fontWeight: "700", fontFamily: "var(--font-playfair), serif", color: "#0f172a", marginBottom: "24px" }}>
+                What we ignore
+              </h3>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "16px" }}>
+                <li style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "15px", color: "#64748b" }}>
+                  <CrossIcon />
+                  Rumours dressed as research
+                </li>
+                <li style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "15px", color: "#64748b" }}>
+                  <CrossIcon />
+                  Daily price noise and sensationalism
+                </li>
+                <li style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "15px", color: "#64748b" }}>
+                  <CrossIcon />
+                  Guaranteed-return narratives
+                </li>
+                <li style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "15px", color: "#64748b" }}>
+                  <CrossIcon />
+                  Buy / sell tips and target-price calls
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section 5: Bottom CTA Banner ── */}
+      <section id="pricing" style={{ background: "#faf8f5", borderTop: "1px solid #e2e8f0", padding: "60px 36px 80px", textAlign: "center", scrollMarginTop: "80px" }}>
+        <div style={{ maxWidth: "700px", margin: "0 auto" }}>
+          <h2
+            style={{
+              fontSize: "clamp(30px, 3.8vw, 48px)",
+              fontWeight: "800",
+              fontFamily: "var(--font-playfair), Georgia, serif",
+              color: "#0f172a",
+              marginBottom: "12px",
+            }}
+          >
+            Build a perspective you can call your own.
+          </h2>
+          <p style={{ fontSize: "16px", color: "#64748b", marginBottom: "32px" }}>
+            Perspective that creates value.
+          </p>
+
+          <div style={{ display: "flex", gap: "16px", justifyContent: "center", flexWrap: "wrap", marginBottom: "24px" }}>
+            <Link
+              href="/overview"
+              style={{
+                background: "#0f172a",
+                color: "#ffffff",
+                padding: "13px 28px",
+                borderRadius: "4px",
+                fontSize: "14px",
+                fontWeight: "600",
+                textDecoration: "none",
+              }}
+            >
+              Explore sample access →
+            </Link>
+            <Link
+              href="/membership"
+              style={{
+                border: "1px solid #cbd5e1",
+                background: "#ffffff",
+                color: "#0f172a",
+                padding: "13px 28px",
+                borderRadius: "4px",
+                fontSize: "14px",
+                fontWeight: "600",
+                textDecoration: "none",
+              }}
+            >
+              View membership plans
+            </Link>
+          </div>
+
+          <div style={{ fontSize: "12.5px", color: "#94a3b8" }}>
+            New research updates also reach members through the Aethos WhatsApp group.
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer
+        style={{
+          borderTop: "1px solid rgba(212, 175, 55, 0.15)",
+          background: "#08090b",
+          padding: "32px 36px",
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "20px",
+          fontSize: "12px",
+          color: "#64748b",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #c59b27", overflow: "hidden", position: "relative" }}>
+            <Image src="/aethos-eagle-logo.jpeg" alt="Aethos Eagle" fill style={{ objectFit: "cover" }} />
+          </div>
+          <div>
+            <span style={{ fontSize: "12px", fontWeight: "700", color: "#f8fafc", letterSpacing: "0.08em" }}>
+              AETHOS WEALTH
+            </span>
+            <span style={{ display: "block", fontSize: "9px", color: "#c59b27" }}>
+              Perspective that creates value
+            </span>
+          </div>
+        </div>
+
+        <div>
+          Research and information only. Not investment advice or stock recommendations.
+        </div>
+
+        <div style={{ display: "flex", gap: "16px" }}>
+          <Link href="/about" style={{ color: "#64748b", textDecoration: "none" }}>Privacy</Link>
+          <span>•</span>
+          <Link href="/about" style={{ color: "#64748b", textDecoration: "none" }}>Terms</Link>
+          <span>•</span>
+          <Link href="/about" style={{ color: "#64748b", textDecoration: "none" }}>Contact</Link>
+        </div>
+      </footer>
+
     </div>
   );
 }

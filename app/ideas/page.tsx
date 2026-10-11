@@ -231,7 +231,6 @@ export default function IdeasPage() {
                     <th>Published</th>
                     <th className="ai-th-num">M-cap<br /><span className="ai-th-sub">(₹ Cr)</span></th>
                     <th className="ai-th-num">Ref. price<br /><span className="ai-th-sub">(₹)</span></th>
-                    <th className="ai-th-num">Latest price<br /><span className="ai-th-sub">(₹)</span></th>
                     <th className="ai-th-action">Report</th>
                   </tr>
                 </thead>
@@ -287,9 +286,6 @@ export default function IdeasPage() {
                           {/* Ref Price */}
                           <td className="ai-td-num">{(idea.refPrice ?? idea.sharedPrice ?? 0).toLocaleString()}</td>
 
-                          {/* Latest Price */}
-                          <td className="ai-td-num">{(idea.latestPrice ?? idea.currentPrice ?? 0).toLocaleString()}</td>
-
                           {/* Report Link */}
                           <td className="ai-td-action">
                             <Link
@@ -305,7 +301,7 @@ export default function IdeasPage() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={7} className="ai-empty-td">
+                      <td colSpan={6} className="ai-empty-td">
                         No investment ideas match your search criteria.
                       </td>
                     </tr>

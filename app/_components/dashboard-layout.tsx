@@ -226,11 +226,11 @@ const navGroups: NavGroup[] = [
   {
     title: "Platform",
     items: [
-      { label: "Overview", href: "/", icon: IconOverview },
+      { label: "Overview", href: "/overview", icon: IconOverview },
       { label: "Research Library", href: "/research", icon: IconResearch },
       { label: "Aethos Ideas", href: "/ideas", icon: IconIdeas, badge: "New", badgeType: "pulse" },
       { label: "IPO Tracker", href: "/ipos", icon: IconIpos },
-      { label: "Market Pulse", href: "/journal", icon: IconPulse },
+      { label: "Market Pulse", href: "/market-pulse", icon: IconPulse },
     ],
   },
   {
@@ -360,15 +360,20 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   const sidebarCollapsed = tempCollapseRequested || userCollapsedPref;
 
+  const isResearchDetail =
+    (pathname.startsWith("/research/") && pathname !== "/research") ||
+    (pathname.startsWith("/ideas/") && pathname !== "/ideas");
+
   const isAuthRoute =
     pathname.startsWith("/auth") ||
     pathname.startsWith("/signin") ||
     pathname === "/auth/success" ||
     pathname === "/auth/failure";
 
-  const isResearchDetail =
-    (pathname.startsWith("/research/") && pathname !== "/research") ||
-    (pathname.startsWith("/ideas/") && pathname !== "/ideas");
+  // Dedicated independent clean view for Root Landing Page
+  if (pathname === "/") {
+    return <div style={{ minHeight: "100vh" }}>{children}</div>;
+  }
 
   // Dedicated clean view for Auth routes
   if (isAuthRoute) {

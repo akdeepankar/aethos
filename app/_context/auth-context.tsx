@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setUser(null);
       if (typeof window !== "undefined") {
-        window.location.assign("/auth");
+        window.location.assign("/");
       }
     }
   };

@@ -36,7 +36,7 @@ export default function JournalPostClient({ slug }: { slug: string }) {
     return (
       <div className="dash-overview-page">
         <div style={{ marginBottom: "16px" }}>
-          <Link href="/journal" className="dash-card-link" style={{ fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+          <Link href="/market-pulse" className="dash-card-link" style={{ fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
             ← Back to Journal & Memos
           </Link>
         </div>
@@ -45,7 +45,7 @@ export default function JournalPostClient({ slug }: { slug: string }) {
           <p style={{ fontSize: "14px", color: "var(--muted)", marginBottom: "20px" }}>
             No journal note matches &quot;{slug}&quot;.
           </p>
-          <Link href="/journal" className="dash-card-link">
+          <Link href="/market-pulse" className="dash-card-link">
             Return to Journal
           </Link>
         </div>
@@ -56,7 +56,7 @@ export default function JournalPostClient({ slug }: { slug: string }) {
   return (
     <div className="dash-overview-page">
       <div style={{ marginBottom: "16px" }}>
-        <Link href="/journal" className="dash-card-link" style={{ fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+        <Link href="/market-pulse" className="dash-card-link" style={{ fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
           ← Back to Journal & Memos
         </Link>
       </div>

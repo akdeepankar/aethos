@@ -1,63 +1,37 @@
-import Link from "next/link";
-import { ArrowUpRight } from "../_components/site-chrome";
-import { posts } from "../_lib/content";
-
 export default function JournalPage() {
   return (
     <div className="rl-container">
       <div className="rl-header">
         <div className="rl-header-left">
-          <h1 className="rl-title">Journal & Market Memos</h1>
+          <h1 className="rl-title">Market Pulse</h1>
           <p className="rl-subtitle">Short-form observations, market updates, and thematic analysis.</p>
-        </div>
-        <div className="rl-header-right">
-          <span className="rl-piece-count">{posts.length} market memos</span>
         </div>
       </div>
 
-      <div className="dash-card">
-        <div className="dash-card-head">
-          <h3 className="dash-card-title">Recent Journal Entries</h3>
+      <div className="dash-card" style={{ padding: "80px 24px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+        <div style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "8px",
+          padding: "6px 16px",
+          borderRadius: "20px",
+          background: "#f1f5f9",
+          color: "#475569",
+          fontSize: "12px",
+          fontWeight: "600",
+          textTransform: "uppercase",
+          letterSpacing: "0.05em",
+          marginBottom: "16px"
+        }}>
+          <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#3b82f6" }}></span>
+          Market Pulse
         </div>
-        <div className="dash-card-body" style={{ padding: 0 }}>
-          <div className="dash-table-wrap">
-            <table className="dash-table">
-              <thead>
-                <tr>
-                  <th>Title & Summary</th>
-                  <th>Category</th>
-                  <th>Published Date</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {posts.map((post) => (
-                  <tr key={post.slug}>
-                    <td>
-                      <div className="company-cell">
-                        <span className="company-name">{post.title}</span>
-                        <span className="company-sector">{post.deck}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span style={{ fontSize: '11px', fontWeight: '600', color: 'var(--muted)' }}>
-                        {post.category}
-                      </span>
-                    </td>
-                    <td style={{ color: 'var(--muted)', fontSize: '11px' }}>
-                      {post.date}
-                    </td>
-                    <td>
-                      <Link href={`/journal/${post.slug}`} className="dash-card-link">
-                        Read Memo <ArrowUpRight />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <h2 style={{ fontSize: "28px", fontWeight: "700", color: "#0f172a", marginBottom: "12px" }}>
+          Coming Soon
+        </h2>
+        <p style={{ fontSize: "15px", color: "#64748b", maxWidth: "480px", margin: "0 auto", lineHeight: "1.6" }}>
+          Real-time market updates, sector commentaries, and daily insights are currently under development. Stay tuned!
+        </p>
       </div>
     </div>
   );

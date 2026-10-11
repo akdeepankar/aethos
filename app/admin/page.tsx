@@ -1441,7 +1441,7 @@ function AdminPageContent() {
                   <th style={{ padding: "12px 16px", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>Sector</th>
                   <th style={{ padding: "12px 16px", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>Published</th>
                   <th style={{ padding: "12px 16px", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>M-Cap</th>
-                  <th style={{ padding: "12px 16px", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>Prices</th>
+                  <th style={{ padding: "12px 16px", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>Ref Price</th>
                   <th style={{ padding: "12px 16px", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>Coverage</th>
                   <th style={{ padding: "12px 16px", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase" }}>Content</th>
                   <th style={{ padding: "12px 16px", fontSize: "11px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", textAlign: "right" }}>Actions</th>
@@ -1450,7 +1450,6 @@ function AdminPageContent() {
               <tbody>
                 {ideas.map((idea, idx) => {
                   const refP = Number(idea.refPrice || idea.sharedPrice || 0);
-                  const latP = Number(idea.latestPrice || idea.currentPrice || 0);
                   const hasHtml = Boolean(idea.htmlContent || idea.htmlUrl);
 
                   return (
@@ -1492,9 +1491,8 @@ function AdminPageContent() {
                       <td style={{ padding: "12px 16px", fontSize: "12px", fontWeight: "600", color: "#0f172a" }}>
                         ₹{idea.mcap} Cr
                       </td>
-                      <td style={{ padding: "12px 16px", fontSize: "12px" }}>
-                        <div style={{ color: "#475569" }}>Ref: ₹{refP.toLocaleString()}</div>
-                        <div style={{ fontWeight: "600", color: "#0f172a" }}>Latest: ₹{latP.toLocaleString()}</div>
+                      <td style={{ padding: "12px 16px", fontSize: "12px", fontWeight: "600", color: "#0f172a" }}>
+                        ₹{refP.toLocaleString()}
                       </td>
                       <td style={{ padding: "12px 16px" }}>
                         <span
@@ -1916,7 +1914,7 @@ function AdminPageContent() {
               <div key={`${post.slug}-${idx}`} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", border: "1px solid #f1f5f9", borderRadius: "6px" }}>
                 <div>
                   <Link
-                    href={`/journal/${post.slug}`}
+                    href={`/market-pulse/${post.slug}`}
                     target="_blank"
                     rel="noreferrer"
                     style={{
@@ -3569,31 +3567,17 @@ function AdminPageContent() {
                       </div>
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                      <div>
-                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                          Ref Price (₹)
-                        </label>
-                        <input
-                          type="number"
-                          value={ideaForm.refPrice}
-                          onChange={(e) => setIdeaForm((prev) => ({ ...prev, refPrice: Number(e.target.value) }))}
-                          placeholder="1250"
-                          style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
-                          Latest Price (₹)
-                        </label>
-                        <input
-                          type="number"
-                          value={ideaForm.latestPrice}
-                          onChange={(e) => setIdeaForm((prev) => ({ ...prev, latestPrice: Number(e.target.value) }))}
-                          placeholder="1410"
-                          style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
-                        />
-                      </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        Ref Price (₹)
+                      </label>
+                      <input
+                        type="number"
+                        value={ideaForm.refPrice}
+                        onChange={(e) => setIdeaForm((prev) => ({ ...prev, refPrice: Number(e.target.value) }))}
+                        placeholder="1250"
+                        style={{ width: "100%", padding: "8px 12px", border: "1px solid #cbd5e1", borderRadius: "6px", fontSize: "13px" }}
+                      />
                     </div>
 
                     {/* HTML Content Editor Section */}
@@ -3901,31 +3885,17 @@ function AdminPageContent() {
                           </div>
                         </div>
 
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                          <div>
-                            <label style={{ fontSize: "11px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "2px" }}>
-                              Ref Price (₹)
-                            </label>
-                            <input
-                              type="number"
-                              value={ideaForm.refPrice}
-                              onChange={(e) => setIdeaForm((prev) => ({ ...prev, refPrice: Number(e.target.value) }))}
-                              placeholder="1250"
-                              style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px", fontSize: "11.5px" }}
-                            />
-                          </div>
-                          <div>
-                            <label style={{ fontSize: "11px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "2px" }}>
-                              Latest Price (₹)
-                            </label>
-                            <input
-                              type="number"
-                              value={ideaForm.latestPrice}
-                              onChange={(e) => setIdeaForm((prev) => ({ ...prev, latestPrice: Number(e.target.value) }))}
-                              placeholder="1410"
-                              style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px", fontSize: "11.5px" }}
-                            />
-                          </div>
+                        <div>
+                          <label style={{ fontSize: "11px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "2px" }}>
+                            Ref Price (₹)
+                          </label>
+                          <input
+                            type="number"
+                            value={ideaForm.refPrice}
+                            onChange={(e) => setIdeaForm((prev) => ({ ...prev, refPrice: Number(e.target.value) }))}
+                            placeholder="1250"
+                            style={{ width: "100%", padding: "5px 8px", border: "1px solid #cbd5e1", borderRadius: "4px", fontSize: "11.5px" }}
+                          />
                         </div>
 
                         {/* HTML Content Editor in Split View */}

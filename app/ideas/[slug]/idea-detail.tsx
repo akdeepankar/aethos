@@ -220,7 +220,6 @@ export default function IdeaDetailClient({ slug }: { slug: string }) {
                   <th>Sector</th>
                   <th>Market Cap</th>
                   <th>Shared Price</th>
-                  <th>Current Price</th>
                   <th>Return % (From Shared)</th>
                 </tr>
               </thead>
@@ -229,7 +228,6 @@ export default function IdeaDetailClient({ slug }: { slug: string }) {
                   <td style={{ fontWeight: "600" }}>{idea.sector}</td>
                   <td style={{ fontWeight: "600" }}>{idea.mcap}</td>
                   <td style={{ fontWeight: "600" }}>₹{idea.sharedPrice}</td>
-                  <td style={{ fontWeight: "600" }}>₹{idea.currentPrice}</td>
                   <td>
                     <span
                       style={{

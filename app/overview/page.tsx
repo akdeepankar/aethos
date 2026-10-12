@@ -427,39 +427,31 @@ export default function OverviewPage() {
                   border: "1px solid #eae6df",
                   borderRadius: "10px",
                   overflow: "hidden",
-                  display: "grid",
-                  gridTemplateColumns: "110px 1fr",
+                  padding: "18px 20px",
                   boxShadow: "0 1px 4px rgba(0,0,0,0.02)",
                   textDecoration: "none",
                   color: "inherit",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
                 }}
               >
-                <div style={{ position: "relative", width: "100%", height: "100%", minHeight: "130px", background: "#1e293b" }}>
-                  <Image
-                    src="/aethos-eagle-logo.jpeg"
-                    alt="RACL Geartech"
-                    fill
-                    style={{ objectFit: "cover", filter: "grayscale(100%)" }}
-                  />
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span style={{ fontSize: "9.5px", fontWeight: "800", letterSpacing: "0.14em", color: "#c59b27", textTransform: "uppercase" }}>
+                      STOCK DEEP DIVE
+                    </span>
+                    <IconBookmarkOutline />
+                  </div>
+                  <h4 style={{ fontSize: "16px", fontWeight: "800", color: "#0f172a", margin: "0 0 6px" }}>
+                    RACL Geartech
+                  </h4>
+                  <p style={{ fontSize: "12.5px", color: "#64748b", margin: 0, lineHeight: "1.4" }}>
+                    What changes as capacity comes on stream?
+                  </p>
                 </div>
-                <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-                      <span style={{ fontSize: "9.5px", fontWeight: "800", letterSpacing: "0.14em", color: "#c59b27", textTransform: "uppercase" }}>
-                        STOCK DEEP DIVE
-                      </span>
-                      <IconBookmarkOutline />
-                    </div>
-                    <h4 style={{ fontSize: "16px", fontWeight: "800", color: "#0f172a", margin: "0 0 4px" }}>
-                      RACL Geartech
-                    </h4>
-                    <p style={{ fontSize: "12.5px", color: "#64748b", margin: 0, lineHeight: "1.4" }}>
-                      What changes as capacity comes on stream?
-                    </p>
-                  </div>
-                  <div style={{ fontSize: "11.5px", color: "#94a3b8", marginTop: "12px" }}>
-                    22 Sep 2026 • 10 min read
-                  </div>
+                <div style={{ fontSize: "11.5px", color: "#94a3b8", marginTop: "16px" }}>
+                  22 Sep 2026 • 10 min read
                 </div>
               </Link>
 
@@ -471,50 +463,42 @@ export default function OverviewPage() {
                   border: "1px solid #eae6df",
                   borderRadius: "10px",
                   overflow: "hidden",
-                  display: "grid",
-                  gridTemplateColumns: "110px 1fr",
+                  padding: "18px 20px",
                   boxShadow: "0 1px 4px rgba(0,0,0,0.02)",
                   textDecoration: "none",
                   color: "inherit",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
                 }}
               >
-                <div style={{ position: "relative", width: "100%", height: "100%", minHeight: "130px", background: "#0f172a" }}>
-                  <Image
-                    src="/eagle.png"
-                    alt={latestIpoDeepDive.company}
-                    fill
-                    style={{ objectFit: "contain", filter: "grayscale(80%)", padding: "8px" }}
-                  />
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span style={{ fontSize: "9.5px", fontWeight: "800", letterSpacing: "0.14em", color: "#c59b27", textTransform: "uppercase" }}>
+                      IPO DEEP DIVE
+                    </span>
+                    <IconBookmarkOutline />
+                  </div>
+                  <h4 style={{ fontSize: "15px", fontWeight: "800", color: "#0f172a", margin: "0 0 6px", lineHeight: "1.2" }}>
+                    {latestIpoDeepDive.company}
+                  </h4>
+                  <p
+                    style={{
+                      fontSize: "12.5px",
+                      color: "#64748b",
+                      margin: 0,
+                      lineHeight: "1.4",
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {latestIpoDeepDive.deck}
+                  </p>
                 </div>
-                <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-                      <span style={{ fontSize: "9.5px", fontWeight: "800", letterSpacing: "0.14em", color: "#c59b27", textTransform: "uppercase" }}>
-                        IPO DEEP DIVE
-                      </span>
-                      <IconBookmarkOutline />
-                    </div>
-                    <h4 style={{ fontSize: "15px", fontWeight: "800", color: "#0f172a", margin: "0 0 4px", lineHeight: "1.2" }}>
-                      {latestIpoDeepDive.company}
-                    </h4>
-                    <p
-                      style={{
-                        fontSize: "12px",
-                        color: "#64748b",
-                        margin: 0,
-                        lineHeight: "1.35",
-                        display: "-webkit-box",
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {latestIpoDeepDive.deck}
-                    </p>
-                  </div>
-                  <div style={{ fontSize: "11.5px", color: "#94a3b8", marginTop: "12px" }}>
-                    {latestIpoDeepDive.period} • {latestIpoDeepDive.sector}
-                  </div>
+                <div style={{ fontSize: "11.5px", color: "#94a3b8", marginTop: "16px" }}>
+                  {latestIpoDeepDive.period} • {latestIpoDeepDive.sector}
                 </div>
               </Link>
             </div>

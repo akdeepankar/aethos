@@ -25,6 +25,13 @@ const playfair = Playfair_Display({
 export const metadata: Metadata = {
   title: "Aethos — Investment Research Dashboard",
   description: "Long-horizon research on Indian businesses, industries, and IPOs.",
+  icons: {
+    icon: [
+      { url: "/icon.png", type: "image/png" },
+      { url: "/favicon.ico" },
+    ],
+    apple: "/apple-icon.png",
+  },
 };
 
 export default function RootLayout({

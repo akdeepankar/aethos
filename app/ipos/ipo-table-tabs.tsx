@@ -379,13 +379,33 @@ export const normalizeIpoStatus = (s: string | undefined) => {
 };
 
 export const formatPeriodDisplay = (item: ApiIpo) => {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const formatSingleDate = (dStr: string) => {
+    const parsed = new Date(dStr);
+    if (isNaN(parsed.getTime())) return null;
+    return `${parsed.getDate()} ${months[parsed.getMonth()].toLowerCase()}`;
+  };
+
+  const isUpcoming = normalizeIpoStatus(item.status) === "pre_apply";
+  if (isUpcoming && item.bidding_start_date && item.bidding_end_date) {
+    const startFormatted = formatSingleDate(item.bidding_start_date);
+    const endFormatted = formatSingleDate(item.bidding_end_date);
+    if (startFormatted && endFormatted) {
+      return `${startFormatted} - ${endFormatted}`;
+    }
+  }
+
   const isOpen = normalizeIpoStatus(item.status) === "active";
   if (!isOpen) {
-    return item.period
-      ? item.period
-      : item.bidding_start_date && item.bidding_end_date
-      ? `${item.bidding_start_date} - ${item.bidding_end_date}`
-      : item.listing_date || "TBA";
+    if (item.bidding_start_date && item.bidding_end_date) {
+      const startFormatted = formatSingleDate(item.bidding_start_date);
+      const endFormatted = formatSingleDate(item.bidding_end_date);
+      if (startFormatted && endFormatted) {
+        return `${startFormatted} - ${endFormatted}`;
+      }
+      return `${item.bidding_start_date} - ${item.bidding_end_date}`;
+    }
+    return item.period || item.listing_date || "TBA";
   }
 
   // Extract closing date for Open IPOs
@@ -407,8 +427,6 @@ export const formatPeriodDisplay = (item: ApiIpo) => {
       endDateObj = parsed;
     }
   }
-
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   
   if (endDateObj) {
     const day = endDateObj.getDate();
@@ -433,6 +451,14 @@ export const formatPeriodDisplay = (item: ApiIpo) => {
       return `${formattedDate} (${diffDays} days left)`;
     } else {
       return `${formattedDate} (Closed)`;
+    }
+  }
+
+  if (item.bidding_start_date && item.bidding_end_date) {
+    const startFormatted = formatSingleDate(item.bidding_start_date);
+    const endFormatted = formatSingleDate(item.bidding_end_date);
+    if (startFormatted && endFormatted) {
+      return `${startFormatted} - ${endFormatted}`;
     }
   }
 

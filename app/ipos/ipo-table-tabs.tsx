@@ -291,7 +291,8 @@ export const defaultAllIpos: ApiIpo[] = [
 
 // Status Badge Render Helper
 function renderStatusBadge(status: string) {
-  switch (status) {
+  const norm = normalizeIpoStatus(status);
+  switch (norm) {
     case "active":
       return (
         <span
@@ -375,6 +376,71 @@ export const normalizeIpoStatus = (s: string | undefined) => {
   if (st === "listed" || st === "recently_listed") return "listed";
   if (st === "closed" || st === "archive") return "closed";
   return st;
+};
+
+export const formatPeriodDisplay = (item: ApiIpo) => {
+  const isOpen = normalizeIpoStatus(item.status) === "active";
+  if (!isOpen) {
+    return item.period
+      ? item.period
+      : item.bidding_start_date && item.bidding_end_date
+      ? `${item.bidding_start_date} - ${item.bidding_end_date}`
+      : item.listing_date || "TBA";
+  }
+
+  // Extract closing date for Open IPOs
+  let endDateObj: Date | null = null;
+  let dateString = "";
+
+  if (item.bidding_end_date) {
+    dateString = item.bidding_end_date;
+  } else if (item.period) {
+    const parts = item.period.split(/—|-|to/i);
+    dateString = parts.length > 1 ? parts[parts.length - 1].trim() : parts[0].trim();
+  } else if (item.listing_date) {
+    dateString = item.listing_date.replace(/^Closes\s+/i, "").trim();
+  }
+
+  if (dateString) {
+    const parsed = new Date(dateString);
+    if (!isNaN(parsed.getTime())) {
+      endDateObj = parsed;
+    }
+  }
+
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  
+  if (endDateObj) {
+    const day = endDateObj.getDate();
+    const monthStr = months[endDateObj.getMonth()];
+    const year = endDateObj.getFullYear();
+    const formattedDate = `${day} ${monthStr} ${year}`;
+
+    // Calculate days remaining from today (local time midnight comparison)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endMidnight = new Date(endDateObj);
+    endMidnight.setHours(0, 0, 0, 0);
+
+    const diffTime = endMidnight.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
+      return `${formattedDate} (Closes today)`;
+    } else if (diffDays === 1) {
+      return `${formattedDate} (1 day left)`;
+    } else if (diffDays > 1) {
+      return `${formattedDate} (${diffDays} days left)`;
+    } else {
+      return `${formattedDate} (Closed)`;
+    }
+  }
+
+  return item.period
+    ? item.period
+    : item.bidding_start_date && item.bidding_end_date
+    ? `${item.bidding_start_date} - ${item.bidding_end_date}`
+    : item.listing_date || "TBA";
 };
 
 export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[]; deepDives?: any[] }) {
@@ -964,7 +1030,7 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                   STATUS
                 </th>
                 <th style={{ padding: "12px 16px", textAlign: "left", fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", color: "#71717a" }}>
-                  PERIOD ↑
+                  {activeTab === "open" ? "CLOSES ↑" : "PERIOD ↑"}
                 </th>
                 <th style={{ padding: "12px 16px", textAlign: "right", fontSize: "10px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", color: "#71717a" }}>
                   PRICE BAND (₹) ▾
@@ -1041,7 +1107,7 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                     </td>
 
                     <td style={{ padding: "16px 16px", fontSize: "13px", color: "#3f3f46" }}>
-                      {item.period ? item.period : (item.bidding_start_date && item.bidding_end_date ? `${item.bidding_start_date} - ${item.bidding_end_date}` : item.listing_date || "TBA")}
+                      {formatPeriodDisplay(item)}
                     </td>
 
                     <td style={{ padding: "16px 16px", fontSize: "13px", color: "#3f3f46", textAlign: "right" }}>
@@ -1239,9 +1305,11 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 12px", fontSize: "12px", color: "#52525b", backgroundColor: "#fafafa", padding: "10px 12px", borderRadius: "8px" }}>
                     <div>
-                      <span style={{ color: "#a1a1aa", fontSize: "10px", textTransform: "uppercase", display: "block" }}>Period</span>
+                      <span style={{ color: "#a1a1aa", fontSize: "10px", textTransform: "uppercase", display: "block" }}>
+                        {activeTab === "open" ? "Closes" : "Period"}
+                      </span>
                       <strong style={{ color: "#3f3f46", fontWeight: "600" }}>
-                        {item.period ? item.period : (item.bidding_start_date && item.bidding_end_date ? `${item.bidding_start_date} - ${item.bidding_end_date}` : item.listing_date || "TBA")}
+                        {formatPeriodDisplay(item)}
                       </strong>
                     </div>
 

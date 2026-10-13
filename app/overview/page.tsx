@@ -81,8 +81,12 @@ export default function OverviewPage() {
     imageUrl: "/electrical-substation.jpg",
   };
 
-  const activeIpos = storeIpos && storeIpos.length > 0 ? storeIpos : defaultIpos;
-  const latestIpoDeepDive = activeIpos.find((item) => item.deepDive) || activeIpos[0] || {
+  const allIpos = storeIpos && storeIpos.length > 0 ? storeIpos : defaultIpos;
+  const activeIpos = allIpos.filter((item) => {
+    const st = (item.status || "").toLowerCase().trim();
+    return st === "open" || st === "active";
+  });
+  const latestIpoDeepDive = allIpos.find((item) => item.deepDive) || allIpos[0] || {
     slug: "spectraa-technology-solutions",
     company: "SpectraA Technology Solutions Limited",
     sector: "Industrial Automation & Engineering",
@@ -185,11 +189,11 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      {/* ── Top Metrics Banner (3 Cards) ── */}
+      {/* ── Top Metrics Banner (2 Cards) ── */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
+          gridTemplateColumns: "repeat(2, 1fr)",
           gap: "20px",
           marginBottom: "36px",
         }}
@@ -227,36 +231,6 @@ export default function OverviewPage() {
         </Link>
 
         {/* Card 2 */}
-        <Link
-          href="/ideas"
-          style={{
-            background: "#ffffff",
-            border: "1px solid #eae6df",
-            borderRadius: "8px",
-            padding: "16px 20px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            textDecoration: "none",
-            transition: "all 0.15s ease",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div style={{ background: "#faf5eb", padding: "8px", borderRadius: "6px" }}>
-              <IconStar />
-            </div>
-            <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
-              <span style={{ fontSize: "24px", fontWeight: "800", color: "#0f172a" }}>3</span>
-              <span style={{ fontSize: "13.5px", color: "#475569", fontWeight: "500" }}>
-                Watchlist companies updated
-              </span>
-            </div>
-          </div>
-          <span style={{ color: "#c59b27", fontSize: "16px", fontWeight: "600" }}>›</span>
-        </Link>
-
-        {/* Card 3 */}
         <Link
           href="/market-pulse"
           style={{
@@ -394,7 +368,6 @@ export default function OverviewPage() {
                       {latestResearch.sector || "Research"}
                     </span>
                     <span>{latestResearch.readTime || "10 min read"}</span>
-                    <IconBookmarkOutline />
                   </div>
 
                   <Link
@@ -441,7 +414,6 @@ export default function OverviewPage() {
                     <span style={{ fontSize: "9.5px", fontWeight: "800", letterSpacing: "0.14em", color: "#c59b27", textTransform: "uppercase" }}>
                       STOCK DEEP DIVE
                     </span>
-                    <IconBookmarkOutline />
                   </div>
                   <h4 style={{ fontSize: "16px", fontWeight: "800", color: "#0f172a", margin: "0 0 6px" }}>
                     RACL Geartech
@@ -477,7 +449,6 @@ export default function OverviewPage() {
                     <span style={{ fontSize: "9.5px", fontWeight: "800", letterSpacing: "0.14em", color: "#c59b27", textTransform: "uppercase" }}>
                       IPO DEEP DIVE
                     </span>
-                    <IconBookmarkOutline />
                   </div>
                   <h4 style={{ fontSize: "15px", fontWeight: "800", color: "#0f172a", margin: "0 0 6px", lineHeight: "1.2" }}>
                     {latestIpoDeepDive.company}
@@ -501,161 +472,6 @@ export default function OverviewPage() {
                   {latestIpoDeepDive.period} • {latestIpoDeepDive.sector}
                 </div>
               </Link>
-            </div>
-          </div>
-
-          {/* Section 2: What changed in your watchlist */}
-          <div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "16px",
-              }}
-            >
-              <h2
-                style={{
-                  fontSize: "24px",
-                  fontWeight: "800",
-                  fontFamily: "var(--font-playfair), Georgia, serif",
-                  color: "#0f172a",
-                  margin: 0,
-                }}
-              >
-                What changed in your watchlist
-              </h2>
-              <Link
-                href="/ideas"
-                style={{
-                  fontSize: "13px",
-                  color: "#b45309",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                View all updates →
-              </Link>
-            </div>
-
-            <div
-              style={{
-                background: "#ffffff",
-                border: "1px solid #eae6df",
-                borderRadius: "10px",
-                overflow: "hidden",
-                boxShadow: "0 1px 4px rgba(0,0,0,0.02)",
-              }}
-            >
-              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13.5px" }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px solid #f1f5f9", background: "#fafafa" }}>
-                    <th style={{ padding: "14px 20px", fontSize: "10.5px", fontWeight: "700", letterSpacing: "0.12em", color: "#94a3b8", textTransform: "uppercase" }}>
-                      COMPANY
-                    </th>
-                    <th style={{ padding: "14px 20px", fontSize: "10.5px", fontWeight: "700", letterSpacing: "0.12em", color: "#94a3b8", textTransform: "uppercase" }}>
-                      NEW UPDATE
-                    </th>
-                    <th style={{ padding: "14px 20px", fontSize: "10.5px", fontWeight: "700", letterSpacing: "0.12em", color: "#94a3b8", textTransform: "uppercase" }}>
-                      CATEGORY
-                    </th>
-                    <th style={{ padding: "14px 20px", fontSize: "10.5px", fontWeight: "700", letterSpacing: "0.12em", color: "#94a3b8", textTransform: "uppercase", textAlign: "right" }}>
-                      ACTION
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "16px 20px", fontWeight: "700", color: "#0f172a" }}>
-                      <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", background: "#c59b27", marginRight: "10px" }} />
-                      Quality Power
-                    </td>
-                    <td style={{ padding: "16px 20px", color: "#475569" }}>
-                      Capital-raising update
-                    </td>
-                    <td style={{ padding: "16px 20px", color: "#64748b" }}>
-                      Fundraise
-                    </td>
-                    <td style={{ padding: "16px 20px", textAlign: "right" }}>
-                      <Link
-                        href="/ideas"
-                        style={{
-                          border: "1px solid #e2e8f0",
-                          background: "#ffffff",
-                          color: "#334155",
-                          padding: "6px 14px",
-                          borderRadius: "6px",
-                          fontSize: "12.5px",
-                          fontWeight: "600",
-                          textDecoration: "none",
-                        }}
-                      >
-                        View update →
-                      </Link>
-                    </td>
-                  </tr>
-
-                  <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "16px 20px", fontWeight: "700", color: "#0f172a" }}>
-                      <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", background: "#c59b27", marginRight: "10px" }} />
-                      Jubilant Pharmova
-                    </td>
-                    <td style={{ padding: "16px 20px", color: "#475569" }}>
-                      Quarterly analysis added
-                    </td>
-                    <td style={{ padding: "16px 20px", color: "#64748b" }}>
-                      Results
-                    </td>
-                    <td style={{ padding: "16px 20px", textAlign: "right" }}>
-                      <Link
-                        href="/ideas"
-                        style={{
-                          border: "1px solid #e2e8f0",
-                          background: "#ffffff",
-                          color: "#334155",
-                          padding: "6px 14px",
-                          borderRadius: "6px",
-                          fontSize: "12.5px",
-                          fontWeight: "600",
-                          textDecoration: "none",
-                        }}
-                      >
-                        Read analysis →
-                      </Link>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td style={{ padding: "16px 20px", fontWeight: "700", color: "#0f172a" }}>
-                      <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", background: "transparent", marginRight: "10px" }} />
-                      Kross
-                    </td>
-                    <td style={{ padding: "16px 20px", color: "#475569" }}>
-                      Expansion note added
-                    </td>
-                    <td style={{ padding: "16px 20px", color: "#64748b" }}>
-                      Research
-                    </td>
-                    <td style={{ padding: "16px 20px", textAlign: "right" }}>
-                      <Link
-                        href="/ideas"
-                        style={{
-                          border: "1px solid #e2e8f0",
-                          background: "#ffffff",
-                          color: "#334155",
-                          padding: "6px 14px",
-                          borderRadius: "6px",
-                          fontSize: "12.5px",
-                          fontWeight: "600",
-                          textDecoration: "none",
-                        }}
-                      >
-                        Read note →
-                      </Link>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
           </div>
 
@@ -685,7 +501,7 @@ export default function OverviewPage() {
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              {activeIpos.slice(0, 3).map((ipo, idx) => (
+              {activeIpos.slice(0, 5).map((ipo, idx) => (
                 <Link
                   key={ipo.slug || idx}
                   href={`/ipos/${ipo.slug}`}
@@ -723,71 +539,6 @@ export default function OverviewPage() {
                   </div>
                 </Link>
               ))}
-            </div>
-          </div>
-
-          {/* Card: Saved for later */}
-          <div
-            style={{
-              background: "#ffffff",
-              border: "1px solid #eae6df",
-              borderRadius: "10px",
-              padding: "20px",
-              boxShadow: "0 1px 4px rgba(0,0,0,0.02)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", fontWeight: "800", color: "#0f172a" }}>
-                <IconBookmarkFilled />
-                <span>Saved for later</span>
-              </div>
-              <Link href="/research" style={{ fontSize: "11.5px", color: "#b45309", fontWeight: "600", textDecoration: "none" }}>
-                View saved research →
-              </Link>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {/* Saved Item 1 */}
-              <div style={{ display: "grid", gridTemplateColumns: "60px 1fr 16px", gap: "12px", alignItems: "start" }}>
-                <div style={{ position: "relative", width: "60px", height: "55px", borderRadius: "6px", overflow: "hidden", background: "#1e293b" }}>
-                  <Image
-                    src="/aethos-eagle-logo.jpeg"
-                    alt="Data centre"
-                    fill
-                    style={{ objectFit: "cover", filter: "grayscale(100%)" }}
-                  />
-                </div>
-                <div>
-                  <h5 style={{ fontSize: "13px", fontWeight: "700", color: "#0f172a", margin: "0 0 4px", lineHeight: "1.3" }}>
-                    India&apos;s data centre buildout: opportunities and constraints
-                  </h5>
-                  <div style={{ fontSize: "11px", color: "#94a3b8" }}>
-                    Sector note • 14 min read
-                  </div>
-                </div>
-                <IconDots />
-              </div>
-
-              {/* Saved Item 2 */}
-              <div style={{ display: "grid", gridTemplateColumns: "60px 1fr 16px", gap: "12px", alignItems: "start" }}>
-                <div style={{ position: "relative", width: "60px", height: "55px", borderRadius: "6px", overflow: "hidden", background: "#0f172a" }}>
-                  <Image
-                    src="/eagle.png"
-                    alt="Specialty chemicals"
-                    fill
-                    style={{ objectFit: "contain", filter: "grayscale(80%)" }}
-                  />
-                </div>
-                <div>
-                  <h5 style={{ fontSize: "13px", fontWeight: "700", color: "#0f172a", margin: "0 0 4px", lineHeight: "1.3" }}>
-                    Specialty chemicals: a more resilient cycle?
-                  </h5>
-                  <div style={{ fontSize: "11px", color: "#94a3b8" }}>
-                    Thematic note • 11 min read
-                  </div>
-                </div>
-                <IconDots />
-              </div>
             </div>
           </div>
 

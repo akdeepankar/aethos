@@ -706,7 +706,7 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
 
   // Filtered dataset reactive to search query, segment, sector, and notes toggle
   const filteredList = useMemo(() => {
-    return baseTabDataset.filter((item) => {
+    const filtered = baseTabDataset.filter((item) => {
       // Search query filter
       if (searchQuery.trim() !== "") {
         const q = searchQuery.toLowerCase();
@@ -738,7 +738,25 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
 
       return true;
     });
-  }, [baseTabDataset, searchQuery, segmentFilter, sectorFilter, withNotesOnly]);
+
+    if (activeTab === "upcoming") {
+      return [...filtered].sort((a, b) => {
+        const hasDateA = Boolean(a.bidding_start_date || a.bidding_end_date || (a.period && a.period.trim() !== "" && a.period !== "TBA"));
+        const hasDateB = Boolean(b.bidding_start_date || b.bidding_end_date || (b.period && b.period.trim() !== "" && b.period !== "TBA"));
+
+        if (hasDateA && !hasDateB) return -1;
+        if (!hasDateA && hasDateB) return 1;
+
+        // Secondary sort by bidding start date if both have dates
+        if (a.bidding_start_date && b.bidding_start_date) {
+          return a.bidding_start_date.localeCompare(b.bidding_start_date);
+        }
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [baseTabDataset, activeTab, searchQuery, segmentFilter, sectorFilter, withNotesOnly]);
 
   const toggleStar = (symbol: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();

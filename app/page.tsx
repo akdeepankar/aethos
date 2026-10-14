@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "./_context/auth-context";
@@ -85,7 +86,47 @@ function CrossIcon() {
 }
 
 export default function LandingPage() {
-  const { user } = useAuth();
+  const { user, signInWithGoogle, loading } = useAuth();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const paymentContainerRef = useRef<HTMLDivElement>(null);
+
+  // Check if user came back from login intended to purchase 3 months plan
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const pendingPayment = sessionStorage.getItem("aethos_pending_payment");
+      if (pendingPayment === "3_months" && user) {
+        sessionStorage.removeItem("aethos_pending_payment");
+        setShowPaymentModal(true);
+      }
+    }
+  }, [user]);
+
+  // Handle razorpay script injection into modal container
+  useEffect(() => {
+    if (showPaymentModal && paymentContainerRef.current) {
+      paymentContainerRef.current.innerHTML = "";
+      const form = document.createElement("form");
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/payment-button.js";
+      script.setAttribute("data-payment_button_id", "pl_TnrYBUJrhdhXyk");
+      script.async = true;
+      form.appendChild(script);
+      paymentContainerRef.current.appendChild(form);
+    }
+  }, [showPaymentModal]);
+
+  const handleChoose3Months = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (loading) return;
+
+    if (!user) {
+      // Save pending plan intent and direct user to sign in
+      sessionStorage.setItem("aethos_pending_payment", "3_months");
+      await signInWithGoogle(window.location.pathname + "#pricing");
+    } else {
+      setShowPaymentModal(true);
+    }
+  };
 
   return (
     <div style={{ background: "#090a0d", color: "#f8fafc", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", minHeight: "100vh" }}>
@@ -707,9 +748,25 @@ export default function LandingPage() {
                 <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Paid once for 3 months</div>
                 <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "28px" }}>(₹1,500 / month)</div>
               </div>
-              <Link href="/membership" style={{ display: "block", width: "100%", padding: "12px", background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)", borderRadius: "6px", color: "#ffffff", textAlign: "center", fontSize: "13.5px", fontWeight: "600", textDecoration: "none", transition: "all 0.2s" }}>
+              <button
+                onClick={handleChoose3Months}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  padding: "12px",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                  borderRadius: "6px",
+                  color: "#ffffff",
+                  textAlign: "center",
+                  fontSize: "13.5px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+              >
                 Choose 3 months
-              </Link>
+              </button>
             </div>
 
             {/* 6 Months */}
@@ -874,6 +931,78 @@ export default function LandingPage() {
           <Link href="/about" style={{ color: "#64748b", textDecoration: "none" }}>Contact</Link>
         </div>
       </footer>
+
+      {/* ── Payment Modal for Razorpay ── */}
+      {showPaymentModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowPaymentModal(false);
+          }}
+        >
+          <div
+            style={{
+              background: "#12151c",
+              border: "1px solid #c59b27",
+              borderRadius: "16px",
+              padding: "36px 28px",
+              maxWidth: "420px",
+              width: "100%",
+              position: "relative",
+              textAlign: "center",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
+            }}
+          >
+            <button
+              onClick={() => setShowPaymentModal(false)}
+              style={{
+                position: "absolute",
+                top: "16px",
+                right: "16px",
+                background: "transparent",
+                border: "none",
+                color: "#94a3b8",
+                fontSize: "20px",
+                cursor: "pointer",
+                padding: "4px",
+                lineHeight: "1",
+              }}
+            >
+              ✕
+            </button>
+
+            <h3 style={{ fontSize: "22px", fontWeight: "700", color: "#ffffff", marginBottom: "8px" }}>
+              Complete Your Subscription
+            </h3>
+            <p style={{ fontSize: "14px", color: "#94a3b8", marginBottom: "24px" }}>
+              3 Months Membership — ₹4,500
+            </p>
+
+            <div
+              ref={paymentContainerRef}
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                minHeight: "60px",
+              }}
+            />
+          </div>
+        </div>
+      )}
 
     </div>
   );

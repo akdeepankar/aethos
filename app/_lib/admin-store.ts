@@ -26,6 +26,7 @@ export interface StockIdea {
   challenge?: string;
   watchNext?: string;
   slug?: string;
+  isFree?: boolean;
 }
 
 export interface AdminUser {
@@ -131,7 +132,7 @@ const initialMediaFiles: StoredMediaFile[] = [
 
 const STORAGE_KEYS = {
   REPORTS: "aethos_admin_reports_v4",
-  IDEAS: "aethos_admin_ideas_v4",
+  IDEAS: "aethos_admin_ideas_v5",
   IPOS: "aethos_admin_ipos_v3",
   JOURNAL: "aethos_admin_journal_v3",
   USERS: "aethos_admin_users_v3",
@@ -248,7 +249,7 @@ export function useAdminStore() {
                 readTime: r.readTime,
                 date: r.date,
                 meta: r.meta || r.date || "Published",
-                free: Boolean(r.free),
+                isFree: r.isFree === true ? true : (r.isFree === false ? false : Boolean(r.isFree ?? r.free)),
                 className: r.className || "badge-neutral",
                 sections: typeof r.sections === "string" ? JSON.parse(r.sections || "[]") : (r.sections || []),
                 htmlUrl: r.htmlUrl || (s ? `/${s}.html` : undefined),
@@ -302,6 +303,7 @@ export function useAdminStore() {
                 studying: i.studying || undefined,
                 challenge: i.challenge || undefined,
                 watchNext: i.watchNext || undefined,
+                isFree: i.isFree === true ? true : (i.isFree === false ? false : (i.isFree !== undefined && i.isFree !== null ? Boolean(i.isFree) : undefined)),
               });
             }
           }
@@ -436,7 +438,7 @@ export function useAdminStore() {
           deck: itemToPersist.report.deck,
           readTime: itemToPersist.report.readTime,
           date: itemToPersist.report.date,
-          free: Boolean(itemToPersist.report.free),
+          isFree: Boolean(itemToPersist.report.isFree),
           className: itemToPersist.report.className || "badge-neutral",
           sections: JSON.stringify(itemToPersist.report.sections || []),
           htmlUrl: itemToPersist.report.htmlUrl || (itemToPersist.report.slug ? `/${itemToPersist.report.slug}.html` : ""),
@@ -499,6 +501,7 @@ export function useAdminStore() {
           htmlUrl: itemToPersist.idea.htmlUrl || (itemToPersist.idea.slug ? `/${itemToPersist.idea.slug}.html` : (itemToPersist.idea.id ? `/${itemToPersist.idea.id}.html` : "")),
           htmlContent: itemToPersist.idea.htmlContent || "",
           thesis: itemToPersist.idea.thesis || itemToPersist.idea.studying || "",
+          isFree: Boolean(itemToPersist.idea.isFree),
         });
         if (!res.success) {
           setIdeas(prevIdeas);

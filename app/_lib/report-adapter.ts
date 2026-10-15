@@ -39,7 +39,7 @@ export function adaptReportToRichView(report: LegacyReport, rawMarkdownOrHtml?: 
           coverImage: report.imageUrl,
           imageUrl: report.imageUrl,
           pdfUrl: report.pdfUrl,
-          free: report.free,
+          isFree: report.isFree,
           hero: {
             tags: [report.sector || "Equity Research", report.researchType || "Deep Dive"].filter(Boolean),
           },
@@ -86,7 +86,7 @@ export function adaptReportToRichView(report: LegacyReport, rawMarkdownOrHtml?: 
     coverImage: report.imageUrl,
     imageUrl: report.imageUrl,
     pdfUrl: report.pdfUrl,
-    free: report.free,
+    isFree: report.isFree,
     hero: {
       tags: [report.sector || "Equity Research", report.researchType || "Deep Dive"].filter(Boolean),
     },
@@ -120,7 +120,7 @@ function getRaclRichReport(report: LegacyReport): RichReport {
     sector: "Auto Components & Precision Engineering",
     coverImage: report.imageUrl || "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=1200&q=80",
     pdfUrl: report.pdfUrl || "/RACL GEARTECH LIMITED.pdf",
-    free: report.free ?? true,
+    isFree: report.isFree ?? true,
     hero: {
       price: "₹1,569",
       change: "+3.8%",
@@ -297,7 +297,7 @@ function getSpectraRichReport(report: LegacyReport): RichReport {
     sector: "Industrial Automation & Engineering",
     coverImage: report.imageUrl || "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1200&q=80",
     pdfUrl: report.pdfUrl || "/SpectraA_Technology_Solutions_IPO_Deep_Dive.pdf",
-    free: report.free ?? true,
+    isFree: report.isFree ?? true,
     hero: {
       price: "₹118",
       change: "IPO Issue",

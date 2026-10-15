@@ -4,12 +4,14 @@ import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAdminStore, StockIdea } from "../_lib/admin-store";
+import { usePaidAccess } from "../_hooks/use-paid-access";
 
 type SortOption = "latest" | "newest" | "highest-return" | "mcap";
 
 export default function IdeasPage() {
   const router = useRouter();
   const { ideas: storeIdeas } = useAdminStore();
+  const { isPaid, checking: checkingPaid } = usePaidAccess();
   const allIdeas = storeIdeas ?? [];
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -43,6 +45,9 @@ export default function IdeasPage() {
   // Filtered Ideas
   const filteredIdeas = useMemo(() => {
     return allIdeas.filter((idea) => {
+      // If user is not a premium/paid member, strictly keep only ideas explicitly marked as free access (isFree === true). Hide if isFree is missing/empty/falsy.
+      if (!isPaid && idea.isFree !== true) return false;
+
       if (savedFilterOnly && !savedIdeas[idea.id]) return false;
 
       if (selectedCoverage !== "All" && idea.coverage !== selectedCoverage) {
@@ -63,7 +68,7 @@ export default function IdeasPage() {
 
       return true;
     });
-  }, [allIdeas, searchQuery, selectedCoverage, savedFilterOnly, savedIdeas]);
+  }, [allIdeas, isPaid, searchQuery, selectedCoverage, savedFilterOnly, savedIdeas]);
 
   // Helper to parse date strings for sorting
   const parseIdeaDate = (dateStr?: string): number => {
@@ -222,7 +227,7 @@ export default function IdeasPage() {
 
           {/* Table Container */}
           <div className="ai-table-card">
-            <div className="ai-table-wrap">
+            <div className="ai-table-wrap" style={{ position: "relative" }}>
               <table className="ai-table">
                 <thead>
                   <tr>
@@ -235,70 +240,122 @@ export default function IdeasPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedIdeas.length > 0 ? (
-                    sortedIdeas.map((idea) => {
-                      const isSaved = Boolean(savedIdeas[idea.id]);
+                  {checkingPaid ? (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: "center", padding: "32px", color: "#64748b", fontSize: "13.5px" }}>
+                        Checking membership permissions...
+                      </td>
+                    </tr>
+                  ) : sortedIdeas.length > 0 ? (
+                    <>
+                      {sortedIdeas.map((idea) => {
+                        const isSaved = Boolean(savedIdeas[idea.id]);
 
-                      return (
-                        <tr
-                          key={idea.id}
-                          className="ai-tr"
-                          onClick={() => router.push(`/ideas/${idea.slug || idea.id}`)}
-                          style={{ cursor: "pointer" }}
-                        >
-                          {/* Company / Ticker with Star */}
-                          <td className="ai-td-company">
-                            <div className="ai-company-cell">
-                              <button
-                                type="button"
-                                className={`ai-star-btn ${isSaved ? "saved" : ""}`}
-                                onClick={(e) => toggleSaveIdea(idea.id, e)}
-                                title={isSaved ? "Saved to watchlist" : "Save to watchlist"}
+                        return (
+                          <tr
+                            key={idea.id}
+                            className="ai-tr"
+                            onClick={() => router.push(`/ideas/${idea.slug || idea.id}`)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            {/* Company / Ticker with Star */}
+                            <td className="ai-td-company">
+                              <div className="ai-company-cell">
+                                <button
+                                  type="button"
+                                  className={`ai-star-btn ${isSaved ? "saved" : ""}`}
+                                  onClick={(e) => toggleSaveIdea(idea.id, e)}
+                                  title={isSaved ? "Saved to watchlist" : "Save to watchlist"}
+                                >
+                                  {isSaved ? (
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="#d97706" stroke="#d97706" strokeWidth="1.5">
+                                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                    </svg>
+                                  ) : (
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#94a3b8" strokeWidth="1.6">
+                                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                    </svg>
+                                  )}
+                                </button>
+                                <div>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                                    <span className="ai-company-name">{idea.company}</span>
+                                    {idea.isFree && (
+                                      <span style={{ fontSize: "9.5px", fontWeight: "700", color: "#15803d", background: "#f0fdf4", padding: "1px 6px", borderRadius: "4px", border: "1px solid #bbf7d0", letterSpacing: "0.02em" }}>
+                                        FREE ACCESS
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="ai-company-ticker">{idea.ticker}</div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Sector */}
+                            <td className="ai-td-sector">{idea.sector}</td>
+
+                            {/* Published Date */}
+                            <td className="ai-td-date">{idea.published}</td>
+
+                            {/* M-Cap */}
+                            <td className="ai-td-num">{idea.mcap}</td>
+
+                            {/* Ref Price */}
+                            <td className="ai-td-num">{(idea.refPrice ?? idea.sharedPrice ?? 0).toLocaleString()}</td>
+
+                            {/* Report Link */}
+                            <td className="ai-td-action">
+                              <Link
+                                href={`/ideas/${idea.slug || idea.id}`}
+                                className="ai-read-btn"
+                                onClick={(e) => e.stopPropagation()}
                               >
-                                {isSaved ? (
-                                  <svg viewBox="0 0 24 24" width="16" height="16" fill="#d97706" stroke="#d97706" strokeWidth="1.5">
-                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                  </svg>
-                                ) : (
+                                Read <span className="ai-arrow">→</span>
+                              </Link>
+                            </td>
+                          </tr>
+                        );
+                      })}
+
+                      {/* Locked Blurred Dummy Rows for Non-Paid / Free Users */}
+                      {!isPaid && (
+                        [
+                          { company: "Premier Industrial Automation", ticker: "NSE: PREMIERAUTO", sector: "Capital Goods & Automation", mcap: "4,850", refPrice: "1,240", date: "Recent" },
+                          { company: "Quantum Green Energy Ltd", ticker: "BSE: QUANTUMGRN", sector: "Clean Energy Solutions", mcap: "3,210", refPrice: "850", date: "Recent" },
+                          { company: "Apex Speciality Polymers", ticker: "NSE: APEXCHEM", sector: "Speciality Chemicals", mcap: "6,400", refPrice: "2,150", date: "Recent" },
+                          { company: "NexGen Precision Bearings", ticker: "NSE: NEXGENBRG", sector: "Precision Engineering", mcap: "2,980", refPrice: "620", date: "Recent" },
+                          { company: "Vanguard Life Sciences", ticker: "BSE: VANGUARDPH", sector: "API & Healthcare", mcap: "8,120", refPrice: "1,890", date: "Recent" },
+                        ].map((dummy, idx) => (
+                          <tr
+                            key={`locked-dummy-${idx}`}
+                            className="ai-tr"
+                            onClick={() => router.push("/membership")}
+                            style={{ cursor: "pointer", background: "rgba(248, 250, 252, 0.5)" }}
+                          >
+                            <td className="ai-td-company" style={{ filter: "blur(5px)", userSelect: "none", opacity: 0.6 }}>
+                              <div className="ai-company-cell">
+                                <div className="ai-star-btn">
                                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#94a3b8" strokeWidth="1.6">
                                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                                   </svg>
-                                )}
-                              </button>
-                              <div>
-                                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                                  <span className="ai-company-name">{idea.company}</span>
                                 </div>
-                                <div className="ai-company-ticker">{idea.ticker}</div>
+                                <div>
+                                  <div className="ai-company-name">{dummy.company}</div>
+                                  <div className="ai-company-ticker">{dummy.ticker}</div>
+                                </div>
                               </div>
-                            </div>
-                          </td>
-
-                          {/* Sector */}
-                          <td className="ai-td-sector">{idea.sector}</td>
-
-                          {/* Published Date */}
-                          <td className="ai-td-date">{idea.published}</td>
-
-                          {/* M-Cap */}
-                          <td className="ai-td-num">{idea.mcap}</td>
-
-                          {/* Ref Price */}
-                          <td className="ai-td-num">{(idea.refPrice ?? idea.sharedPrice ?? 0).toLocaleString()}</td>
-
-                          {/* Report Link */}
-                          <td className="ai-td-action">
-                            <Link
-                              href={`/ideas/${idea.slug || idea.id}`}
-                              className="ai-read-btn"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              Read <span className="ai-arrow">→</span>
-                            </Link>
-                          </td>
-                        </tr>
-                      );
-                    })
+                            </td>
+                            <td className="ai-td-sector" style={{ filter: "blur(5px)", userSelect: "none", opacity: 0.6 }}>{dummy.sector}</td>
+                            <td className="ai-td-date" style={{ filter: "blur(5px)", userSelect: "none", opacity: 0.6 }}>{dummy.date}</td>
+                            <td className="ai-td-num" style={{ filter: "blur(5px)", userSelect: "none", opacity: 0.6 }}>{dummy.mcap}</td>
+                            <td className="ai-td-num" style={{ filter: "blur(5px)", userSelect: "none", opacity: 0.6 }}>{dummy.refPrice}</td>
+                            <td className="ai-td-action" style={{ filter: "blur(5px)", userSelect: "none", opacity: 0.6 }}>
+                              <span className="ai-read-btn">Read →</span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </>
                   ) : (
                     <tr>
                       <td colSpan={6} className="ai-empty-td">
@@ -308,6 +365,52 @@ export default function IdeasPage() {
                   )}
                 </tbody>
               </table>
+
+              {/* Single Centered Overlay Badge for Non-Paid / Free Users */}
+              {!isPaid && !checkingPaid && (
+                <div
+                  onClick={() => router.push("/membership")}
+                  style={{
+                    position: "absolute",
+                    bottom: "24px",
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    zIndex: 20,
+                    cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <Link
+                    href="/membership"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                      background: "#0f172a",
+                      color: "#ffffff",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "12px 24px",
+                      borderRadius: "30px",
+                      fontSize: "13.5px",
+                      fontWeight: "700",
+                      boxShadow: "0 10px 25px -5px rgba(15, 23, 42, 0.4), 0 4px 10px rgba(0,0,0,0.2)",
+                      textDecoration: "none",
+                      letterSpacing: "0.01em",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      transition: "transform 0.15s ease, background-color 0.15s ease",
+                    }}
+                  >
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    Subscribe to Access
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Table Footnote */}

@@ -551,7 +551,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </div>
                 <div className="user-info">
                   <span className="user-name">{user.name || user.email}</span>
-                  <span className="user-status">Pro Member</span>
                 </div>
                 <span className="user-chevron">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">

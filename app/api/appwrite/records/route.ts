@@ -456,7 +456,7 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
     "deck",
     "readTime",
     "date",
-    "free",
+    "isFree",
     "className",
     "sections",
     "pdfUrl",
@@ -478,6 +478,7 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
     "pdfUrl",
     "htmlUrl",
     "thesis",
+    "isFree",
   ],
   ipos: [
     "slug",
@@ -691,6 +692,12 @@ export async function POST(req: NextRequest) {
       payload.sharedDate = payload.sharedDate || rawPayload.sharedDate || rawPayload.published || new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
       payload.htmlUrl = payload.htmlUrl || rawPayload.htmlUrl || `/${slug}.html`;
       payload.thesis = payload.thesis || rawPayload.thesis || rawPayload.studying || "";
+      payload.isFree = typeof rawPayload.isFree === "boolean" ? rawPayload.isFree : (rawPayload.isFree === "true" || rawPayload.isFree === true);
+
+      // Proactively create boolean column 'isFree' if it doesn't exist yet in Appwrite
+      try {
+        await tablesDB.createBooleanColumn(databaseId, "ideas", "isFree", false, false);
+      } catch {}
     }
 
     const activePayload = { ...payload };
@@ -713,10 +720,15 @@ export async function POST(req: NextRequest) {
         const match = errMsg.match(/Unknown attribute: ["'\\]*([^"'\s\\/]+)["'\\]*/i);
         if (match && match[1] && activePayload[match[1]] !== undefined) {
           const unknownAttr = match[1];
+          const attrVal = activePayload[unknownAttr];
           delete activePayload[unknownAttr];
-          // Try to create the missing attribute in Appwrite database for future writes
+          // Try to create the missing column in Appwrite database with appropriate type for future writes
           try {
-            databases.createStringAttribute(databaseId, table, unknownAttr, 1000, false).catch(() => { });
+            if (typeof attrVal === "boolean" || unknownAttr === "isFree") {
+              await tablesDB.createBooleanColumn(databaseId, table, unknownAttr, false, false);
+            } else {
+              await tablesDB.createStringColumn(databaseId, table, unknownAttr, 1000, false);
+            }
           } catch { }
           continue;
         }

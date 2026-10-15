@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../_context/auth-context";
 
 interface Plan {
@@ -8,8 +9,10 @@ interface Plan {
   name: string;
   price: string;
   amount: number; // in INR
+  billingPeriod: string;
   subtext: string;
   badge?: string;
+  savings?: string;
 }
 
 const PLANS: Plan[] = [
@@ -18,40 +21,63 @@ const PLANS: Plan[] = [
     name: "3 Months",
     price: "₹ 4,500",
     amount: 4500,
-    subtext: "Works out to ₹1,500/month",
+    billingPeriod: "per 3 months",
+    subtext: "₹1,500 / month",
   },
   {
     id: "6_months",
     name: "6 Months",
     price: "₹ 7,500",
     amount: 7500,
-    subtext: "Works out to ₹1,250/month",
+    billingPeriod: "per 6 months",
+    subtext: "₹1,250 / month",
+    savings: "SAVE ₹1,500",
   },
   {
     id: "1_year",
-    name: "1 Year",
+    name: "Annual Pass",
     price: "₹ 12,000",
     amount: 12000,
-    subtext: "Works out to ₹1,000/month",
+    billingPeriod: "per year",
+    subtext: "₹1,000 / month",
     badge: "BEST VALUE",
+    savings: "33% OFF",
   },
 ];
 
-const COMMON_FEATURES = [
-  "2-3 stock deep dives per month",
-  "2 thematic/sectoral primers every month",
-  "IPO Deep dive notes",
-  "Access to full Library",
-  "Important Market announcement",
-  "Results and concall analysis",
+const INCLUDED_PERKS = [
+  {
+    title: "2-3 Stock Deep Dives / month",
+    desc: "In-depth fundamental research notes with financial models.",
+  },
+  {
+    title: "2 Thematic & Sectoral Primers",
+    desc: "Structural sector megatrends and macroeconomic primers.",
+  },
+  {
+    title: "IPO Deep Dive Notes & Tracker",
+    desc: "Comprehensive pre-listing analysis and valuation breakdowns.",
+  },
+  {
+    title: "Scuttlebutt & Concall Analysis",
+    desc: "On-ground channel checks and earnings conference notes.",
+  },
+  {
+    title: "Full Research Archive Access",
+    desc: "Unrestricted access to all past notes, models & memos.",
+  },
+  {
+    title: "Live Market Pulse & Alerts",
+    desc: "Timely alerts on critical regulatory & company disclosures.",
+  },
 ];
 
 const COUNTRY_CODES = [
-  { code: "+91", country: "IN" },
-  { code: "+1", country: "US" },
-  { code: "+44", country: "UK" },
-  { code: "+971", country: "UAE" },
-  { code: "+65", country: "SG" },
+  { code: "+91", country: "IN", label: "IN +91" },
+  { code: "+1", country: "US", label: "US +1" },
+  { code: "+44", country: "UK", label: "UK +44" },
+  { code: "+971", country: "UAE", label: "UAE +971" },
+  { code: "+65", country: "SG", label: "SG +65" },
 ];
 
 declare global {
@@ -61,17 +87,27 @@ declare global {
 }
 
 export default function MembershipPage() {
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
   const [mainTab, setMainTab] = useState<"membership" | "past_payments">("membership");
-  const [currentStep, setCurrentStep] = useState<number>(1);
+  const [showPlanModal, setShowPlanModal] = useState<boolean>(true);
   const [selectedPlanId, setSelectedPlanId] = useState<string>("1_year");
   const [fullName, setName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [countryCode, setCountryCode] = useState<string>("+91");
   const [phoneNumber, setPhoneNumber] = useState<string>("");
-  const [loadingPayment, setLoadingPayment] = useState<boolean>(false);
+  const [couponCode, setCouponCode] = useState<string>("");
+  const [couponDiscount, setCouponDiscount] = useState<number>(0);
+  const [couponApplied, setCouponApplied] = useState<boolean>(false);
+  const [couponMsg, setCouponMsg] = useState<string>("");
 
+  const [showGst, setShowGst] = useState<boolean>(false);
+  const [companyName, setCompanyName] = useState<string>("");
+  const [gstNumber, setGstNumber] = useState<string>("");
+  const [showPriceBreakdown, setShowPriceBreakdown] = useState<boolean>(false);
+
+  const [loadingPayment, setLoadingPayment] = useState<boolean>(false);
   const [pastPayments, setPastPayments] = useState<any[]>([]);
   const [loadingPayments, setLoadingPayments] = useState<boolean>(false);
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
@@ -111,7 +147,6 @@ export default function MembershipPage() {
   }, [authLoading, user, email]);
 
   useEffect(() => {
-    // Dynamically load Razorpay script
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
@@ -137,24 +172,50 @@ export default function MembershipPage() {
   }, [user]);
 
   const selectedPlan = PLANS.find((p) => p.id === selectedPlanId) || PLANS[2];
+  const finalAmount = Math.max(0, selectedPlan.amount - couponDiscount);
+
+  const handleApplyCoupon = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!couponCode.trim()) return;
+    const code = couponCode.trim().toUpperCase();
+    if (code === "AETHOS10" || code === "WELCOME10") {
+      const disc = Math.round(selectedPlan.amount * 0.1);
+      setCouponDiscount(disc);
+      setCouponApplied(true);
+      setCouponMsg(`✓ 10% off applied (-₹${disc.toLocaleString("en-IN")})`);
+    } else if (code === "SPECIAL20") {
+      const disc = Math.round(selectedPlan.amount * 0.2);
+      setCouponDiscount(disc);
+      setCouponApplied(true);
+      setCouponMsg(`✓ 20% off applied (-₹${disc.toLocaleString("en-IN")})`);
+    } else {
+      setCouponDiscount(0);
+      setCouponApplied(false);
+      setCouponMsg("Invalid coupon code");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoadingPayment(true);
 
     try {
-      // 1. Create order on server (with customer details for Razorpay Customer & Appwrite tracking)
       const res = await fetch("/api/razorpay/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: selectedPlan.amount,
+          amount: finalAmount,
           planId: selectedPlan.id,
           planName: selectedPlan.name,
           customerName: fullName,
           customerEmail: email,
           customerPhone: `${countryCode}${phoneNumber}`,
           userId: user?.$id || (user as any)?.id || "",
+          notes: {
+            gstNumber: gstNumber || undefined,
+            companyName: companyName || undefined,
+            couponCode: couponApplied ? couponCode : undefined,
+          },
         }),
       });
 
@@ -166,12 +227,11 @@ export default function MembershipPage() {
         return;
       }
 
-      // 2. Open Razorpay Checkout Modal
       const options = {
         key: data.keyId,
         amount: data.amount,
         currency: data.currency,
-        name: "Aethos Research",
+        name: "Aethos Wealth",
         description: `${selectedPlan.name} Membership`,
         order_id: data.orderId,
         customer_id: data.customerId || undefined,
@@ -181,11 +241,10 @@ export default function MembershipPage() {
           contact: `${countryCode}${phoneNumber}`,
         },
         theme: {
-          color: "#0f172a",
+          color: "#c59b27",
         },
         handler: async function (response: any) {
           try {
-            // Verify payment and update Appwrite record
             const verifyRes = await fetch("/api/razorpay/verify-payment", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -195,7 +254,7 @@ export default function MembershipPage() {
                 razorpay_signature: response.razorpay_signature,
                 planId: selectedPlan.id,
                 planName: selectedPlan.name,
-                amount: selectedPlan.amount,
+                amount: finalAmount,
                 customerName: fullName,
                 customerEmail: email,
                 customerPhone: `${countryCode}${phoneNumber}`,
@@ -206,7 +265,7 @@ export default function MembershipPage() {
             const verifyData = await verifyRes.json();
 
             if (verifyData.success) {
-              alert(`Payment Successful & Verified!\nPayment ID: ${response.razorpay_payment_id}\nYour subscription record has been recorded.`);
+              alert(`Payment Successful & Verified!\nPayment ID: ${response.razorpay_payment_id}\nYour membership is now active.`);
               fetchPastPayments();
             } else {
               alert(`Payment completed but verification failed: ${verifyData.error}`);
@@ -234,6 +293,7 @@ export default function MembershipPage() {
       }
     } catch (err: any) {
       console.error("Payment trigger error:", err);
+      setLoadingPayment(false);
     }
   };
 
@@ -247,7 +307,7 @@ export default function MembershipPage() {
           alignItems: "center",
           justifyContent: "center",
           gap: "16px",
-          background: "#ffffff",
+          background: "#FAF8F5",
           fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
         }}
       >
@@ -256,7 +316,7 @@ export default function MembershipPage() {
             width: "36px",
             height: "36px",
             border: "3px solid #e2e8f0",
-            borderTopColor: "#0f172a",
+            borderTopColor: "#c59b27",
             borderRadius: "50%",
             animation: "spin 0.8s linear infinite",
           }}
@@ -271,7 +331,7 @@ export default function MembershipPage() {
           style={{
             fontSize: "13.5px",
             fontWeight: "600",
-            color: "#64748b",
+            color: "#854d0e",
             letterSpacing: "0.02em",
           }}
         >
@@ -281,6 +341,599 @@ export default function MembershipPage() {
     );
   }
 
+  const latestPaidPayment = pastPayments.find(
+    (p) => p.status === "paid" || p.status === "PAID"
+  );
+  const hasExpiry = Boolean(latestPaidPayment?.expiresAt);
+  const expiresTime = hasExpiry ? new Date(latestPaidPayment.expiresAt).getTime() : 0;
+  const now = Date.now();
+  const isPaidMember = Boolean(latestPaidPayment && hasExpiry && expiresTime > now);
+
+  /* =========================================================================
+     FREE / NON-PAID USER: MINIMAL FULL COVER SCREEN MODAL
+     - Consistent outside labels on all 3 columns
+     - Column 1: WHAT'S INCLUDED (Every perk filled in its own sleek mini card)
+     - Column 2: CHOOSE A PLAN (Tall, full-height plan selection buttons)
+     - Column 3: YOUR DETAILS & CHECKOUT (Button pinned to bottom)
+     - Beautiful minimal aesthetic fitting 100vh
+     ========================================================================= */
+  if (!isPaidMember && showPlanModal) {
+    return (
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 9999,
+          background: "#FAF8F5",
+          height: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+          color: "#0f172a",
+        }}
+      >
+        <style jsx global>{`
+          .modal-viewport-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justifyContent: center;
+            max-width: 1260px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 12px 28px 24px;
+            box-sizing: border-box;
+            height: calc(100vh - 58px);
+          }
+          .modal-3col-layout {
+            display: grid;
+            grid-template-columns: 1.05fr 1fr 1.1fr;
+            gap: 20px;
+            align-items: stretch;
+            width: 100%;
+            height: 100%;
+            max-height: 560px;
+          }
+          .col-outer-wrap {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            height: 100%;
+          }
+          .perk-mini-card {
+            flex: 1;
+            background: #ffffff;
+            border: 1px solid #e8e2d8;
+            border-radius: 12px;
+            padding: 9px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.01);
+            transition: all 0.15s ease;
+          }
+          .perk-mini-card:hover {
+            border-color: #c59b27;
+            transform: translateX(1px);
+            box-shadow: 0 2px 8px rgba(197, 155, 39, 0.06);
+          }
+          .minimal-panel {
+            flex: 1;
+            background: #ffffff;
+            border: 1px solid #e8e2d8;
+            border-radius: 18px;
+            padding: 22px 24px;
+            display: flex;
+            flex-direction: column;
+            justifyContent: space-between;
+            box-shadow: 0 4px 20px rgba(15, 23, 42, 0.02);
+            box-sizing: border-box;
+            height: calc(100% - 24px);
+          }
+          .plan-tall-btn {
+            flex: 1;
+            background: #ffffff;
+            border: 1.5px solid #e8e2d8;
+            border-radius: 14px;
+            padding: 18px 20px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+            justifyContent: space-between;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.01);
+            position: relative;
+          }
+          .plan-tall-btn:hover {
+            border-color: #c59b27;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(197, 155, 39, 0.08);
+          }
+          .plan-tall-btn.selected {
+            border: 2px solid #c59b27;
+            background: #fffdf9;
+            box-shadow: 0 6px 22px rgba(197, 155, 39, 0.12);
+          }
+          .gold-radio {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid #cbd5e1;
+            display: flex;
+            align-items: center;
+            justifyContent: center;
+            transition: all 0.15s ease;
+            flex-shrink: 0;
+          }
+          .plan-tall-btn.selected .gold-radio {
+            border-color: #c59b27;
+            background: #ffffff;
+          }
+          .gold-radio-inner {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #c59b27;
+          }
+          .minimal-input {
+            width: 100%;
+            background: #FAF8F5;
+            border: 1px solid #e8e2d8;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 13.5px;
+            color: #0f172a;
+            outline: none;
+            transition: all 0.15s ease;
+            box-sizing: border-box;
+          }
+          .minimal-input:focus {
+            border-color: #c59b27;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(197, 155, 39, 0.1);
+          }
+          .minimal-input::placeholder {
+            color: #a1a1aa;
+          }
+          .btn-gold-inline {
+            background: #FAF8F5;
+            border: 1px solid #e8e2d8;
+            border-radius: 8px;
+            padding: 0 14px;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: #854d0e;
+            cursor: pointer;
+            transition: all 0.15s ease;
+          }
+          .btn-gold-inline:hover {
+            background: #fefce8;
+            border-color: #c59b27;
+          }
+          @media (max-width: 1024px) {
+            .modal-viewport-container {
+              height: auto;
+              overflow-y: auto;
+            }
+            .modal-3col-layout {
+              grid-template-columns: 1fr;
+              max-height: none;
+              gap: 20px;
+            }
+            .minimal-panel {
+              height: auto;
+            }
+            .plan-tall-btn {
+              min-height: 100px;
+            }
+          }
+        `}</style>
+
+        {/* MINIMAL TOP BAR */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "14px 32px",
+            borderBottom: "1px solid #ece7df",
+            background: "#FAF8F5",
+            flexShrink: 0,
+            height: "58px",
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontSize: "14px", fontWeight: "900", letterSpacing: "0.12em", color: "#0f172a" }}>
+              AETHOS
+            </span>
+            <div style={{ width: "1px", height: "14px", background: "#cbd5e1" }} />
+            <span style={{ fontSize: "10px", fontWeight: "800", letterSpacing: "0.12em", color: "#c59b27", textTransform: "uppercase" }}>
+              MEMBERSHIP PASS
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowPlanModal(false)}
+            style={{
+              background: "#ffffff",
+              border: "1px solid #e2e8f0",
+              borderRadius: "50%",
+              width: "32px",
+              height: "32px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              color: "#475569",
+              transition: "all 0.15s ease",
+            }}
+            title="Close"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* 3-COLUMN VIEWPORT CONTENT */}
+        <div className="modal-viewport-container">
+          <div className="modal-3col-layout">
+
+            {/* COLUMN 1: WHAT'S INCLUDED (EACH PERK INSIDE ITS OWN CARD, FILLING HEIGHT) */}
+            <div className="col-outer-wrap">
+              <div
+                style={{
+                  fontSize: "10px",
+                  fontWeight: "800",
+                  letterSpacing: "0.12em",
+                  color: "#c59b27",
+                  textTransform: "uppercase",
+                  paddingLeft: "2px",
+                }}
+              >
+                WHAT&apos;S INCLUDED
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1, height: "calc(100% - 24px)" }}>
+                {INCLUDED_PERKS.map((item, idx) => (
+                  <div key={idx} className="perk-mini-card">
+                    <div
+                      style={{
+                        width: "22px",
+                        height: "22px",
+                        borderRadius: "50%",
+                        background: "#fefce8",
+                        border: "1px solid #fde047",
+                        color: "#c59b27",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "12px",
+                        fontWeight: "800",
+                        flexShrink: 0,
+                      }}
+                    >
+                      ✓
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: "12.5px", fontWeight: "700", color: "#0f172a", lineHeight: "1.2" }}>
+                        {item.title}
+                      </div>
+                      <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px", lineHeight: "1.25" }}>
+                        {item.desc}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* COLUMN 2: CHOOSE A PLAN */}
+            <div className="col-outer-wrap">
+              <div
+                style={{
+                  fontSize: "10px",
+                  fontWeight: "800",
+                  letterSpacing: "0.12em",
+                  color: "#c59b27",
+                  textTransform: "uppercase",
+                  paddingLeft: "2px",
+                }}
+              >
+                CHOOSE A PLAN
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1, height: "calc(100% - 24px)" }}>
+                {PLANS.map((plan) => {
+                  const isSelected = selectedPlanId === plan.id;
+
+                  return (
+                    <div
+                      key={plan.id}
+                      onClick={() => setSelectedPlanId(plan.id)}
+                      className={`plan-tall-btn ${isSelected ? "selected" : ""}`}
+                    >
+                      {/* TOP ROW: NAME & BADGE & RADIO */}
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                            <span
+                              style={{
+                                fontFamily: "Georgia, 'Times New Roman', serif",
+                                fontSize: "18px",
+                                fontWeight: "700",
+                                color: "#0f172a",
+                              }}
+                            >
+                              {plan.name}
+                            </span>
+
+                            {plan.badge && (
+                              <span
+                                style={{
+                                  background: "#c59b27",
+                                  color: "#ffffff",
+                                  fontSize: "9px",
+                                  fontWeight: "800",
+                                  letterSpacing: "0.06em",
+                                  padding: "2px 7px",
+                                  borderRadius: "9999px",
+                                  textTransform: "uppercase",
+                                }}
+                              >
+                                {plan.badge}
+                              </span>
+                            )}
+
+                            {plan.savings && (
+                              <span
+                                style={{
+                                  background: "#fef3c7",
+                                  color: "#92400e",
+                                  border: "1px solid #fde68a",
+                                  fontSize: "9px",
+                                  fontWeight: "800",
+                                  letterSpacing: "0.04em",
+                                  padding: "1px 6px",
+                                  borderRadius: "9999px",
+                                  textTransform: "uppercase",
+                                }}
+                              >
+                                {plan.savings}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="gold-radio">
+                            {isSelected && <div className="gold-radio-inner" />}
+                          </div>
+                        </div>
+
+                        {/* PRICE */}
+                        <div style={{ display: "flex", alignItems: "baseline", gap: "6px", marginTop: "4px" }}>
+                          <span
+                            style={{
+                              fontFamily: "Georgia, 'Times New Roman', serif",
+                              fontSize: "24px",
+                              fontWeight: "700",
+                              color: "#0f172a",
+                            }}
+                          >
+                            {plan.price}
+                          </span>
+                          <span style={{ fontSize: "11.5px", color: "#64748b", fontWeight: "500" }}>
+                            {plan.billingPeriod}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* SUBTEXT / PER MONTH */}
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "#854d0e",
+                          fontFamily: "monospace",
+                          fontWeight: "600",
+                          marginTop: "6px",
+                        }}
+                      >
+                        {plan.subtext}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* COLUMN 3: YOUR DETAILS & CHECKOUT (BUTTON PINNED TO BOTTOM) */}
+            <div className="col-outer-wrap">
+              <div
+                style={{
+                  fontSize: "10px",
+                  fontWeight: "800",
+                  letterSpacing: "0.12em",
+                  color: "#c59b27",
+                  textTransform: "uppercase",
+                  paddingLeft: "2px",
+                }}
+              >
+                YOUR DETAILS & CHECKOUT
+              </div>
+
+              <div className="minimal-panel" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", height: "100%", justifyContent: "space-between" }}>
+                  {/* UPPER INPUTS SECTION */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", color: "#475569", marginBottom: "3px", fontWeight: "600" }}>
+                        Full name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Devesh Kedia"
+                        value={fullName}
+                        onChange={(e) => setName(e.target.value)}
+                        className="minimal-input"
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", color: "#475569", marginBottom: "3px", fontWeight: "600" }}>
+                        Email *
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="you@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="minimal-input"
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", color: "#475569", marginBottom: "3px", fontWeight: "600" }}>
+                        Phone *
+                      </label>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <select
+                          value={countryCode}
+                          onChange={(e) => setCountryCode(e.target.value)}
+                          style={{
+                            width: "88px",
+                            background: "#FAF8F5",
+                            border: "1px solid #e8e2d8",
+                            borderRadius: "8px",
+                            padding: "8px 6px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            color: "#0f172a",
+                            outline: "none",
+                            cursor: "pointer",
+                          }}
+                        >
+                          {COUNTRY_CODES.map((c) => (
+                            <option key={c.code} value={c.code}>
+                              {c.label}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          type="tel"
+                          required
+                          placeholder="Phone number"
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          className="minimal-input"
+                          style={{ flex: 1 }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* ADD GST DETAILS */}
+                    <div style={{ borderTop: "1px solid #f1f0eb", paddingTop: "8px", marginTop: "2px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: showGst ? "8px" : "0px" }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowGst(!showGst)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            padding: 0,
+                            fontSize: "12px",
+                            color: "#854d0e",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}
+                        >
+                          <span style={{ fontSize: "14px", lineHeight: 1 }}>{showGst ? "−" : "+"}</span>
+                          <span>{showGst ? "Remove GST Details" : "Add GST details (Optional)"}</span>
+                        </button>
+                      </div>
+
+                      {showGst && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "6px" }}>
+                          <div>
+                            <label style={{ display: "block", fontSize: "10.5px", color: "#475569", marginBottom: "3px", fontWeight: "600" }}>
+                              Company Name
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Acme Capital Ltd"
+                              value={companyName}
+                              onChange={(e) => setCompanyName(e.target.value)}
+                              className="minimal-input"
+                            />
+                          </div>
+                          <div>
+                            <label style={{ display: "block", fontSize: "10.5px", color: "#475569", marginBottom: "3px", fontWeight: "600" }}>
+                              GSTIN Number
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. 27AAAAA0000A1Z5"
+                              value={gstNumber}
+                              onChange={(e) => setGstNumber(e.target.value)}
+                              className="minimal-input"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* BOTTOM PINNED CHECKOUT BUTTON SECTION */}
+                  <div style={{ marginTop: "auto", paddingTop: "12px" }}>
+                    <button
+                      type="submit"
+                      disabled={loadingPayment}
+                      style={{
+                        width: "100%",
+                        padding: "13px 16px",
+                        background: loadingPayment
+                          ? "#94a3b8"
+                          : "linear-gradient(135deg, #c59b27 0%, #b8860b 100%)",
+                        color: "#ffffff",
+                        border: "none",
+                        borderRadius: "10px",
+                        fontSize: "13.5px",
+                        fontWeight: "800",
+                        letterSpacing: "0.02em",
+                        cursor: loadingPayment ? "not-allowed" : "pointer",
+                        boxShadow: "0 4px 14px rgba(197, 155, 39, 0.22)",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      {loadingPayment ? "Initializing Razorpay..." : `Pay ₹${finalAmount.toLocaleString("en-IN")} via Razorpay →`}
+                    </button>
+
+                    <div style={{ textAlign: "center", fontSize: "10px", color: "#8c827a", marginTop: "4px" }}>
+                      🔒 256-bit SSL Secure Checkout • Powered by Razorpay
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* =========================================================================
+     PAID MEMBER VIEW: ACTIVE MEMBER PASS & PAST PAYMENTS TAB
+     ========================================================================= */
   return (
     <div
       style={{
@@ -290,32 +943,6 @@ export default function MembershipPage() {
       }}
     >
       <style jsx global>{`
-        .membership-grid {
-          display: grid;
-          grid-template-columns: 1fr 1.15fr;
-          gap: 0;
-          align-items: stretch;
-          background: #ffffff;
-          border: 1px solid #e2e8f0;
-          border-radius: 20px;
-          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-          overflow: hidden;
-        }
-        .column-left {
-          padding: 36px 32px;
-          background: #fafafa;
-          border-right: 2px solid #e2e8f0;
-        }
-        .column-right {
-          padding: 36px 32px;
-          background: #ffffff;
-        }
-        .plan-card:hover {
-          border-color: #cbd5e1 !important;
-        }
-        .plan-card.selected:hover {
-          border-color: #0f172a !important;
-        }
         @media (max-width: 868px) {
           .membership-header-nav {
             padding: 0 16px !important;
@@ -326,29 +953,6 @@ export default function MembershipPage() {
           .membership-main-grid {
             grid-template-columns: 1fr !important;
             gap: 24px !important;
-          }
-          .membership-step-tabs {
-            flex-direction: column !important;
-            gap: 8px !important;
-          }
-          .membership-features-grid {
-            grid-template-columns: 1fr !important;
-            gap: 10px !important;
-          }
-          .membership-phone-row {
-            flex-direction: column !important;
-            gap: 8px !important;
-          }
-          .membership-grid {
-            grid-template-columns: 1fr;
-          }
-          .column-left {
-            border-right: none;
-            border-bottom: 2px solid #e2e8f0;
-            padding: 24px 20px;
-          }
-          .column-right {
-            padding: 24px 20px;
           }
         }
       `}</style>
@@ -407,7 +1011,7 @@ export default function MembershipPage() {
                     padding: "14px 4px 14px",
                     background: "transparent",
                     border: "none",
-                    borderBottom: isActive ? "2px solid #0f172a" : "2px solid transparent",
+                    borderBottom: isActive ? "2px solid #c59b27" : "2px solid transparent",
                     color: isActive ? "#0f172a" : "#64748b",
                     fontWeight: isActive ? "700" : "500",
                     fontSize: "13.5px",
@@ -463,50 +1067,8 @@ export default function MembershipPage() {
           padding: "0 24px 80px",
         }}
       >
-
-      {/* TAB 1: MEMBERSHIP VIEW */}
-      {mainTab === "membership" && (() => {
-        let latestPaidPayment = pastPayments.find(
-          (p) => p.status === "paid" || p.status === "PAID"
-        );
-
-        const hasExpiry = Boolean(latestPaidPayment?.expiresAt);
-        const expiresTime = hasExpiry ? new Date(latestPaidPayment.expiresAt).getTime() : 0;
-        const now = Date.now();
-
-        const isActive = Boolean(latestPaidPayment && hasExpiry && expiresTime > now);
-        const isExpired = Boolean(latestPaidPayment && hasExpiry && expiresTime <= now);
-
-        let badgeText = "• FREE ACCESS";
-        let badgeBg = "#e2e8f0";
-        let badgeColor = "#475569";
-        let statusText = "Free Access (No Active Plan)";
-        let statusColor = "#ca8a04";
-        let descriptionText = "Sign in or select a membership plan to upgrade to full research access.";
-        let buttonText = "Choose a Plan & Upgrade →";
-
-        if (isActive) {
-          badgeText = "• ACTIVE MEMBER";
-          badgeBg = "#dcfce7";
-          badgeColor = "#166534";
-          statusText = "Active Member";
-          statusColor = "#16a34a";
-          descriptionText = "Full access to institutional research, financial models, and scuttlebutt notes.";
-          buttonText = "Extend / Upgrade Membership →";
-        } else if (isExpired) {
-          badgeText = "• EXPIRED";
-          badgeBg = "#fee2e2";
-          badgeColor = "#991b1b";
-          statusText = "Subscription Expired";
-          statusColor = "#dc2626";
-          descriptionText = "Your Membership has expired. Renew your plan to restore full institutional research access.";
-          buttonText = "Renew Membership Plan →";
-        } else if (user) {
-          statusText = "Free Access Account";
-          descriptionText = "You are currently on free access. Select a membership plan below for full institutional access.";
-        }
-
-        return (
+        {/* TAB 1: ACTIVE MEMBERSHIP PASS */}
+        {mainTab === "membership" && (
           <div
             className="membership-main-grid"
             style={{
@@ -559,47 +1121,18 @@ export default function MembershipPage() {
               {/* TICKET UPPER BODY */}
               <div style={{ padding: "20px 18px 16px" }}>
                 <div style={{ fontSize: "16px", fontWeight: "800", color: "#0f172a", marginBottom: "4px" }}>
-                  {user ? (user.name || user.email) : "Guest Reader"}
+                  {user ? (user.name || user.email) : "Active Member"}
                 </div>
                 <div style={{ fontSize: "11.5px", color: "#64748b", lineHeight: "1.4" }}>
-                  {descriptionText}
+                  Full access to institutional research, financial models, and scuttlebutt notes.
                 </div>
               </div>
 
-              {/* PERFORATED DOTTED TICKET DIVIDER WITH NOTCHES */}
+              {/* PERFORATED DOTTED TICKET DIVIDER */}
               <div style={{ position: "relative", margin: "4px 0" }}>
-                <div
-                  style={{
-                    borderTop: "2px dashed #cbd5e1",
-                    width: "100%",
-                  }}
-                />
-                {/* LEFT CIRCULAR NOTCH */}
-                <div
-                  style={{
-                    position: "absolute",
-                    left: "-10px",
-                    top: "-10px",
-                    width: "20px",
-                    height: "20px",
-                    borderRadius: "50%",
-                    background: "#f8fafc",
-                    borderRight: "1px solid #e2e8f0",
-                  }}
-                />
-                {/* RIGHT CIRCULAR NOTCH */}
-                <div
-                  style={{
-                    position: "absolute",
-                    right: "-10px",
-                    top: "-10px",
-                    width: "20px",
-                    height: "20px",
-                    borderRadius: "50%",
-                    background: "#f8fafc",
-                    borderLeft: "1px solid #e2e8f0",
-                  }}
-                />
+                <div style={{ borderTop: "2px dashed #cbd5e1", width: "100%" }} />
+                <div style={{ position: "absolute", left: "-10px", top: "-10px", width: "20px", height: "20px", borderRadius: "50%", background: "#f8fafc", borderRight: "1px solid #e2e8f0" }} />
+                <div style={{ position: "absolute", right: "-10px", top: "-10px", width: "20px", height: "20px", borderRadius: "50%", background: "#f8fafc", borderLeft: "1px solid #e2e8f0" }} />
               </div>
 
               {/* TICKET LOWER DETAILS BODY */}
@@ -607,24 +1140,22 @@ export default function MembershipPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "12.5px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ color: "#64748b" }}>Status</span>
-                    <span style={{ fontWeight: "700", color: statusColor }}>
-                      {statusText}
+                    <span style={{ fontWeight: "700", color: isPaidMember ? "#16a34a" : "#ca8a04" }}>
+                      {isPaidMember ? "Active Member" : "Free Member"}
                     </span>
                   </div>
 
-                  {latestPaidPayment?.planName && (
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ color: "#64748b" }}>Plan Tier</span>
-                      <span style={{ fontWeight: "700", color: "#0f172a" }}>
-                        {latestPaidPayment.planName}
-                      </span>
-                    </div>
-                  )}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ color: "#64748b" }}>Plan Tier</span>
+                    <span style={{ fontWeight: "700", color: "#0f172a" }}>
+                      {isPaidMember ? (latestPaidPayment?.planName || "Annual Pass") : "Free Tier"}
+                    </span>
+                  </div>
 
-                  {hasExpiry && latestPaidPayment?.expiresAt && (
+                  {isPaidMember && hasExpiry && latestPaidPayment?.expiresAt && (
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span style={{ color: "#64748b" }}>{isActive ? "Expires" : "Expired On"}</span>
-                      <span style={{ fontWeight: "700", color: isActive ? "#854d0e" : "#dc2626" }}>
+                      <span style={{ color: "#64748b" }}>Expires</span>
+                      <span style={{ fontWeight: "700", color: "#854d0e" }}>
                         {new Date(latestPaidPayment.expiresAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                       </span>
                     </div>
@@ -632,657 +1163,235 @@ export default function MembershipPage() {
 
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ color: "#64748b" }}>Billing</span>
-                    <span style={{ fontWeight: "500", color: "#0f172a" }}>One-Time</span>
+                    <span style={{ fontWeight: "500", color: "#0f172a" }}>
+                      {isPaidMember ? "One-Time" : "Complimentary"}
+                    </span>
                   </div>
 
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ color: "#64748b" }}>Library</span>
                     <span style={{ fontWeight: "600", color: "#0f172a" }}>
-                      {isActive ? "Unlimited" : "Limited"}
+                      {isPaidMember ? "Unlimited" : "Limited (Free Research)"}
                     </span>
                   </div>
                 </div>
 
                 {/* TICKET DECORATIVE BARCODE */}
                 <div style={{ marginTop: "20px", paddingTop: "14px", borderTop: "1px solid #f1f5f9", textAlign: "center" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "3px",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      height: "28px",
-                      opacity: 0.65,
-                      marginBottom: "6px",
-                    }}
-                  >
+                  <div style={{ display: "flex", gap: "3px", justifyContent: "center", alignItems: "center", height: "28px", opacity: 0.65, marginBottom: "6px" }}>
                     {[3,1,2,4,1,3,2,1,4,2,1,3,1,2,4,2,1,3,2,1].map((w, i) => (
                       <div key={i} style={{ width: `${w}px`, height: "100%", background: "#0f172a" }} />
                     ))}
                   </div>
                   <div style={{ fontSize: "9px", fontFamily: "monospace", color: "#94a3b8", letterSpacing: "0.15em" }}>
-                    {user?.$id ? `ATH-${user.$id.slice(-8).toUpperCase()}` : "ATH-GUEST-PASS"}
+                    {user?.$id ? `ATH-${user.$id.slice(-8).toUpperCase()}` : "ATH-PASS"}
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* COLUMN 2: RIGHT COL FITTING VIEWPORT */}
+            {/* COLUMN 2: ACTIVE / UPGRADE PASS DETAILS */}
             <div style={{ width: "100%", height: "100%" }}>
-              {isActive ? (
-                /* DISPLAY ACTIVE PLAN INFO IN LONG TICKET CARD */
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "8px",
+                  boxShadow: "0 8px 30px rgba(0, 0, 0, 0.04)",
+                  overflow: "hidden",
+                  position: "relative",
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                }}
+              >
+                {/* TICKET TOP HEADER */}
                 <div
                   style={{
-                    background: "#ffffff",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "8px",
-                    boxShadow: "0 8px 30px rgba(0, 0, 0, 0.04)",
-                    overflow: "hidden",
-                    position: "relative",
-                    height: "100%",
+                    background: "#0f172a",
+                    color: "#ffffff",
+                    padding: "16px 20px",
+                    minHeight: "54px",
+                    boxSizing: "border-box",
                     display: "flex",
-                    flexDirection: "column",
+                    alignItems: "center",
                     justifyContent: "space-between",
                   }}
                 >
-                  {/* TICKET TOP HEADER */}
-                  <div
-                    style={{
-                      background: "#0f172a",
-                      color: "#ffffff",
-                      padding: "16px 20px",
-                      minHeight: "54px",
-                      boxSizing: "border-box",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c59b27" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                      </svg>
-                      <span style={{ fontSize: "11px", fontWeight: "800", color: "#c59b27", letterSpacing: "0.12em", textTransform: "uppercase" }}>
-                        AETHOS WEALTH PASS
-                      </span>
-                    </div>
-                    <span
-                      style={{
-                        background: "#dcfce7",
-                        color: "#166534",
-                        fontSize: "10px",
-                        fontWeight: "800",
-                        padding: "3px 10px",
-                        borderRadius: "9999px",
-                        letterSpacing: "0.06em",
-                      }}
-                    >
-                      • ACTIVE
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c59b27" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                    <span style={{ fontSize: "11px", fontWeight: "800", color: "#c59b27", letterSpacing: "0.12em", textTransform: "uppercase" }}>
+                      AETHOS WEALTH PASS
                     </span>
                   </div>
+                  <span
+                    style={{
+                      background: isPaidMember ? "#dcfce7" : "#fef3c7",
+                      color: isPaidMember ? "#166534" : "#92400e",
+                      fontSize: "10px",
+                      fontWeight: "800",
+                      padding: "3px 10px",
+                      borderRadius: "9999px",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    • {isPaidMember ? "ACTIVE" : "FREE ACCESS"}
+                  </span>
+                </div>
 
-                  {/* TICKET MAIN BODY */}
-                  <div style={{ padding: "24px", position: "relative" }}>
-                    {/* ROUND ACTIVE STAMP */}
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: "16px",
-                        right: "24px",
-                        width: "72px",
-                        height: "72px",
-                        borderRadius: "50%",
-                        border: "2px solid #16a34a",
-                        outline: "1px dashed #16a34a",
-                        outlineOffset: "-4px",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        transform: "rotate(-14deg)",
-                        color: "#16a34a",
-                        opacity: 0.88,
-                        pointerEvents: "none",
-                        userSelect: "none",
-                        background: "rgba(220, 252, 231, 0.25)",
-                      }}
-                    >
-                      <span style={{ fontSize: "6.5px", fontWeight: "800", letterSpacing: "0.12em", textTransform: "uppercase" }}>
-                        AETHOS
-                      </span>
-                      <span style={{ fontSize: "11px", fontWeight: "900", letterSpacing: "0.1em", textTransform: "uppercase", lineHeight: "1.05", margin: "1px 0" }}>
-                        ACTIVE
-                      </span>
-                      <span style={{ fontSize: "6px", fontWeight: "700", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        VERIFIED
-                      </span>
-                    </div>
-
-                    <div style={{ fontSize: "11px", fontWeight: "700", color: "#854d0e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "4px" }}>
-                      CURRENT ACTIVE PLAN
-                    </div>
-                    <div style={{ fontSize: "24px", fontWeight: "800", color: "#0f172a", marginBottom: "6px", paddingRight: "76px" }}>
-                      {latestPaidPayment?.planName || "Membership Pass"}
-                    </div>
-                    <div style={{ fontSize: "13.5px", color: "#64748b", paddingRight: "76px" }}>
-                      Your subscription is active and valid until <strong style={{ color: "#0f172a" }}>{new Date(latestPaidPayment.expiresAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</strong>.
-                    </div>
+                {/* TICKET MAIN BODY */}
+                <div style={{ padding: "24px", position: "relative" }}>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#854d0e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "4px" }}>
+                    {isPaidMember ? "CURRENT ACTIVE PLAN" : "MEMBERSHIP STATUS"}
                   </div>
-
-                  {/* PERFORATED DOTTED TICKET DIVIDER WITH NOTCHES */}
-                  <div style={{ position: "relative", margin: "4px 0" }}>
-                    <div
-                      style={{
-                        borderTop: "2px dashed #cbd5e1",
-                        width: "100%",
-                      }}
-                    />
-                    {/* LEFT CIRCULAR NOTCH */}
-                    <div
-                      style={{
-                        position: "absolute",
-                        left: "-10px",
-                        top: "-10px",
-                        width: "20px",
-                        height: "20px",
-                        borderRadius: "50%",
-                        background: "#f8fafc",
-                        borderRight: "1px solid #e2e8f0",
-                      }}
-                    />
-                    {/* RIGHT CIRCULAR NOTCH */}
-                    <div
-                      style={{
-                        position: "absolute",
-                        right: "-10px",
-                        top: "-10px",
-                        width: "20px",
-                        height: "20px",
-                        borderRadius: "50%",
-                        background: "#f8fafc",
-                        borderLeft: "1px solid #e2e8f0",
-                      }}
-                    />
+                  <div style={{ fontSize: "24px", fontWeight: "800", color: "#0f172a", marginBottom: "6px" }}>
+                    {isPaidMember ? (latestPaidPayment?.planName || "Membership Pass") : "Free Community Access"}
                   </div>
-
-                  {/* TICKET LOWER BODY: INCLUDED FEATURES */}
-                  <div style={{ padding: "24px", background: "#fffaf0" }}>
-                    <div style={{ fontSize: "11px", fontWeight: "800", color: "#854d0e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "14px" }}>
-                      INCLUDED IN YOUR ACTIVE PASS
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "20px" }}>
-                      {COMMON_FEATURES.map((feature, idx) => (
-                        <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "8px", fontSize: "13px", color: "#334155" }}>
-                          <span style={{ color: "#16a34a", fontWeight: "bold" }}>✓</span>
-                          <span>{feature}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* TICKET FOOTER BARCODE */}
-                    <div style={{ paddingTop: "16px", borderTop: "1px solid #f3e8c8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <div>
-                        <div style={{ fontSize: "10px", fontWeight: "700", color: "#0f172a" }}>
-                          ORDER ID: {latestPaidPayment?.paymentId || latestPaidPayment?.orderId || "PAID"}
-                        </div>
-                        <div style={{ fontSize: "9.5px", color: "#854d0e", marginTop: "2px" }}>
-                          VERIFIED BY RAZORPAY • ONE-TIME CHECKOUT
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          display: "flex",
-                          gap: "3px",
-                          alignItems: "center",
-                          height: "26px",
-                          opacity: 0.7,
-                        }}
-                      >
-                        {[3,1,4,1,2,3,1,4,2,1,3,1,4,1,2,3,2,1].map((w, i) => (
-                          <div key={i} style={{ width: `${w}px`, height: "100%", background: "#0f172a" }} />
-                        ))}
-                      </div>
-                    </div>
+                  <div style={{ fontSize: "13.5px", color: "#64748b" }}>
+                    {isPaidMember ? (
+                      <>Your subscription is active and valid until <strong style={{ color: "#0f172a" }}>{new Date(latestPaidPayment.expiresAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</strong>.</>
+                    ) : (
+                      <>You are currently exploring on a free account. Upgrade to an institutional pass to unlock all financial models, deep dive notes, and concall analyses.</>
+                    )}
                   </div>
                 </div>
-              ) : (
-                /* DISPLAY FULL MEMBERSHIP CHECKOUT STEPS (NO WRAPPING CARD, STAY IN SAME TAB) */
-                <div style={{ width: "100%" }}>
-                  {/* STEP TABS */}
-                  <div className="membership-step-tabs" style={{ display: "flex", gap: "12px", marginBottom: "24px" }}>
-                    <div
-                      onClick={() => setCurrentStep(1)}
-                      style={{
-                        flex: 1,
-                        padding: "14px 16px",
-                        borderRadius: "12px",
-                        background: currentStep === 1 ? "#0f172a" : "#ffffff",
-                        border: currentStep === 1 ? "1.5px solid #0f172a" : "1px solid #cbd5e1",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                        boxShadow: currentStep === 1 ? "0 4px 14px rgba(15, 23, 42, 0.12)" : "none",
-                        transition: "all 0.15s ease",
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: "22px",
-                          height: "22px",
-                          borderRadius: "50%",
-                          background: currentStep === 1 ? "#c59b27" : "#e2e8f0",
-                          color: currentStep === 1 ? "#ffffff" : "#475569",
-                          fontSize: "11px",
-                          fontWeight: "800",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        1
-                      </span>
-                      <div>
-                        <div style={{ fontSize: "9px", fontWeight: "800", color: currentStep === 1 ? "#c59b27" : "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                          STEP 1
-                        </div>
-                        <div style={{ fontSize: "13.5px", fontWeight: "700", color: currentStep === 1 ? "#ffffff" : "#0f172a" }}>
-                          Select Duration
-                        </div>
-                      </div>
-                    </div>
 
-                    <div
-                      onClick={() => setCurrentStep(2)}
-                      style={{
-                        flex: 1,
-                        padding: "14px 16px",
-                        borderRadius: "12px",
-                        background: currentStep === 2 ? "#0f172a" : "#ffffff",
-                        border: currentStep === 2 ? "1.5px solid #0f172a" : "1px solid #cbd5e1",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "10px",
-                        boxShadow: currentStep === 2 ? "0 4px 14px rgba(15, 23, 42, 0.12)" : "none",
-                        transition: "all 0.15s ease",
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: "22px",
-                          height: "22px",
-                          borderRadius: "50%",
-                          background: currentStep === 2 ? "#c59b27" : "#e2e8f0",
-                          color: currentStep === 2 ? "#ffffff" : "#475569",
-                          fontSize: "11px",
-                          fontWeight: "800",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        2
-                      </span>
-                      <div>
-                        <div style={{ fontSize: "9px", fontWeight: "800", color: currentStep === 2 ? "#c59b27" : "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                          STEP 2
-                        </div>
-                        <div style={{ fontSize: "13.5px", fontWeight: "700", color: currentStep === 2 ? "#ffffff" : "#0f172a" }}>
-                          Your Details & Payment
-                        </div>
+                {/* PERFORATED DOTTED TICKET DIVIDER */}
+                <div style={{ position: "relative", margin: "4px 0" }}>
+                  <div style={{ borderTop: "2px dashed #cbd5e1", width: "100%" }} />
+                  <div style={{ position: "absolute", left: "-10px", top: "-10px", width: "20px", height: "20px", borderRadius: "50%", background: "#f8fafc", borderRight: "1px solid #e2e8f0" }} />
+                  <div style={{ position: "absolute", right: "-10px", top: "-10px", width: "20px", height: "20px", borderRadius: "50%", background: "#f8fafc", borderLeft: "1px solid #e2e8f0" }} />
+                </div>
+
+                {/* TICKET LOWER BODY */}
+                <div style={{ padding: "24px", background: "#fffaf0" }}>
+                  <div style={{ fontSize: "11px", fontWeight: "800", color: "#854d0e", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "14px" }}>
+                    {isPaidMember ? "INCLUDED IN YOUR ACTIVE PASS" : "WHAT PRO MEMBERSHIP INCLUDES"}
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "20px" }}>
+                    {INCLUDED_PERKS.map((item, idx) => (
+                      <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: "8px", fontSize: "13px", color: "#334155" }}>
+                        <span style={{ color: "#c59b27", fontWeight: "bold" }}>✓</span>
+                        <span>{item.title}</span>
                       </div>
-                    </div>
+                    ))}
                   </div>
 
-                  {/* STEP CONTENT */}
-                  {currentStep === 1 ? (
+                  <div style={{ paddingTop: "16px", borderTop: "1px solid #f3e8c8", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div>
-                      <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a", marginBottom: "16px" }}>
-                        Select your membership plan duration:
+                      <div style={{ fontSize: "10px", fontWeight: "700", color: "#0f172a" }}>
+                        {isPaidMember ? `ORDER ID: ${latestPaidPayment?.paymentId || latestPaidPayment?.orderId || "PAID"}` : "PRO MEMBERSHIP UPGRADE"}
                       </div>
-
-                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                        {PLANS.map((plan) => {
-                          const isSelected = selectedPlanId === plan.id;
-                          return (
-                            <div
-                              key={plan.id}
-                              onClick={() => setSelectedPlanId(plan.id)}
-                              style={{
-                                background: "#ffffff",
-                                border: isSelected ? "2px solid #0f172a" : "1px solid #e2e8f0",
-                                borderRadius: "14px",
-                                padding: "18px 20px",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                cursor: "pointer",
-                                boxShadow: isSelected ? "0 4px 16px rgba(15, 23, 42, 0.06)" : "none",
-                                transition: "all 0.15s ease",
-                              }}
-                            >
-                              <div>
-                                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                                  <span style={{ fontSize: "17px", fontWeight: "700", color: "#0f172a" }}>
-                                    {plan.name}
-                                  </span>
-                                  {plan.badge && (
-                                    <span style={{ background: "#c59b27", color: "#ffffff", fontSize: "9px", fontWeight: "800", padding: "2px 8px", borderRadius: "10px" }}>
-                                      {plan.badge}
-                                    </span>
-                                  )}
-                                </div>
-                                <div style={{ fontSize: "12.5px", color: "#64748b", marginTop: "4px" }}>
-                                  {plan.subtext}
-                                </div>
-                              </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                                <div style={{ textAlign: "right" }}>
-                                  <div style={{ fontSize: "19px", fontWeight: "800", color: "#0f172a" }}>
-                                    {plan.price}
-                                  </div>
-                                </div>
-                                <div
-                                  style={{
-                                    width: "20px",
-                                    height: "20px",
-                                    borderRadius: "50%",
-                                    border: isSelected ? "6px solid #0f172a" : "2px solid #cbd5e1",
-                                    background: "#ffffff",
-                                    boxSizing: "border-box",
-                                  }}
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
+                      <div style={{ fontSize: "9.5px", color: "#854d0e", marginTop: "2px" }}>
+                        {isPaidMember ? "VERIFIED BY RAZORPAY • ONE-TIME CHECKOUT" : "INSTANT ACCESS • 256-BIT ENCRYPTED"}
                       </div>
+                    </div>
 
+                    {!isPaidMember && (
                       <button
                         type="button"
-                        onClick={() => setCurrentStep(2)}
+                        onClick={() => setShowPlanModal(true)}
                         style={{
-                          width: "100%",
-                          padding: "14px 20px",
-                          background: "#0f172a",
+                          background: "#c59b27",
                           color: "#ffffff",
                           border: "none",
-                          borderRadius: "12px",
-                          fontSize: "14px",
+                          borderRadius: "6px",
+                          padding: "8px 16px",
+                          fontSize: "12px",
                           fontWeight: "700",
                           cursor: "pointer",
-                          marginTop: "20px",
-                          boxShadow: "0 4px 14px rgba(15, 23, 42, 0.15)",
-                          transition: "all 0.15s ease",
+                          boxShadow: "0 2px 8px rgba(197, 155, 39, 0.25)",
                         }}
                       >
-                        Next: Enter Details & Payment &rarr;
+                        Choose Plan →
                       </button>
-                    </div>
-                  ) : (
-                    /* STEP 2: USER DETAILS & PAYMENT FORM */
-                    <div>
-                      <div
-                        style={{
-                          background: "#fffaf0",
-                          border: "1.5px solid #f3e8c8",
-                          borderRadius: "14px",
-                          padding: "16px 20px",
-                          marginBottom: "20px",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                        }}
-                      >
-                        <div>
-                          <div style={{ fontSize: "10px", fontWeight: "800", color: "#9a6b1f", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                            SELECTED PLAN
-                          </div>
-                          <div style={{ fontSize: "17px", fontWeight: "800", color: "#0f172a", marginTop: "2px" }}>
-                            {selectedPlan.name} ({selectedPlan.price})
-                          </div>
-                          <div style={{ fontSize: "12px", color: "#64748b" }}>
-                            {selectedPlan.subtext}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setCurrentStep(1)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            color: "#854d0e",
-                            fontSize: "12px",
-                            fontWeight: "700",
-                            cursor: "pointer",
-                            textDecoration: "underline",
-                            padding: 0,
-                          }}
-                        >
-                          Change Plan
-                        </button>
-                      </div>
-
-                      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                        <div>
-                          <label style={{ display: "block", fontSize: "12.5px", color: "#475569", marginBottom: "6px", fontWeight: "600" }}>
-                            Full Name *
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            placeholder="Rahul Sharma"
-                            value={fullName}
-                            onChange={(e) => setName(e.target.value)}
-                            style={{
-                              width: "100%",
-                              padding: "12px 14px",
-                              borderRadius: "10px",
-                              border: "1px solid #cbd5e1",
-                              fontSize: "14px",
-                              outline: "none",
-                              boxSizing: "border-box",
-                            }}
-                          />
-                        </div>
-
-                        <div>
-                          <label style={{ display: "block", fontSize: "12.5px", color: "#475569", marginBottom: "6px", fontWeight: "600" }}>
-                            Email Address *
-                          </label>
-                          <input
-                            type="email"
-                            required
-                            placeholder="rahul@example.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            style={{
-                              width: "100%",
-                              padding: "12px 14px",
-                              borderRadius: "10px",
-                              border: "1px solid #cbd5e1",
-                              fontSize: "14px",
-                              outline: "none",
-                              boxSizing: "border-box",
-                            }}
-                          />
-                        </div>
-
-                        <div>
-                          <label style={{ display: "block", fontSize: "12.5px", color: "#475569", marginBottom: "6px", fontWeight: "600" }}>
-                            Phone Number *
-                          </label>
-                          <div style={{ display: "flex", gap: "10px" }}>
-                            <select
-                              value={countryCode}
-                              onChange={(e) => setCountryCode(e.target.value)}
-                              style={{
-                                padding: "12px 10px",
-                                borderRadius: "10px",
-                                border: "1px solid #cbd5e1",
-                                fontSize: "14px",
-                                background: "#ffffff",
-                                outline: "none",
-                              }}
-                            >
-                              {COUNTRY_CODES.map((c) => (
-                                <option key={c.code} value={c.code}>
-                                  {c.code} ({c.country})
-                                </option>
-                              ))}
-                            </select>
-                            <input
-                              type="tel"
-                              required
-                              placeholder="9876543210"
-                              value={phoneNumber}
-                              onChange={(e) => setPhoneNumber(e.target.value)}
-                              style={{
-                                flex: 1,
-                                padding: "12px 14px",
-                                borderRadius: "10px",
-                                border: "1px solid #cbd5e1",
-                                fontSize: "14px",
-                                outline: "none",
-                                boxSizing: "border-box",
-                              }}
-                            />
-                          </div>
-                        </div>
-
-                        <button
-                          type="submit"
-                          disabled={loadingPayment}
-                          style={{
-                            width: "100%",
-                            padding: "14px 20px",
-                            background: loadingPayment ? "#64748b" : "#0f172a",
-                            color: "#ffffff",
-                            border: "none",
-                            borderRadius: "12px",
-                            fontSize: "14.5px",
-                            fontWeight: "700",
-                            cursor: loadingPayment ? "not-allowed" : "pointer",
-                            marginTop: "8px",
-                            boxShadow: "0 4px 14px rgba(15, 23, 42, 0.15)",
-                            transition: "all 0.15s ease",
-                          }}
-                        >
-                          {loadingPayment ? "Initializing Razorpay..." : `Pay ${selectedPlan.price} via Razorpay`}
-                        </button>
-                      </form>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           </div>
-        );
-      })()}
+        )}
 
-      {/* TAB 2: PAST PAYMENTS VIEW */}
-      {mainTab === "past_payments" && (() => {
-        const displayPayments = pastPayments;
-
-        return (
+        {/* TAB 2: PAST PAYMENTS VIEW */}
+        {mainTab === "past_payments" && (
           <div style={{ width: "100%" }}>
             {loadingPayments ? (
               <div style={{ fontSize: "13px", color: "#94a3b8", textAlign: "center", padding: "48px 0" }}>
                 Loading payment records...
               </div>
-            ) : displayPayments.length === 0 ? (
+            ) : pastPayments.length === 0 ? (
               <div style={{ fontSize: "13.5px", color: "#64748b", background: "#f8fafc", border: "1px solid #e2e8f0", padding: "28px", borderRadius: "8px", textAlign: "center" }}>
                 No past payment records found for this account.
               </div>
             ) : (
               <div style={{ width: "100%", overflowX: "auto", border: "1px solid #e2e8f0", borderRadius: "8px", background: "#ffffff" }}>
-                <table
-                  style={{
-                    width: "100%",
-                    borderCollapse: "collapse",
-                    fontSize: "13px",
-                    textAlign: "left",
-                  }}
-                >
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
                   <thead>
                     <tr style={{ borderBottom: "1.5px solid #e2e8f0", background: "#f8fafc" }}>
-                      <th style={{ padding: "12px 16px", color: "#475569", fontWeight: "700", fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Date</th>
-                      <th style={{ padding: "12px 16px", color: "#475569", fontWeight: "700", fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Plan</th>
-                      <th style={{ padding: "12px 16px", color: "#475569", fontWeight: "700", fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Payment ID</th>
-                      <th style={{ padding: "12px 16px", color: "#475569", fontWeight: "700", fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Expires</th>
-                      <th style={{ padding: "12px 16px", color: "#475569", fontWeight: "700", fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Amount</th>
-                      <th style={{ padding: "12px 16px", color: "#475569", fontWeight: "700", fontSize: "11.5px", textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "right" }}>Status</th>
+                      <th style={{ padding: "12px 16px", color: "#475569", fontWeight: "700", fontSize: "11.5px", textTransform: "uppercase" }}>Date</th>
+                      <th style={{ padding: "12px 16px", color: "#475569", fontWeight: "700", fontSize: "11.5px", textTransform: "uppercase" }}>Plan</th>
+                      <th style={{ padding: "12px 16px", color: "#475569", fontWeight: "700", fontSize: "11.5px", textTransform: "uppercase" }}>Payment ID</th>
+                      <th style={{ padding: "12px 16px", color: "#475569", fontWeight: "700", fontSize: "11.5px", textTransform: "uppercase" }}>Expires</th>
+                      <th style={{ padding: "12px 16px", color: "#475569", fontWeight: "700", fontSize: "11.5px", textTransform: "uppercase" }}>Amount</th>
+                      <th style={{ padding: "12px 16px", color: "#475569", fontWeight: "700", fontSize: "11.5px", textTransform: "uppercase", textAlign: "right" }}>Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {displayPayments.map((p, idx) => {
-                    const isPaid = p.status === "paid";
-                    const dateFormatted = p.createdAt
-                      ? new Date(p.createdAt).toLocaleDateString("en-IN", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        })
-                      : "-";
-                    const expiresFormatted = p.expiresAt
-                      ? new Date(p.expiresAt).toLocaleDateString("en-IN", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                        })
-                      : "-";
+                    {pastPayments.map((p, idx) => {
+                      const isPaid = p.status === "paid";
+                      const dateFormatted = p.createdAt
+                        ? new Date(p.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                        : "-";
+                      const expiresFormatted = p.expiresAt
+                        ? new Date(p.expiresAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                        : "-";
 
-                    return (
-                      <tr
-                        key={p.id || idx}
-                        style={{
-                          borderBottom: "1px solid #f1f5f9",
-                        }}
-                      >
-                        <td style={{ padding: "14px 16px", color: "#334155", fontWeight: "500", whiteSpace: "nowrap" }}>
-                          {dateFormatted}
-                        </td>
-                        <td style={{ padding: "14px 16px", color: "#0f172a", fontWeight: "700" }}>
-                          {p.planName}
-                        </td>
-                        <td style={{ padding: "14px 16px", color: "#64748b", fontFamily: "monospace", fontSize: "12px" }}>
-                          {p.paymentId || p.orderId || "-"}
-                        </td>
-                        <td style={{ padding: "14px 16px", color: "#854d0e", fontWeight: "600", whiteSpace: "nowrap" }}>
-                          {expiresFormatted}
-                        </td>
-                        <td style={{ padding: "14px 16px", color: "#0f172a", fontWeight: "700", whiteSpace: "nowrap" }}>
-                          ₹ {Number(p.amount).toLocaleString("en-IN")}
-                        </td>
-                        <td style={{ padding: "14px 16px", textAlign: "right" }}>
-                          <span
-                            style={{
-                              fontSize: "10px",
-                              fontWeight: "800",
-                              padding: "3px 9px",
-                              borderRadius: "9999px",
-                              textTransform: "uppercase",
-                              letterSpacing: "0.04em",
-                              background: isPaid ? "#dcfce7" : "#fef3c7",
-                              color: isPaid ? "#166534" : "#92400e",
-                              display: "inline-block",
-                            }}
-                          >
-                            {isPaid ? "PAID" : p.status}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      );
-    })()}
-
+                      return (
+                        <tr key={p.id || idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                          <td style={{ padding: "14px 16px", color: "#334155", fontWeight: "500", whiteSpace: "nowrap" }}>
+                            {dateFormatted}
+                          </td>
+                          <td style={{ padding: "14px 16px", color: "#0f172a", fontWeight: "700" }}>
+                            {p.planName}
+                          </td>
+                          <td style={{ padding: "14px 16px", color: "#64748b", fontFamily: "monospace", fontSize: "12px" }}>
+                            {p.paymentId || p.orderId || "-"}
+                          </td>
+                          <td style={{ padding: "14px 16px", color: "#854d0e", fontWeight: "600", whiteSpace: "nowrap" }}>
+                            {expiresFormatted}
+                          </td>
+                          <td style={{ padding: "14px 16px", color: "#0f172a", fontWeight: "700", whiteSpace: "nowrap" }}>
+                            ₹ {Number(p.amount).toLocaleString("en-IN")}
+                          </td>
+                          <td style={{ padding: "14px 16px", textAlign: "right" }}>
+                            <span
+                              style={{
+                                fontSize: "10px",
+                                fontWeight: "800",
+                                padding: "3px 9px",
+                                borderRadius: "9999px",
+                                textTransform: "uppercase",
+                                background: isPaid ? "#dcfce7" : "#fef3c7",
+                                color: isPaid ? "#166534" : "#92400e",
+                                display: "inline-block",
+                              }}
+                            >
+                              {isPaid ? "PAID" : p.status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

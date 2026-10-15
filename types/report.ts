@@ -74,5 +74,5 @@ export type Report = {
   hero?: HeroInfo;
   sections: Section[];
   pdfUrl?: string;
-  free?: boolean;
+  isFree?: boolean;
 };

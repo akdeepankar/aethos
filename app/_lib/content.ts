@@ -5,7 +5,7 @@ export type Report = {
   deck: string;
   meta: string;
   className?: string;
-  free: boolean;
+  isFree?: boolean;
   readTime: string;
   date: string;
   sections: { heading: string; body: string }[];

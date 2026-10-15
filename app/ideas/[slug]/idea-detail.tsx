@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import DynamicReportView from "../../_components/dynamic-report-view";
 import { useAdminStore } from "../../_lib/admin-store";
+import { usePaidAccess } from "../../_hooks/use-paid-access";
 
 type IdeaDetail = {
   id: string;
@@ -22,12 +23,14 @@ type IdeaDetail = {
   sections: { heading: string; body: string }[];
   risks: string[];
   triggersTable: { trigger: string; impact: string; timeline: string }[];
+  isFree?: boolean;
 };
 
 const defaultIdeasData: Record<string, IdeaDetail> = {};
 
 export default function IdeaDetailClient({ slug }: { slug: string }) {
   const { ideas: storeIdeas } = useAdminStore();
+  const { isPaid, checking: checkingPaid } = usePaidAccess();
   const [rawReportHtml, setRawReportHtml] = useState<string | null>(null);
   const [idea, setIdea] = useState<IdeaDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -68,6 +71,7 @@ export default function IdeaDetailClient({ slug }: { slug: string }) {
         ],
         risks: storeItem.challenge ? [storeItem.challenge] : [],
         triggersTable: storeItem.watchNext ? [{ trigger: storeItem.watchNext, impact: "Upcoming catalyst", timeline: "FY27" }] : [],
+        isFree: Boolean(storeItem.isFree),
       });
 
       if (storeItem.htmlContent && storeItem.htmlContent.trim().length > 0) {
@@ -120,12 +124,58 @@ export default function IdeaDetailClient({ slug }: { slug: string }) {
     });
   }, [slug, storeIdeas]);
 
-  if (loading) {
+  const isFreeIdea = Boolean(idea?.isFree);
+  const hasAccess = isFreeIdea || isPaid;
+
+  if (loading || checkingPaid) {
     return (
       <div className="dash-overview-page" style={{ padding: "60px 20px", textAlign: "center" }}>
         <div style={{ display: "inline-block", padding: "16px 28px", background: "#ffffff", borderRadius: "12px", border: "1px solid var(--gold-light)" }}>
           <div style={{ fontSize: "13px", fontWeight: "600", color: "var(--muted)" }}>
             Loading idea analysis...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Paywall Gate for Paid Ideas when user does not have active paid access
+  if (!hasAccess) {
+    return (
+      <div className="dash-overview-page" style={{ maxWidth: "800px", margin: "0 auto", padding: "40px 20px" }}>
+        <div style={{ marginBottom: "16px" }}>
+          <Link href="/ideas" className="dash-card-link" style={{ fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+            ← Back to Aethos Ideas
+          </Link>
+        </div>
+
+        <div className="dash-card" style={{ padding: "40px 32px", textAlign: "center", borderRadius: "16px" }}>
+          <div style={{ display: "inline-flex", padding: "8px 16px", borderRadius: "50px", background: "#fefce8", border: "1px solid #fef08a", color: "#854d0e", fontSize: "12px", fontWeight: "700", marginBottom: "18px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            🔒 Paid Pro Idea
+          </div>
+
+          <h2 style={{ fontSize: "24px", fontWeight: "800", color: "#0f172a", marginBottom: "10px" }}>
+            {idea?.company || "Exclusive Aethos Research Idea"}
+          </h2>
+
+          <p style={{ fontSize: "14px", color: "#64748b", maxWidth: "560px", margin: "0 auto 24px", lineHeight: "1.6" }}>
+            This high-conviction research report, financial model, and thesis breakdown are reserved for <strong>Aethos Pro Members</strong>.
+          </p>
+
+          <div style={{ display: "inline-flex", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
+            <Link
+              href="/membership"
+              className="button button-gold"
+              style={{ padding: "12px 24px", fontSize: "13px", fontWeight: "700", textDecoration: "none", borderRadius: "8px" }}
+            >
+              Upgrade to Pro Member Access
+            </Link>
+            <Link
+              href="/ideas"
+              style={{ padding: "12px 20px", fontSize: "13px", fontWeight: "600", color: "#475569", background: "#f1f5f9", borderRadius: "8px", textDecoration: "none" }}
+            >
+              Explore All Ideas
+            </Link>
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAdminStore } from "../_lib/admin-store";
 import { reports as defaultReports, ipos as defaultIpos } from "../_lib/content";
+import { usePaidAccess } from "../_hooks/use-paid-access";
 
 // Icons
 function IconBookmarkOutline() {
@@ -66,33 +67,26 @@ function IconDots() {
 
 export default function OverviewPage() {
   const [timeFilter, setTimeFilter] = useState("Since your last visit");
+  const { isPaid } = usePaidAccess();
 
   // Dynamic store data with fallbacks
-  const { reports: storeReports, ipos: storeIpos } = useAdminStore();
+  const { reports: storeReports, ideas: storeIdeas, ipos: storeIpos } = useAdminStore();
 
-  const activeReports = storeReports && storeReports.length > 0 ? storeReports : defaultReports;
-  const latestResearch = activeReports[0] || {
-    slug: "indias-transmission-opportunity",
-    title: "Power equipment: following the capacity cycle",
-    deck: "Capacity is expanding. Our new study examines execution, working capital and demand visibility.",
-    tag: "Sector study",
-    sector: "Electrical equipment",
-    readTime: "12 min read",
-    imageUrl: "/electrical-substation.jpg",
-  };
+  const allReports = storeReports && storeReports.length > 0 ? storeReports : defaultReports;
+  const availableReports = isPaid ? allReports : allReports.filter((r) => r.isFree === true);
+  const latestResearch = availableReports[0] || null;
+
+  const allIdeas = storeIdeas ?? [];
+  const availableIdeas = isPaid ? allIdeas : allIdeas.filter((idea) => idea.isFree === true);
+  const latestIdea = availableIdeas[0] || null;
 
   const allIpos = storeIpos && storeIpos.length > 0 ? storeIpos : defaultIpos;
   const activeIpos = allIpos.filter((item) => {
     const st = (item.status || "").toLowerCase().trim();
     return st === "open" || st === "active";
   });
-  const latestIpoDeepDive = allIpos.find((item) => item.deepDive) || allIpos[0] || {
-    slug: "spectraa-technology-solutions",
-    company: "SpectraA Technology Solutions Limited",
-    sector: "Industrial Automation & Engineering",
-    deck: "An institutional underwriting note on high-gravity process engineering & distillery automation.",
-    period: "18 — 22 Sep 2026",
-  };
+
+  const hasAnyFreshCards = Boolean(latestResearch || latestIdea);
 
   return (
     <div
@@ -249,10 +243,10 @@ export default function OverviewPage() {
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
               <span style={{ fontSize: "24px", fontWeight: "800", color: "#0f172a" }}>
-                {activeReports.length}
+                {availableReports.length}
               </span>
               <span style={{ fontSize: "13.5px", color: "#475569", fontWeight: "500" }}>
-                New research notes
+                {isPaid ? "Research notes" : "Free research notes"}
               </span>
             </div>
           </div>
@@ -296,214 +290,240 @@ export default function OverviewPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "36px" }}>
           
           {/* Section 1: Fresh perspectives */}
-          <div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "16px",
-              }}
-            >
-              <h2
+          {hasAnyFreshCards ? (
+            <div>
+              <div
                 style={{
-                  fontSize: "24px",
-                  fontWeight: "800",
-                  fontFamily: "var(--font-playfair), Georgia, serif",
-                  color: "#0f172a",
-                  margin: 0,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "16px",
                 }}
               >
-                Fresh perspectives
-              </h2>
-              <Link
-                href="/research"
-                style={{
-                  fontSize: "13px",
-                  color: "#b45309",
-                  fontWeight: "600",
-                  textDecoration: "none",
-                }}
-              >
-                View all research →
-              </Link>
-            </div>
+                <h2
+                  style={{
+                    fontSize: "24px",
+                    fontWeight: "800",
+                    fontFamily: "var(--font-playfair), Georgia, serif",
+                    color: "#0f172a",
+                    margin: 0,
+                  }}
+                >
+                  Fresh perspectives
+                </h2>
+                <Link
+                  href="/research"
+                  style={{
+                    fontSize: "13px",
+                    color: "#b45309",
+                    fontWeight: "600",
+                    textDecoration: "none",
+                  }}
+                >
+                  View all research →
+                </Link>
+              </div>
 
-            {/* Featured Hero Card - Dynamic from Research Library */}
+              {/* Featured Hero Card */}
+              {latestResearch && (
+                <div
+                  className="featured-hero-card"
+                  style={{
+                    background: "#ffffff",
+                    border: "1px solid #eae6df",
+                    borderRadius: "10px",
+                    overflow: "hidden",
+                    display: "grid",
+                    gridTemplateColumns: "240px 1fr",
+                    marginBottom: "20px",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                  }}
+                >
+                  <div className="featured-hero-image-wrap" style={{ position: "relative", width: "100%", height: "100%", minHeight: "200px", background: "#334155" }}>
+                    <Image
+                      src={latestResearch.imageUrl || "/electrical-substation.jpg"}
+                      alt={latestResearch.title}
+                      fill
+                      unoptimized
+                      style={{ objectFit: "cover" }}
+                    />
+                  </div>
+
+                  <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                        <span style={{ fontSize: "10px", fontWeight: "800", letterSpacing: "0.15em", color: "#c59b27", textTransform: "uppercase" }}>
+                          {latestResearch.tag || latestResearch.researchType || "RESEARCH NOTE"}
+                        </span>
+                        <span
+                          style={{
+                            background: "#fef3c7",
+                            color: "#b45309",
+                            fontSize: "9.5px",
+                            fontWeight: "800",
+                            padding: "2px 8px",
+                            borderRadius: "4px",
+                            letterSpacing: "0.08em",
+                          }}
+                        >
+                          {latestResearch.isFree ? "FREE" : "PRO"}
+                        </span>
+                      </div>
+
+                      <h3
+                        style={{
+                          fontSize: "22px",
+                          fontWeight: "800",
+                          fontFamily: "var(--font-playfair), Georgia, serif",
+                          color: "#0f172a",
+                          margin: "0 0 10px",
+                          lineHeight: "1.25",
+                        }}
+                      >
+                        {latestResearch.title}
+                      </h3>
+
+                      <p style={{ fontSize: "14px", color: "#64748b", lineHeight: "1.55", margin: 0 }}>
+                        {latestResearch.deck}
+                      </p>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "20px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "12px", color: "#64748b" }}>
+                        <span style={{ background: "#f1f5f9", padding: "4px 10px", borderRadius: "12px", fontWeight: "500" }}>
+                          {latestResearch.sector || "Research"}
+                        </span>
+                        <span>{latestResearch.readTime || "10 min read"}</span>
+                      </div>
+
+                      <Link
+                        href={`/research/${latestResearch.slug}`}
+                        style={{
+                          border: "1px solid #c59b27",
+                          color: "#0f172a",
+                          background: "#faf5eb",
+                          padding: "8px 18px",
+                          borderRadius: "6px",
+                          fontSize: "13px",
+                          fontWeight: "700",
+                          textDecoration: "none",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        Read research →
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Sub-cards: Aethos Idea */}
+              {latestIdea && (
+                <div
+                  className="overview-subcards-grid"
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr",
+                    gap: "20px",
+                  }}
+                >
+                  <Link
+                    href={`/ideas/${latestIdea.slug || latestIdea.id}`}
+                    style={{
+                      background: "#ffffff",
+                      border: "1px solid #eae6df",
+                      borderRadius: "10px",
+                      overflow: "hidden",
+                      padding: "18px 20px",
+                      boxShadow: "0 1px 4px rgba(0,0,0,0.02)",
+                      textDecoration: "none",
+                      color: "inherit",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                        <span style={{ fontSize: "9.5px", fontWeight: "800", letterSpacing: "0.14em", color: "#c59b27", textTransform: "uppercase" }}>
+                          AETHOS IDEA
+                        </span>
+                        <span
+                          style={{
+                            background: "#fef3c7",
+                            color: "#b45309",
+                            fontSize: "9px",
+                            fontWeight: "800",
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          {latestIdea.isFree ? "FREE" : "PRO"}
+                        </span>
+                      </div>
+                      <h4 style={{ fontSize: "16px", fontWeight: "800", color: "#0f172a", margin: "0 0 6px" }}>
+                        {latestIdea.company}
+                      </h4>
+                      <p style={{ fontSize: "12.5px", color: "#64748b", margin: 0, lineHeight: "1.4" }}>
+                        {latestIdea.thesis || latestIdea.studying || `Sector: ${latestIdea.sector}`}
+                      </p>
+                    </div>
+                    <div style={{ fontSize: "11.5px", color: "#94a3b8", marginTop: "16px" }}>
+                      {latestIdea.published || latestIdea.sharedDate || "Latest Idea"} • {latestIdea.sector}
+                    </div>
+                  </Link>
+                </div>
+              )}
+            </div>
+          ) : (
             <div
-              className="featured-hero-card"
               style={{
                 background: "#ffffff",
                 border: "1px solid #eae6df",
                 borderRadius: "10px",
-                overflow: "hidden",
-                display: "grid",
-                gridTemplateColumns: "240px 1fr",
-                marginBottom: "20px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                padding: "36px 28px",
+                textAlign: "center",
               }}
             >
-              <div className="featured-hero-image-wrap" style={{ position: "relative", width: "100%", height: "100%", minHeight: "200px", background: "#334155" }}>
-                <Image
-                  src={latestResearch.imageUrl || "/electrical-substation.jpg"}
-                  alt={latestResearch.title}
-                  fill
-                  unoptimized
-                  style={{ objectFit: "cover" }}
-                />
-              </div>
-
-              <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
-                    <span style={{ fontSize: "10px", fontWeight: "800", letterSpacing: "0.15em", color: "#c59b27", textTransform: "uppercase" }}>
-                      {latestResearch.tag || latestResearch.researchType || "RESEARCH NOTE"}
-                    </span>
-                    <span
-                      style={{
-                        background: "#fef3c7",
-                        color: "#b45309",
-                        fontSize: "9.5px",
-                        fontWeight: "800",
-                        padding: "2px 8px",
-                        borderRadius: "4px",
-                        letterSpacing: "0.08em",
-                      }}
-                    >
-                      NEW
-                    </span>
-                  </div>
-
-                  <h3
-                    style={{
-                      fontSize: "22px",
-                      fontWeight: "800",
-                      fontFamily: "var(--font-playfair), Georgia, serif",
-                      color: "#0f172a",
-                      margin: "0 0 10px",
-                      lineHeight: "1.25",
-                    }}
-                  >
-                    {latestResearch.title}
-                  </h3>
-
-                  <p style={{ fontSize: "14px", color: "#64748b", lineHeight: "1.55", margin: 0 }}>
-                    {latestResearch.deck}
-                  </p>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "20px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px", fontSize: "12px", color: "#64748b" }}>
-                    <span style={{ background: "#f1f5f9", padding: "4px 10px", borderRadius: "12px", fontWeight: "500" }}>
-                      {latestResearch.sector || "Research"}
-                    </span>
-                    <span>{latestResearch.readTime || "10 min read"}</span>
-                  </div>
-
-                  <Link
-                    href={`/research/${latestResearch.slug}`}
-                    style={{
-                      border: "1px solid #c59b27",
-                      color: "#0f172a",
-                      background: "#faf5eb",
-                      padding: "8px 18px",
-                      borderRadius: "6px",
-                      fontSize: "13px",
-                      fontWeight: "700",
-                      textDecoration: "none",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    Read research →
-                  </Link>
-                </div>
+              <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#0f172a", margin: "0 0 8px" }}>
+                Explore Research & Ideas
+              </h3>
+              <p style={{ fontSize: "14px", color: "#64748b", margin: "0 0 18px" }}>
+                Browse our complete collection of deep dives, reports, and investment ideas.
+              </p>
+              <div style={{ display: "flex", justifyContent: "center", gap: "12px" }}>
+                <Link
+                  href="/research"
+                  style={{
+                    background: "#0f172a",
+                    color: "#ffffff",
+                    padding: "8px 18px",
+                    borderRadius: "6px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    textDecoration: "none",
+                  }}
+                >
+                  Research Library
+                </Link>
+                <Link
+                  href="/ideas"
+                  style={{
+                    background: "#faf5eb",
+                    border: "1px solid #c59b27",
+                    color: "#0f172a",
+                    padding: "8px 18px",
+                    borderRadius: "6px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    textDecoration: "none",
+                  }}
+                >
+                  Aethos Ideas
+                </Link>
               </div>
             </div>
-
-            {/* Sub-cards 2 columns */}
-            <div className="overview-subcards-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-              {/* Sub-card 1: RACL Geartech */}
-              <Link
-                href="/ideas/racl-geartech"
-                style={{
-                  background: "#ffffff",
-                  border: "1px solid #eae6df",
-                  borderRadius: "10px",
-                  overflow: "hidden",
-                  padding: "18px 20px",
-                  boxShadow: "0 1px 4px rgba(0,0,0,0.02)",
-                  textDecoration: "none",
-                  color: "inherit",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                }}
-              >
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-                    <span style={{ fontSize: "9.5px", fontWeight: "800", letterSpacing: "0.14em", color: "#c59b27", textTransform: "uppercase" }}>
-                      STOCK DEEP DIVE
-                    </span>
-                  </div>
-                  <h4 style={{ fontSize: "16px", fontWeight: "800", color: "#0f172a", margin: "0 0 6px" }}>
-                    RACL Geartech
-                  </h4>
-                  <p style={{ fontSize: "12.5px", color: "#64748b", margin: 0, lineHeight: "1.4" }}>
-                    What changes as capacity comes on stream?
-                  </p>
-                </div>
-                <div style={{ fontSize: "11.5px", color: "#94a3b8", marginTop: "16px" }}>
-                  22 Sep 2026 • 10 min read
-                </div>
-              </Link>
-
-              {/* Sub-card 2: Latest IPO Deep Dive */}
-              <Link
-                href={`/ipos/${latestIpoDeepDive.slug}`}
-                style={{
-                  background: "#ffffff",
-                  border: "1px solid #eae6df",
-                  borderRadius: "10px",
-                  overflow: "hidden",
-                  padding: "18px 20px",
-                  boxShadow: "0 1px 4px rgba(0,0,0,0.02)",
-                  textDecoration: "none",
-                  color: "inherit",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                }}
-              >
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
-                    <span style={{ fontSize: "9.5px", fontWeight: "800", letterSpacing: "0.14em", color: "#c59b27", textTransform: "uppercase" }}>
-                      IPO DEEP DIVE
-                    </span>
-                  </div>
-                  <h4 style={{ fontSize: "15px", fontWeight: "800", color: "#0f172a", margin: "0 0 6px", lineHeight: "1.2" }}>
-                    {latestIpoDeepDive.company}
-                  </h4>
-                  <p
-                    style={{
-                      fontSize: "12.5px",
-                      color: "#64748b",
-                      margin: 0,
-                      lineHeight: "1.4",
-                      display: "-webkit-box",
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: "vertical",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {latestIpoDeepDive.deck}
-                  </p>
-                </div>
-                <div style={{ fontSize: "11.5px", color: "#94a3b8", marginTop: "16px" }}>
-                  {latestIpoDeepDive.period} • {latestIpoDeepDive.sector}
-                </div>
-              </Link>
-            </div>
-          </div>
+          )}
 
         </div>
 
@@ -534,7 +554,7 @@ export default function OverviewPage() {
               {activeIpos.slice(0, 5).map((ipo, idx) => (
                 <Link
                   key={ipo.slug || idx}
-                  href={`/ipos/${ipo.slug}`}
+                  href="/ipos"
                   style={{
                     display: "block",
                     padding: "10px 12px",

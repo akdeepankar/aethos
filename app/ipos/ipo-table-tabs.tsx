@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useAdminStore } from "../_lib/admin-store";
 import { useSidebar } from "../_components/dashboard-layout";
+import { usePaidAccess } from "../_hooks/use-paid-access";
 
 export type ApiIpo = {
   symbol: string;
@@ -471,6 +472,7 @@ export const formatPeriodDisplay = (item: ApiIpo) => {
 
 export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[]; deepDives?: any[] }) {
   const { ipos: storeIpos } = useAdminStore();
+  const { isPaid } = usePaidAccess();
   const { requestSidebarCollapse } = useSidebar();
   const [selectedIpo, setSelectedIpo] = useState<ApiIpo | null>(null);
   const [displayedIpo, setDisplayedIpo] = useState<ApiIpo | null>(null);
@@ -1238,6 +1240,36 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
 
                         const targetParam = storeMatch?.slug || item.action_slug || item.slug || (item.name || item.company || item.symbol || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
+                        if (!isPaid) {
+                          return (
+                            <Link
+                              href="/membership"
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "5px",
+                                padding: "6px 12px",
+                                borderRadius: "6px",
+                                border: "1px solid #cbd5e1",
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                color: "#0f172a",
+                                textDecoration: "none",
+                                backgroundColor: "#f8fafc",
+                                boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+                              }}
+                              title="Subscribe to access Deep Dive research"
+                            >
+                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                              </svg>
+                              Deep dive
+                            </Link>
+                          );
+                        }
+
                         return (
                           <Link
                             href={`/view-deep-dives?slug=${encodeURIComponent(targetParam)}`}
@@ -1396,7 +1428,34 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                   </div>
 
                   <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: "4px" }}>
-                    {hasReport ? (
+                    {!isPaid ? (
+                      <Link
+                        href="/membership"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "6px",
+                          padding: "8px 16px",
+                          borderRadius: "6px",
+                          border: "1px solid #cbd5e1",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          color: "#0f172a",
+                          textDecoration: "none",
+                          backgroundColor: "#f8fafc",
+                          width: "100%",
+                          textAlign: "center"
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                        Deep dive
+                      </Link>
+                    ) : hasReport ? (
                       <Link
                         href={`/ipos/${storeMatch?.slug || item.action_slug || "spectraa-technology-solutions"}`}
                         onClick={(e) => e.stopPropagation()}
@@ -1629,29 +1688,57 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                   </div>
                 </div>
 
-                {/* Deep Dive Action Button (Only shown if deep dive is available) */}
+                {/* Deep Dive Action Button */}
                 {isDeepDiveAvailable && (
                   <div style={{ marginTop: "auto", paddingTop: "20px" }}>
-                    <Link
-                      href={`/view-deep-dives?slug=${encodeURIComponent(targetParam)}`}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "8px",
-                        width: "100%",
-                        padding: "12px 16px",
-                        borderRadius: "8px",
-                        backgroundColor: "#fffbeb",
-                        border: "1px solid #fcd34d",
-                        color: "#b45309",
-                        fontWeight: "600",
-                        fontSize: "13px",
-                        textDecoration: "none"
-                      }}
-                    >
-                      📄 Open Deep Dive →
-                    </Link>
+                    {!isPaid ? (
+                      <Link
+                        href="/membership"
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                          width: "100%",
+                          padding: "12px 16px",
+                          borderRadius: "8px",
+                          backgroundColor: "#f8fafc",
+                          border: "1px solid #cbd5e1",
+                          color: "#0f172a",
+                          fontWeight: "700",
+                          fontSize: "13.5px",
+                          textDecoration: "none",
+                          boxShadow: "0 1px 2px rgba(0,0,0,0.05)"
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                        Subscribe to Access Deep Dive
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/view-deep-dives?slug=${encodeURIComponent(targetParam)}`}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                          width: "100%",
+                          padding: "12px 16px",
+                          borderRadius: "8px",
+                          backgroundColor: "#fffbeb",
+                          border: "1px solid #fcd34d",
+                          color: "#b45309",
+                          fontWeight: "600",
+                          fontSize: "13px",
+                          textDecoration: "none"
+                        }}
+                      >
+                        📄 Open Deep Dive →
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>

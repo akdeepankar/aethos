@@ -140,7 +140,7 @@ export default function ResearchDetailClient({ slug }: { slug: string }) {
     title: slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
     deck: "Institutional Equity Research Note",
     meta: "Published Research",
-    free: true,
+    isFree: true,
     readTime: "10 min read",
     date: "24 Sep 2026",
     sections: [],

@@ -216,6 +216,7 @@ export async function POST(req: NextRequest) {
     await addStringCol("ideas", "pdfUrl", 1000, false);
     await addStringCol("ideas", "htmlUrl", 1000, false);
     await addStringCol("ideas", "thesis", 65535, false);
+    await addBoolCol("ideas", "isFree", false, false);
 
     // --- Table: ipos ---
     await getOrCreateTable("ipos", "IPO Intelligence");
@@ -337,7 +338,7 @@ export async function POST(req: NextRequest) {
         deck: r.deck,
         readTime: r.readTime,
         date: r.date,
-        free: r.free,
+        isFree: Boolean(r.isFree),
         className: r.className || "",
         sections: JSON.stringify(r.sections),
         pdfUrl: r.pdfUrl || "",

@@ -3,15 +3,19 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { reports as defaultReports, Report } from "../_lib/content";
 import { useAdminStore } from "../_lib/admin-store";
+import { usePaidAccess } from "../_hooks/use-paid-access";
 
 type TabFilter = "all" | "saved" | "unread";
 type SortOption = "newest" | "oldest";
 type ViewMode = "grid" | "list";
 
 export default function ResearchPage() {
+  const router = useRouter();
   const { reports: storeReports } = useAdminStore();
+  const { isPaid, checking: checkingPaid } = usePaidAccess();
   const allReports = storeReports ?? [];
 
   // State management
@@ -130,6 +134,9 @@ export default function ResearchPage() {
   // Filtering
   const filteredReports = useMemo(() => {
     return allReports.filter((report) => {
+      // If user is not a premium/paid member, strictly keep only reports explicitly marked as free access (isFree === true)
+      if (!isPaid && report.isFree !== true) return false;
+
       const isSaved = Boolean(savedSlugs[report.slug]);
       const isUnread = !readSlugs[report.slug];
 
@@ -556,95 +563,162 @@ export default function ResearchPage() {
           </div>
 
           {/* Cards Grid / List */}
-          {paginatedReports.length > 0 ? (
-            <div className={viewMode === "grid" ? "rl-grid" : "rl-list"}>
-              {paginatedReports.map((report) => {
-                const isSaved = Boolean(savedSlugs[report.slug]);
-                const isUnread = !readSlugs[report.slug];
-                const imageSource =
-                  report.imageUrl ||
-                  "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80";
+          <div style={{ position: "relative" }}>
+            {paginatedReports.length > 0 ? (
+              <div className={viewMode === "grid" ? "rl-grid" : "rl-list"}>
+                {paginatedReports.map((report) => {
+                  const isSaved = Boolean(savedSlugs[report.slug]);
+                  const isUnread = !readSlugs[report.slug];
+                  const imageSource =
+                    report.imageUrl ||
+                    "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80";
 
-                return (
-                  <article key={report.slug} className="rl-card">
-                    {/* Card Thumbnail Art */}
-                    <div className="rl-card-image-wrap">
-                      <img
-                        src={imageSource}
-                        alt={report.title}
-                        className="rl-card-image"
-                        loading="lazy"
-                      />
-                      {/* Bookmark Button */}
-                      <button
-                        type="button"
-                        className={`rl-bookmark-btn ${isSaved ? "saved" : ""}`}
-                        onClick={(e) => toggleSave(report.slug, e)}
-                        aria-label={isSaved ? "Remove from saved" : "Save to reading list"}
-                        title={isSaved ? "Saved" : "Save report"}
-                      >
-                        {isSaved ? (
-                          <svg viewBox="0 0 24 24" width="20" height="20" fill="#d97706" stroke="#d97706" strokeWidth="1.5">
-                            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                          </svg>
-                        ) : (
-                          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8">
-                            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                          </svg>
-                        )}
-                      </button>
+                  return (
+                    <article key={report.slug} className="rl-card">
+                      {/* Card Thumbnail Art */}
+                      <div className="rl-card-image-wrap">
+                        <img
+                          src={imageSource}
+                          alt={report.title}
+                          className="rl-card-image"
+                          loading="lazy"
+                        />
+                        {/* Bookmark Button */}
+                        <button
+                          type="button"
+                          className={`rl-bookmark-btn ${isSaved ? "saved" : ""}`}
+                          onClick={(e) => toggleSave(report.slug, e)}
+                          aria-label={isSaved ? "Remove from saved" : "Save to reading list"}
+                          title={isSaved ? "Saved" : "Save report"}
+                        >
+                          {isSaved ? (
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="#d97706" stroke="#d97706" strokeWidth="1.5">
+                              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                            </svg>
+                          ) : (
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8">
+                              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* Card Content */}
+                      <div className="rl-card-body">
+                        <div className="rl-card-topline">
+                          <span className="rl-category-tag">{report.tag || "RESEARCH REPORT"}</span>
+                          {report.isNew && <span className="rl-new-badge">NEW</span>}
+                          {isUnread && <span style={{ fontSize: "9px", fontWeight: "700", padding: "2px 6px", borderRadius: "4px", background: "#eff6ff", color: "#2563eb", letterSpacing: "0.04em" }}>UNREAD</span>}
+                        </div>
+
+                        <h2 className="rl-card-title">
+                          <Link href={`/research/${report.slug}`} onClick={() => markAsRead(report.slug)}>
+                            {report.title}
+                          </Link>
+                        </h2>
+
+                        <p className="rl-card-deck">{report.deck}</p>
+
+                        <div className="rl-card-sector-wrap">
+                          {report.sector && (
+                            <span className="rl-sector-chip">{report.sector}</span>
+                          )}
+                        </div>
+
+                        <div className="rl-card-footer">
+                          <span className="rl-card-meta">
+                            {report.date}
+                          </span>
+                          <Link href={`/research/${report.slug}`} onClick={() => markAsRead(report.slug)} className="rl-read-btn">
+                            Read <span className="rl-read-arrow">→</span>
+                          </Link>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+
+                {/* Unlock Callout Card directly in the grid alongside free cards */}
+                {!isPaid && !checkingPaid && (
+                  <div
+                    className="rl-card"
+                    style={{
+                      background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+                      color: "#ffffff",
+                      borderRadius: "10px",
+                      padding: "32px 28px",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center",
+                      alignItems: "flex-start",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      boxShadow: "0 10px 30px rgba(15, 23, 42, 0.12)",
+                      minHeight: "340px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: "44px",
+                        height: "44px",
+                        borderRadius: "10px",
+                        background: "rgba(255, 255, 255, 0.1)",
+                        color: "#38bdf8",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        marginBottom: "16px",
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
                     </div>
-
-                    {/* Card Content */}
-                    <div className="rl-card-body">
-                      <div className="rl-card-topline">
-                        <span className="rl-category-tag">{report.tag || "RESEARCH REPORT"}</span>
-                        {report.isNew && <span className="rl-new-badge">NEW</span>}
-                        {isUnread && <span style={{ fontSize: "9px", fontWeight: "700", padding: "2px 6px", borderRadius: "4px", background: "#eff6ff", color: "#2563eb", letterSpacing: "0.04em" }}>UNREAD</span>}
-                      </div>
-
-                      <h2 className="rl-card-title">
-                        <Link href={`/research/${report.slug}`} onClick={() => markAsRead(report.slug)}>
-                          {report.title}
-                        </Link>
-                      </h2>
-
-                      <p className="rl-card-deck">{report.deck}</p>
-
-                      <div className="rl-card-sector-wrap">
-                        {report.sector && (
-                          <span className="rl-sector-chip">{report.sector}</span>
-                        )}
-                      </div>
-
-                      <div className="rl-card-footer">
-                        <span className="rl-card-meta">
-                          {report.date}
-                        </span>
-                        <Link href={`/research/${report.slug}`} onClick={() => markAsRead(report.slug)} className="rl-read-btn">
-                          Read <span className="rl-read-arrow">→</span>
-                        </Link>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="rl-empty-state">
-              <div className="rl-empty-box">
-                <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#94a3b8" strokeWidth="1.5">
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.35-4.35" strokeLinecap="round" />
-                </svg>
-                <h3>No research reports match your filters</h3>
-                <p>Try clearing your keyword search or adjusting your filter selection.</p>
-                <button type="button" onClick={handleReset} className="rl-empty-reset-btn">
-                  Reset All Filters
-                </button>
+                    <h3 style={{ margin: "0 0 8px 0", fontSize: "20px", fontWeight: "800", color: "#ffffff", letterSpacing: "-0.01em" }}>
+                      Unlock Full Research Library
+                    </h3>
+                    <p style={{ margin: "0 0 24px 0", fontSize: "14px", color: "#94a3b8", lineHeight: "1.6" }}>
+                      Subscribe to Aethos Pro to gain instant access to all institutional stock deep dives, sector studies, and financial models.
+                    </p>
+                    <Link
+                      href="/membership"
+                      style={{
+                        background: "#ffffff",
+                        color: "#0f172a",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        padding: "12px 24px",
+                        borderRadius: "8px",
+                        fontSize: "14px",
+                        fontWeight: "700",
+                        textDecoration: "none",
+                        boxShadow: "0 4px 14px rgba(0,0,0,0.2)",
+                        transition: "transform 0.15s ease",
+                      }}
+                    >
+                      <span>Subscribe to Access</span>
+                      <span style={{ fontSize: "16px" }}>→</span>
+                    </Link>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="rl-empty-state">
+                <div className="rl-empty-box">
+                  <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#94a3b8" strokeWidth="1.5">
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="m21 21-4.35-4.35" strokeLinecap="round" />
+                  </svg>
+                  <h3>No research reports match your filters</h3>
+                  <p>Try clearing your keyword search or adjusting your filter selection.</p>
+                  <button type="button" onClick={handleReset} className="rl-empty-reset-btn">
+                    Reset All Filters
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Bottom Pagination */}
           <div className="rl-pagination-bar">

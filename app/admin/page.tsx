@@ -400,7 +400,7 @@ function AdminPageContent() {
     company: "",
     readTime: "10 min read",
     date: "Today",
-    free: true,
+    isFree: false,
     imageUrl: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
     pdfUrl: "",
     isNew: true,
@@ -463,7 +463,7 @@ function AdminPageContent() {
         company: report.company || "",
         readTime: report.readTime || "10 min read",
         date: report.date || "Today",
-        free: report.free ?? true,
+        isFree: report.isFree ?? false,
         imageUrl: report.imageUrl || "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
         pdfUrl: report.pdfUrl || "",
         isNew: report.isNew ?? true,
@@ -481,7 +481,7 @@ function AdminPageContent() {
         company: "",
         readTime: "10 min read",
         date: "Today",
-        free: true,
+        isFree: false,
         imageUrl: "https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?auto=format&fit=crop&w=800&q=80",
         pdfUrl: "",
         isNew: true,
@@ -513,6 +513,7 @@ function AdminPageContent() {
     thesis: "",
     htmlUrl: "",
     htmlContent: "",
+    isFree: false,
   });
 
   const handleIdeaLoadTemplate = () => {
@@ -577,6 +578,7 @@ function AdminPageContent() {
         thesis: idea.thesis || "",
         htmlUrl: idea.htmlUrl || "",
         htmlContent: idea.htmlContent || "",
+        isFree: Boolean(idea.isFree),
       });
     } else {
       setEditingIdea(null);
@@ -596,6 +598,7 @@ function AdminPageContent() {
         thesis: "",
         htmlUrl: "",
         htmlContent: "",
+        isFree: false,
       });
     }
     setActiveDrawer("idea");
@@ -771,7 +774,7 @@ function AdminPageContent() {
       readTime: "10 min read",
       date: autoDate,
       meta: autoDate,
-      free: reportForm.free,
+      isFree: reportForm.isFree,
       imageUrl: reportForm.imageUrl.trim(),
       pdfUrl: reportForm.pdfUrl.trim() || undefined,
       htmlUrl: `/${slug}.html`,
@@ -875,6 +878,7 @@ function AdminPageContent() {
       thesis: ideaForm.thesis.trim(),
       htmlUrl: finalHtmlUrl,
       htmlContent: ideaForm.htmlContent.trim() || undefined,
+      isFree: ideaForm.isFree,
     };
 
     setActiveDrawer(null);
@@ -1486,11 +1490,11 @@ function AdminPageContent() {
                           fontWeight: "700",
                           padding: "2px 6px",
                           borderRadius: "4px",
-                          background: report.free ? "#ecfdf5" : "#fef3c7",
-                          color: report.free ? "#047857" : "#b45309",
+                          background: report.isFree ? "#ecfdf5" : "#fef3c7",
+                          color: report.isFree ? "#047857" : "#b45309",
                         }}
                       >
-                        {report.free ? "FREE" : "PRO"}
+                        {report.isFree ? "FREE" : "PRO"}
                       </span>
                     </td>
                     <td style={{ padding: "12px 16px", fontSize: "12px", color: "#64748b" }}>
@@ -1619,7 +1623,16 @@ function AdminPageContent() {
                         </span>
                       </td>
                       <td style={{ padding: "12px 16px" }}>
-                        <div style={{ display: "flex", gap: "4px" }}>
+                        <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", alignItems: "center" }}>
+                          {idea.isFree ? (
+                            <span style={{ fontSize: "9px", fontWeight: "700", background: "#dcfce7", color: "#166534", padding: "2px 6px", borderRadius: "4px" }}>
+                              FREE
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: "9px", fontWeight: "700", background: "#fefce8", color: "#854d0e", border: "1px solid #fef08a", padding: "2px 6px", borderRadius: "4px" }}>
+                              PAID
+                            </span>
+                          )}
                           {hasHtml && (
                             <span style={{ fontSize: "9px", fontWeight: "700", background: "#eff6ff", color: "#2563eb", padding: "2px 5px", borderRadius: "4px" }}>
                               HTML
@@ -2925,17 +2938,39 @@ function AdminPageContent() {
                       </div>
                     </div>
 
-                    {/* Toggles */}
-                    <div style={{ display: "flex", gap: "18px", alignItems: "center", paddingTop: "2px", flexWrap: "wrap" }}>
-                      <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#334155", cursor: "pointer" }}>
-                        <input
-                          type="checkbox"
-                          checked={reportForm.free}
-                          onChange={(e) => setReportForm((prev) => ({ ...prev, free: e.target.checked }))}
-                        />
-                        <span>Free Public Access</span>
+                    {/* Access Permission (Free vs Paid) */}
+                    <div style={{ background: "#f8fafc", padding: "12px 14px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                      <label style={{ fontSize: "12px", fontWeight: "700", color: "#1e293b", display: "block", marginBottom: "6px" }}>
+                        Report Access Permission
                       </label>
+                      <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12.5px", cursor: "pointer", fontWeight: !reportForm.isFree ? "700" : "400", color: !reportForm.isFree ? "#0f172a" : "#64748b" }}>
+                          <input
+                            type="radio"
+                            name="reportAccessLevelEdit"
+                            checked={!reportForm.isFree}
+                            onChange={() => setReportForm((prev) => ({ ...prev, isFree: false }))}
+                          />
+                          🔒 Paid Access (Default - Subscribers Only)
+                        </label>
+                        <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12.5px", cursor: "pointer", fontWeight: reportForm.isFree ? "700" : "400", color: reportForm.isFree ? "#15803d" : "#64748b" }}>
+                          <input
+                            type="radio"
+                            name="reportAccessLevelEdit"
+                            checked={reportForm.isFree}
+                            onChange={() => setReportForm((prev) => ({ ...prev, isFree: true }))}
+                          />
+                          🔓 Free Access (Public to All)
+                        </label>
+                      </div>
+                      <span style={{ fontSize: "11px", color: "#64748b", display: "block", marginTop: "6px" }}>
+                        {reportForm.isFree
+                          ? "This report will be accessible to every user regardless of subscription status."
+                          : "By default, this report is locked for Paid / Pro Members only."}
+                      </span>
+                    </div>
 
+                    <div style={{ display: "flex", gap: "18px", alignItems: "center", paddingTop: "2px", flexWrap: "wrap" }}>
                       <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#334155", cursor: "pointer" }}>
                         <input
                           type="checkbox"
@@ -3442,16 +3477,34 @@ function AdminPageContent() {
                           </div>
                         </div>
 
-                        {/* Toggles */}
-                        <div style={{ display: "flex", gap: "14px", alignItems: "center", paddingTop: "2px", flexWrap: "wrap" }}>
-                          <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#334155", cursor: "pointer" }}>
-                            <input
-                              type="checkbox"
-                              checked={reportForm.free}
-                              onChange={(e) => setReportForm((prev) => ({ ...prev, free: e.target.checked }))}
-                            />
-                            <span>Free</span>
+                        {/* Access Permission (Free vs Paid) */}
+                        <div style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                          <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#1e293b", display: "block", marginBottom: "4px" }}>
+                            Report Access Permission
                           </label>
+                          <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
+                            <label style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", cursor: "pointer", fontWeight: !reportForm.isFree ? "700" : "400", color: !reportForm.isFree ? "#0f172a" : "#64748b" }}>
+                              <input
+                                type="radio"
+                                name="reportAccessLevelSplit"
+                                checked={!reportForm.isFree}
+                                onChange={() => setReportForm((prev) => ({ ...prev, isFree: false }))}
+                              />
+                              🔒 Paid Access (Default)
+                            </label>
+                            <label style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", cursor: "pointer", fontWeight: reportForm.isFree ? "700" : "400", color: reportForm.isFree ? "#15803d" : "#64748b" }}>
+                              <input
+                                type="radio"
+                                name="reportAccessLevelSplit"
+                                checked={reportForm.isFree}
+                                onChange={() => setReportForm((prev) => ({ ...prev, isFree: true }))}
+                              />
+                              🔓 Free Access (Public)
+                            </label>
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", gap: "14px", alignItems: "center", paddingTop: "2px", flexWrap: "wrap" }}>
                           <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#334155", cursor: "pointer" }}>
                             <input
                               type="checkbox"
@@ -3796,6 +3849,38 @@ function AdminPageContent() {
                       </div>
                     </div>
 
+                    {/* Access Permission (Free vs Paid) */}
+                    <div style={{ background: "#f8fafc", padding: "12px 14px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                      <label style={{ fontSize: "12px", fontWeight: "700", color: "#1e293b", display: "block", marginBottom: "6px" }}>
+                        Idea Access Permission
+                      </label>
+                      <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+                        <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12.5px", cursor: "pointer", fontWeight: !ideaForm.isFree ? "700" : "400", color: !ideaForm.isFree ? "#0f172a" : "#64748b" }}>
+                          <input
+                            type="radio"
+                            name="ideaAccessLevelEdit"
+                            checked={!ideaForm.isFree}
+                            onChange={() => setIdeaForm((prev) => ({ ...prev, isFree: false }))}
+                          />
+                          🔒 Paid Access (Default - Subscribers Only)
+                        </label>
+                        <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12.5px", cursor: "pointer", fontWeight: ideaForm.isFree ? "700" : "400", color: ideaForm.isFree ? "#15803d" : "#64748b" }}>
+                          <input
+                            type="radio"
+                            name="ideaAccessLevelEdit"
+                            checked={ideaForm.isFree}
+                            onChange={() => setIdeaForm((prev) => ({ ...prev, isFree: true }))}
+                          />
+                          🔓 Free Access (Public to All)
+                        </label>
+                      </div>
+                      <span style={{ fontSize: "11px", color: "#64748b", display: "block", marginTop: "6px" }}>
+                        {ideaForm.isFree
+                          ? "This idea will be accessible to every user regardless of subscription status."
+                          : "By default, this idea is locked for Paid / Pro Members only."}
+                      </span>
+                    </div>
+
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                       <div>
                         <label style={{ fontSize: "12px", fontWeight: "600", color: "#334155", display: "block", marginBottom: "4px" }}>
@@ -4111,6 +4196,33 @@ function AdminPageContent() {
                               placeholder="Auto components"
                               style={{ width: "100%", padding: "6px 10px", border: "1px solid #cbd5e1", borderRadius: "5px", fontSize: "12.5px" }}
                             />
+                          </div>
+                        </div>
+
+                        {/* Access Permission (Free vs Paid) */}
+                        <div style={{ background: "#f8fafc", padding: "10px 12px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                          <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#1e293b", display: "block", marginBottom: "4px" }}>
+                            Idea Access Permission
+                          </label>
+                          <div style={{ display: "flex", gap: "14px", alignItems: "center" }}>
+                            <label style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", cursor: "pointer", fontWeight: !ideaForm.isFree ? "700" : "400", color: !ideaForm.isFree ? "#0f172a" : "#64748b" }}>
+                              <input
+                                type="radio"
+                                name="ideaAccessLevelSplit"
+                                checked={!ideaForm.isFree}
+                                onChange={() => setIdeaForm((prev) => ({ ...prev, isFree: false }))}
+                              />
+                              🔒 Paid Access (Default)
+                            </label>
+                            <label style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", cursor: "pointer", fontWeight: ideaForm.isFree ? "700" : "400", color: ideaForm.isFree ? "#15803d" : "#64748b" }}>
+                              <input
+                                type="radio"
+                                name="ideaAccessLevelSplit"
+                                checked={ideaForm.isFree}
+                                onChange={() => setIdeaForm((prev) => ({ ...prev, isFree: true }))}
+                              />
+                              🔓 Free Access (Public)
+                            </label>
                           </div>
                         </div>
 

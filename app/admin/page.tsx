@@ -16,7 +16,7 @@ import { adaptReportToRichView } from "../_lib/report-adapter";
 
 import DynamicReportFrame from "../_components/dynamic-report-frame";
 
-type TabType = "reports" | "ideas" | "ipos" | "journal" | "users" | "media" | "database";
+type TabType = "reports" | "ideas" | "ipos" | "journal" | "users" | "payments" | "media" | "database";
 type DrawerType = "report" | "idea" | "ipo" | "journal" | "file" | null;
 
 const SECTORS = [
@@ -229,7 +229,7 @@ function IconUpload() {
 }
 
 function AdminPageContent() {
-  const { user } = useAuth();
+  const { user, loading, signInWithGoogle, signOut } = useAuth();
   const {
     reports,
     ideas,
@@ -237,6 +237,7 @@ function AdminPageContent() {
     journal,
     users,
     media,
+    payments,
     syncFromAppwrite,
     updateReports,
     updateIdeas,
@@ -244,6 +245,7 @@ function AdminPageContent() {
     updateJournal,
     updateUsers,
     updateMedia,
+    deletePaymentRecord,
     uploadPdfFile,
   } = useAdminStore();
 
@@ -252,11 +254,117 @@ function AdminPageContent() {
 
   const currentTabFromUrl = searchParams.get("tab") as TabType | null;
   const activeTab: TabType = useMemo(() => {
-    if (currentTabFromUrl && ["reports", "ideas", "ipos", "journal", "users", "media", "database"].includes(currentTabFromUrl)) {
+    if (currentTabFromUrl && ["reports", "ideas", "ipos", "journal", "users", "payments", "media", "database"].includes(currentTabFromUrl)) {
       return currentTabFromUrl;
     }
     return "reports";
   }, [currentTabFromUrl]);
+
+  const ADMIN_EMAILS = ["akdeepaknyc@gmail.com", "sibeshagrawal5@gmail.com"];
+  const isAuthorized = Boolean(user && user.email && ADMIN_EMAILS.includes(user.email.toLowerCase()));
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "65vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "12px" }}>
+        <div style={{ fontSize: "14px", fontWeight: "600", color: "#64748b" }}>Verifying admin authorization...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthorized) {
+    return (
+      <div style={{ minHeight: "75vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px" }}>
+        <div
+          style={{
+            width: "100%",
+            maxWidth: "480px",
+            background: "#ffffff",
+            borderRadius: "16px",
+            border: "1px solid #e2e8f0",
+            padding: "40px 32px",
+            textAlign: "center",
+            boxShadow: "0 12px 36px rgba(0,0,0,0.06)",
+          }}
+        >
+          <div
+            style={{
+              width: "52px",
+              height: "52px",
+              borderRadius: "50%",
+              background: "#fef2f2",
+              color: "#dc2626",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: "20px",
+            }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+          <h2 style={{ margin: "0 0 8px 0", fontSize: "20px", fontWeight: "800", color: "#0f172a", letterSpacing: "-0.02em" }}>
+            Admin Access Restricted
+          </h2>
+          <p style={{ margin: "0 0 24px 0", fontSize: "13.5px", color: "#64748b", lineHeight: "1.6" }}>
+            {user
+              ? `You are signed in as (${user.email}). The /admin console is strictly restricted to akdeepaknyc@gmail.com.`
+              : "Access to the Aethos Admin Studio is restricted to authorized administrators only. Please sign in to proceed."}
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {user ? (
+              <button
+                type="button"
+                onClick={() => signOut()}
+                style={{
+                  padding: "11px 20px",
+                  background: "#0f172a",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+              >
+                Sign Out & Switch Account
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => signInWithGoogle("/admin")}
+                style={{
+                  padding: "11px 20px",
+                  background: "#0f172a",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                }}
+              >
+                Sign In with Google
+              </button>
+            )}
+            <Link
+              href="/"
+              style={{
+                fontSize: "13px",
+                color: "#64748b",
+                textDecoration: "none",
+                fontWeight: "500",
+                marginTop: "6px",
+              }}
+            >
+              ← Return to Home Page
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const setActiveTab = (tab: TabType) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -1135,6 +1243,7 @@ function AdminPageContent() {
               activeTab === "ipos" ? "IPO Tracker" :
               activeTab === "journal" ? "Market Journal" :
               activeTab === "users" ? "User Management" :
+              activeTab === "payments" ? "Payment Transactions" :
               activeTab === "media" ? "Files & Media" : "Database Console"
             }
           </h1>
@@ -1145,6 +1254,7 @@ function AdminPageContent() {
               activeTab === "ipos" ? "Track live bidding IPOs, upload PDF deep dives, and manage listing notes." :
               activeTab === "journal" ? "Manage market journal entries and commentaries." :
               activeTab === "users" ? "View and manage registered Appwrite users, roles, email verification, and authentication status." :
+              activeTab === "payments" ? "View payment transaction records, customer subscriptions, revenue details, and manage payment entries." :
               activeTab === "media" ? "Manage files uploaded to Appwrite storage bucket." : "Database console and sync tools."
             }
           </p>
@@ -1155,7 +1265,7 @@ function AdminPageContent() {
             type="button"
             onClick={() => {
               syncFromAppwrite();
-              showNotification("Database synchronized", "info");
+              showNotification("Database refreshed", "info");
             }}
             style={{
               padding: "7px 14px",
@@ -1168,7 +1278,7 @@ function AdminPageContent() {
               cursor: "pointer",
             }}
           >
-            Sync Database
+            Refresh
           </button>
 
           {activeTab === "reports" && (
@@ -2104,7 +2214,155 @@ function AdminPageContent() {
               </div>
             ) : (
               <div style={{ padding: "36px 20px", textAlign: "center", color: "#64748b" }}>
-                No users found. Click Sync Database above to fetch registered accounts.
+                No users found. Click Refresh above to fetch registered accounts.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Payments Tab */}
+      {activeTab === "payments" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {/* Payments Table Card */}
+          <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Payment History & Transactions</h3>
+                <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748b" }}>Fetched directly from Appwrite `payments` collection.</p>
+              </div>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <input
+                  type="text"
+                  placeholder="Search by customer, email, order ID, or plan..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    padding: "7px 14px",
+                    background: "#ffffff",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: "6px",
+                    fontSize: "12.5px",
+                    width: "280px",
+                    outline: "none",
+                  }}
+                />
+              </div>
+            </div>
+
+            {payments.length > 0 ? (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0", color: "#64748b", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      <th style={{ padding: "12px 16px" }}>Customer Info</th>
+                      <th style={{ padding: "12px 16px" }}>Plan Name</th>
+                      <th style={{ padding: "12px 16px" }}>Amount</th>
+                      <th style={{ padding: "12px 16px" }}>Order ID / Payment ID</th>
+                      <th style={{ padding: "12px 16px" }}>Status</th>
+                      <th style={{ padding: "12px 16px" }}>Paid At</th>
+                      <th style={{ padding: "12px 16px", textAlign: "right" }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payments
+                      .filter((p) => {
+                        if (!searchQuery.trim()) return true;
+                        const q = searchQuery.toLowerCase();
+                        return (
+                          (p.customerName || "").toLowerCase().includes(q) ||
+                          (p.customerEmail || "").toLowerCase().includes(q) ||
+                          (p.orderId || "").toLowerCase().includes(q) ||
+                          (p.paymentId || "").toLowerCase().includes(q) ||
+                          (p.planName || "").toLowerCase().includes(q) ||
+                          (p.status || "").toLowerCase().includes(q)
+                        );
+                      })
+                      .map((p, idx) => {
+                        const rowId = p.$id || p.id;
+                        const statusLower = (p.status || "").toLowerCase();
+                        const isSuccess = statusLower === "captured" || statusLower === "active" || statusLower === "paid" || statusLower === "success";
+
+                        return (
+                          <tr key={`${rowId}-${idx}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                            <td style={{ padding: "14px 16px" }}>
+                              <div>
+                                <div style={{ fontSize: "13.5px", fontWeight: "600", color: "#0f172a" }}>
+                                  {p.customerName || "Customer"}
+                                </div>
+                                <div style={{ fontSize: "11.5px", color: "#64748b" }}>
+                                  {p.customerEmail || p.customerPhone || "No contact info"}
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{ padding: "14px 16px" }}>
+                              <span style={{ fontSize: "12px", fontWeight: "600", color: "#1e293b", background: "#f1f5f9", padding: "3px 8px", borderRadius: "4px" }}>
+                                {p.planName || p.planId || "Wealth Pass"}
+                              </span>
+                            </td>
+                            <td style={{ padding: "14px 16px", fontSize: "13.5px", fontWeight: "700", color: "#0f172a" }}>
+                              ₹{(p.amount || 0).toLocaleString()}
+                            </td>
+                            <td style={{ padding: "14px 16px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: "11.5px", color: "#475569" }}>
+                              <div><span style={{ color: "#94a3b8" }}>Order:</span> {p.orderId || "—"}</div>
+                              {p.paymentId && <div style={{ fontSize: "10.5px", color: "#64748b" }}><span style={{ color: "#94a3b8" }}>Pay ID:</span> {p.paymentId}</div>}
+                            </td>
+                            <td style={{ padding: "14px 16px" }}>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: "600",
+                                  padding: "2px 7px",
+                                  borderRadius: "4px",
+                                  background: isSuccess ? "#ecfdf5" : "#fef2f2",
+                                  color: isSuccess ? "#047857" : "#dc2626",
+                                  textTransform: "capitalize",
+                                }}
+                              >
+                                {p.status || "Completed"}
+                              </span>
+                            </td>
+                            <td style={{ padding: "14px 16px", color: "#64748b", fontSize: "12px" }}>
+                              {p.paidAt || p.createdAt || p.$createdAt || "—"}
+                            </td>
+                            <td style={{ padding: "14px 16px", textAlign: "right" }}>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (confirm(`Are you sure you want to delete payment record (${p.orderId || rowId})?`)) {
+                                    const res = await deletePaymentRecord(rowId);
+                                    if (res.success) {
+                                      showNotification("Payment record deleted from database", "info");
+                                    } else {
+                                      showNotification(`Failed deleting payment: ${res.error}`, "error");
+                                    }
+                                  }
+                                }}
+                                title="Delete payment record"
+                                style={{
+                                  padding: "6px 8px",
+                                  background: "#fff1f2",
+                                  border: "1px solid #fecdd3",
+                                  borderRadius: "6px",
+                                  color: "#e11d48",
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                              >
+                                <IconTrash />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ padding: "36px 20px", textAlign: "center", color: "#64748b" }}>
+                No payment records found. Click Refresh above to load payments from Appwrite.
               </div>
             )}
           </div>

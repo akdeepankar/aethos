@@ -368,7 +368,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Return overview of all tables
-    const allTables = ["reports", "ideas", "ipos", "journal", "users_meta", "ipo_deep_dives"];
+    const allTables = ["reports", "ideas", "ipos", "journal", "users_meta", "ipo_deep_dives", "payments"];
     const results: Record<string, unknown> = {};
 
     for (const t of allTables) {
@@ -528,6 +528,21 @@ const TABLE_SCHEMAS: Record<string, string[]> = {
     "pdfUrl",
     "deck",
     "createdAt",
+  ],
+  payments: [
+    "orderId",
+    "paymentId",
+    "signature",
+    "planId",
+    "planName",
+    "amount",
+    "status",
+    "customerName",
+    "customerEmail",
+    "customerPhone",
+    "userId",
+    "paidAt",
+    "expiresAt",
   ],
 };
 

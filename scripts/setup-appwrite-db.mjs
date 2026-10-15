@@ -263,7 +263,9 @@ async function main() {
           try {
             await databases.createStringAttribute(databaseId, tableId, key, size, req, def);
             console.log(`     + Added attribute string: ${key}`);
-          } catch {}
+          } catch (e2) {
+            console.log(`     ! Attribute error ${key}: ${e2.message || e.message}`);
+          }
         }
       }
     };
@@ -361,6 +363,23 @@ async function main() {
     await addStringCol("users_meta", "role", 50, true, "Institutional");
     await addStringCol("users_meta", "status", 50, true, "Active");
     await addStringCol("users_meta", "joinedAt", 50, false);
+
+    // Table: payments
+    await createTableOrColl("payments", "Payments & Subscriptions");
+    await addStringCol("payments", "paymentId", 255, false);
+    await addStringCol("payments", "orderId", 255, true);
+    await addStringCol("payments", "signature", 500, false);
+    await addStringCol("payments", "customerId", 255, false);
+    await addStringCol("payments", "planId", 100, true);
+    await addStringCol("payments", "planName", 100, true);
+    await addFloatCol("payments", "amount", true);
+    await addStringCol("payments", "status", 50, false, "created");
+    await addStringCol("payments", "customerName", 255, false);
+    await addStringCol("payments", "customerEmail", 255, false);
+    await addStringCol("payments", "customerPhone", 100, false);
+    await addStringCol("payments", "userId", 255, false);
+    await addStringCol("payments", "paidAt", 100, false);
+    await addStringCol("payments", "expiresAt", 100, false);
 
     // 3. Storage Bucket
     console.log(`\n3. Checking Storage Bucket '${bucketId}'...`);

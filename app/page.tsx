@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useAuth } from "./_context/auth-context";
 
 // Icons for 6 features
@@ -86,45 +87,19 @@ function CrossIcon() {
 }
 
 export default function LandingPage() {
+  const router = useRouter();
   const { user, signInWithGoogle, loading } = useAuth();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const paymentContainerRef = useRef<HTMLDivElement>(null);
 
-  // Check if user came back from login intended to purchase 3 months plan
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const pendingPayment = sessionStorage.getItem("aethos_pending_payment");
-      if (pendingPayment === "3_months" && user) {
-        sessionStorage.removeItem("aethos_pending_payment");
-        setShowPaymentModal(true);
-      }
-    }
-  }, [user]);
-
-  // Handle razorpay script injection into modal container
-  useEffect(() => {
-    if (showPaymentModal && paymentContainerRef.current) {
-      paymentContainerRef.current.innerHTML = "";
-      const form = document.createElement("form");
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/payment-button.js";
-      script.setAttribute("data-payment_button_id", "pl_TnrYBUJrhdhXyk");
-      script.async = true;
-      form.appendChild(script);
-      paymentContainerRef.current.appendChild(form);
-    }
-  }, [showPaymentModal]);
-
-  const handleChoose3Months = async (e: React.MouseEvent) => {
+  const handleChoosePlan = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (loading) return;
 
-    if (!user) {
-      // Save pending plan intent and direct user to sign in
-      sessionStorage.setItem("aethos_pending_payment", "3_months");
-      await signInWithGoogle(window.location.pathname + "#pricing");
+    if (user) {
+      router.push("/membership");
     } else {
-      setShowPaymentModal(true);
+      await signInWithGoogle("/membership");
     }
   };
 
@@ -737,7 +712,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Pricing Tier Cards Grid (4 Cards) */}
+          {/* Pricing Tier Cards Grid (3 Cards) */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "24px", marginBottom: "32px" }}>
             
             {/* 3 Months */}
@@ -749,7 +724,7 @@ export default function LandingPage() {
                 <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "28px" }}>(₹1,500 / month)</div>
               </div>
               <button
-                onClick={handleChoose3Months}
+                onClick={handleChoosePlan}
                 style={{
                   display: "block",
                   width: "100%",
@@ -777,38 +752,58 @@ export default function LandingPage() {
                 <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Paid once for 6 months</div>
                 <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "28px" }}>(₹1,250 / month)</div>
               </div>
-              <Link href="/membership" style={{ display: "block", width: "100%", padding: "12px", background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)", borderRadius: "6px", color: "#ffffff", textAlign: "center", fontSize: "13.5px", fontWeight: "600", textDecoration: "none", transition: "all 0.2s" }}>
+              <button
+                onClick={handleChoosePlan}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  padding: "12px",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                  borderRadius: "6px",
+                  color: "#ffffff",
+                  textAlign: "center",
+                  fontSize: "13.5px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.2s"
+                }}
+              >
                 Choose 6 months
-              </Link>
+              </button>
             </div>
 
-            {/* 1 Year */}
-            <div style={{ background: "#12151c", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", padding: "32px 24px", display: "flex", flexDirection: "column", justifyContent: "space-between", position: "relative" }}>
-              <div>
-                <h3 style={{ fontSize: "20px", fontWeight: "700", color: "#ffffff", marginBottom: "16px" }}>1 Year</h3>
-                <div style={{ fontSize: "36px", fontWeight: "800", color: "#ffffff", lineHeight: "1", marginBottom: "8px" }}>₹12,000</div>
-                <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Paid once for 1 year</div>
-                <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "28px" }}>(₹1,000 / month)</div>
-              </div>
-              <Link href="/membership" style={{ display: "block", width: "100%", padding: "12px", background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.15)", borderRadius: "6px", color: "#ffffff", textAlign: "center", fontSize: "13.5px", fontWeight: "600", textDecoration: "none", transition: "all 0.2s" }}>
-                Choose 1 year
-              </Link>
-            </div>
-
-            {/* 2 Years - Best Value */}
+            {/* 1 Year - Best Value */}
             <div style={{ background: "radial-gradient(circle at top, rgba(197, 155, 39, 0.15), #12151c 70%)", border: "1px solid #c59b27", borderRadius: "12px", padding: "32px 24px", display: "flex", flexDirection: "column", justifyContent: "space-between", position: "relative", boxShadow: "0 8px 32px rgba(197, 155, 39, 0.12)" }}>
               <div style={{ position: "absolute", top: "-12px", right: "20px", background: "#c59b27", color: "#090a0d", fontSize: "10px", fontWeight: "800", letterSpacing: "0.1em", padding: "4px 12px", borderRadius: "9999px", textTransform: "uppercase" }}>
                 BEST VALUE
               </div>
               <div>
-                <h3 style={{ fontSize: "20px", fontWeight: "700", color: "#ffffff", marginBottom: "16px" }}>2 Years</h3>
-                <div style={{ fontSize: "36px", fontWeight: "800", color: "#e2c275", lineHeight: "1", marginBottom: "8px" }}>₹20,000</div>
-                <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Paid once for 2 years</div>
-                <div style={{ fontSize: "12px", color: "#c59b27", marginBottom: "28px" }}>(≈ ₹833 / month)</div>
+                <h3 style={{ fontSize: "20px", fontWeight: "700", color: "#ffffff", marginBottom: "16px" }}>1 Year</h3>
+                <div style={{ fontSize: "36px", fontWeight: "800", color: "#e2c275", lineHeight: "1", marginBottom: "8px" }}>₹12,000</div>
+                <div style={{ fontSize: "13px", color: "#94a3b8", marginBottom: "4px" }}>Paid once for 1 year</div>
+                <div style={{ fontSize: "12px", color: "#c59b27", marginBottom: "28px" }}>(₹1,000 / month)</div>
               </div>
-              <Link href="/membership" style={{ display: "block", width: "100%", padding: "12px", background: "#e2c275", color: "#090a0d", borderRadius: "6px", textAlign: "center", fontSize: "13.5px", fontWeight: "700", textDecoration: "none", transition: "all 0.2s", boxShadow: "0 4px 12px rgba(226, 194, 117, 0.2)" }}>
-                Choose 2 years
-              </Link>
+              <button
+                onClick={handleChoosePlan}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  padding: "12px",
+                  background: "#e2c275",
+                  color: "#090a0d",
+                  border: "none",
+                  borderRadius: "6px",
+                  textAlign: "center",
+                  fontSize: "13.5px",
+                  fontWeight: "700",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  boxShadow: "0 4px 12px rgba(226, 194, 117, 0.2)"
+                }}
+              >
+                Choose 1 year
+              </button>
             </div>
 
           </div>

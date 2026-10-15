@@ -51,6 +51,25 @@ export interface StoredMediaFile {
   category: "IPO" | "Idea" | "Report" | "General";
 }
 
+export interface PaymentRecord {
+  id: string;
+  $id?: string;
+  orderId: string;
+  paymentId: string;
+  planId?: string;
+  planName?: string;
+  amount: number;
+  status: string;
+  customerName?: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  userId?: string;
+  paidAt?: string;
+  expiresAt?: string;
+  createdAt?: string;
+  $createdAt?: string;
+}
+
 const initialIdeas: StockIdea[] = [];
 
 const initialAdminUsers: AdminUser[] = [
@@ -117,6 +136,7 @@ const STORAGE_KEYS = {
   JOURNAL: "aethos_admin_journal_v3",
   USERS: "aethos_admin_users_v3",
   MEDIA: "aethos_admin_media_v4",
+  PAYMENTS: "aethos_admin_payments_v1",
 };
 
 export function getStoredData<T>(key: string, fallback: T): T {
@@ -197,6 +217,7 @@ export function useAdminStore() {
   const [journal, setJournal] = useState<Post[]>(() => getStoredData(STORAGE_KEYS.JOURNAL, initialPosts));
   const [users, setUsers] = useState<AdminUser[]>(() => getStoredData(STORAGE_KEYS.USERS, initialAdminUsers));
   const [media, setMedia] = useState<StoredMediaFile[]>(() => getStoredData(STORAGE_KEYS.MEDIA, []));
+  const [payments, setPayments] = useState<PaymentRecord[]>(() => getStoredData(STORAGE_KEYS.PAYMENTS, []));
   const [isSynced, setIsSynced] = useState(false);
 
   // Sync from Appwrite DB on mount
@@ -352,6 +373,29 @@ export function useAdminStore() {
         if (Array.isArray(d.media)) {
           setMedia(d.media);
           setStoredData(STORAGE_KEYS.MEDIA, d.media);
+        }
+
+        // Payments from Appwrite Database
+        if (Array.isArray(d.payments)) {
+          const parsedPayments: PaymentRecord[] = d.payments.map((p: any) => ({
+            id: p.$id || p.id || p.orderId,
+            $id: p.$id || p.id,
+            orderId: p.orderId || "",
+            paymentId: p.paymentId || "",
+            planId: p.planId || "",
+            planName: p.planName || p.planId || "Membership Plan",
+            amount: Number(p.amount) || 0,
+            status: p.status || "created",
+            customerName: p.customerName || "",
+            customerEmail: p.customerEmail || "",
+            customerPhone: p.customerPhone || "",
+            userId: p.userId || "",
+            paidAt: p.paidAt || "",
+            expiresAt: p.expiresAt || "",
+            createdAt: p.$createdAt || p.createdAt || p.paidAt || "",
+          }));
+          setPayments(parsedPayments);
+          setStoredData(STORAGE_KEYS.PAYMENTS, parsedPayments);
         }
       }
 
@@ -671,6 +715,13 @@ export function useAdminStore() {
     return fallbackFile;
   };
 
+  const deletePaymentRecord = async (id: string): Promise<{ success: boolean; error?: string }> => {
+    const updated = payments.filter((p) => p.id !== id && p.$id !== id);
+    setPayments(updated);
+    setStoredData(STORAGE_KEYS.PAYMENTS, updated);
+    return await deleteFromAppwrite("payments", id);
+  };
+
   const resetToDefaults = () => {
     updateReports(initialReports);
     updateIdeas(initialIdeas);
@@ -688,6 +739,7 @@ export function useAdminStore() {
     journal,
     users,
     media,
+    payments,
     isSynced,
     syncFromAppwrite,
     updateReports,
@@ -696,6 +748,7 @@ export function useAdminStore() {
     updateJournal,
     updateUsers,
     updateMedia,
+    deletePaymentRecord,
     uploadPdfFile,
     resetToDefaults,
   };

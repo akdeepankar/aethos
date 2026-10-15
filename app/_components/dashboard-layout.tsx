@@ -95,6 +95,15 @@ export function IconBell() {
   );
 }
 
+export function IconCreditCard() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="dash-icon">
+      <rect x="1" y="4" width="22" height="16" rx="2" ry="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <line x1="1" y1="10" x2="23" y2="10" stroke="currentColor" strokeWidth="1.8" />
+    </svg>
+  );
+}
+
 export function IconClose() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="dash-icon">
@@ -249,13 +258,19 @@ const adminNavItems: AdminNavItem[] = [
   { label: "IPOs", tab: "ipos", href: "/admin?tab=ipos", icon: IconIpos },
   { label: "Journal", tab: "journal", href: "/admin?tab=journal", icon: IconJournal },
   { label: "Users", tab: "users", href: "/admin?tab=users", icon: IconUsers },
+  { label: "Payments", tab: "payments", href: "/admin?tab=payments", icon: IconCreditCard },
   { label: "Files & Media", tab: "media", href: "/admin?tab=media", icon: IconFolder },
   { label: "Database", tab: "database", href: "/admin?tab=database", icon: IconDatabase },
 ];
 
 function AdminNavbarTabs() {
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const activeAdminTab = searchParams.get("tab") || "reports";
+
+  if (user?.email?.toLowerCase() !== "akdeepaknyc@gmail.com") {
+    return null;
+  }
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>

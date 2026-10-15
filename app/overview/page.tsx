@@ -96,6 +96,7 @@ export default function OverviewPage() {
 
   return (
     <div
+      className="overview-container"
       style={{
         background: "#FAF8F5",
         minHeight: "100vh",
@@ -104,6 +105,33 @@ export default function OverviewPage() {
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       }}
     >
+      <style jsx global>{`
+        @media (max-width: 768px) {
+          .overview-container {
+            padding: 20px 16px 40px !important;
+          }
+          .overview-metrics-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+            margin-bottom: 24px !important;
+          }
+          .overview-main-grid {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+          }
+          .featured-hero-card {
+            grid-template-columns: 1fr !important;
+          }
+          .featured-hero-image-wrap {
+            min-height: 160px !important;
+            max-height: 180px !important;
+          }
+          .overview-subcards-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+        }
+      `}</style>
       {/* ── Top Header Title Section ── */}
       <div
         style={{
@@ -191,6 +219,7 @@ export default function OverviewPage() {
 
       {/* ── Top Metrics Banner (2 Cards) ── */}
       <div
+        className="overview-metrics-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(2, 1fr)",
@@ -262,7 +291,7 @@ export default function OverviewPage() {
       </div>
 
       {/* ── Main Two-Column Layout ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "28px", alignItems: "start" }}>
+      <div className="overview-main-grid" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "28px", alignItems: "start" }}>
         {/* ── Left Column ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: "36px" }}>
           
@@ -302,6 +331,7 @@ export default function OverviewPage() {
 
             {/* Featured Hero Card - Dynamic from Research Library */}
             <div
+              className="featured-hero-card"
               style={{
                 background: "#ffffff",
                 border: "1px solid #eae6df",
@@ -313,7 +343,7 @@ export default function OverviewPage() {
                 boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
               }}
             >
-              <div style={{ position: "relative", width: "100%", height: "100%", minHeight: "200px", background: "#334155" }}>
+              <div className="featured-hero-image-wrap" style={{ position: "relative", width: "100%", height: "100%", minHeight: "200px", background: "#334155" }}>
                 <Image
                   src={latestResearch.imageUrl || "/electrical-substation.jpg"}
                   alt={latestResearch.title}
@@ -391,7 +421,7 @@ export default function OverviewPage() {
             </div>
 
             {/* Sub-cards 2 columns */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+            <div className="overview-subcards-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
               {/* Sub-card 1: RACL Geartech */}
               <Link
                 href="/ideas/racl-geartech"

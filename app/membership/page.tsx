@@ -289,7 +289,7 @@ export default function MembershipPage() {
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
       }}
     >
-      <style>{`
+      <style jsx global>{`
         .membership-grid {
           display: grid;
           grid-template-columns: 1fr 1.15fr;
@@ -317,6 +317,28 @@ export default function MembershipPage() {
           border-color: #0f172a !important;
         }
         @media (max-width: 868px) {
+          .membership-header-nav {
+            padding: 0 16px !important;
+          }
+          .membership-content-container {
+            padding: 0 16px 40px !important;
+          }
+          .membership-main-grid {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+          }
+          .membership-step-tabs {
+            flex-direction: column !important;
+            gap: 8px !important;
+          }
+          .membership-features-grid {
+            grid-template-columns: 1fr !important;
+            gap: 10px !important;
+          }
+          .membership-phone-row {
+            flex-direction: column !important;
+            gap: 8px !important;
+          }
           .membership-grid {
             grid-template-columns: 1fr;
           }
@@ -341,6 +363,7 @@ export default function MembershipPage() {
         }}
       >
         <div
+          className="membership-header-nav"
           style={{
             maxWidth: "1140px",
             margin: "0 auto",
@@ -433,6 +456,7 @@ export default function MembershipPage() {
 
       {/* MAIN CONTENT CONTAINER */}
       <div
+        className="membership-content-container"
         style={{
           maxWidth: "1140px",
           margin: "0 auto",
@@ -484,6 +508,7 @@ export default function MembershipPage() {
 
         return (
           <div
+            className="membership-main-grid"
             style={{
               display: "grid",
               gridTemplateColumns: "280px 1fr",
@@ -824,7 +849,7 @@ export default function MembershipPage() {
                 /* DISPLAY FULL MEMBERSHIP CHECKOUT STEPS (NO WRAPPING CARD, STAY IN SAME TAB) */
                 <div style={{ width: "100%" }}>
                   {/* STEP TABS */}
-                  <div style={{ display: "flex", gap: "12px", marginBottom: "24px" }}>
+                  <div className="membership-step-tabs" style={{ display: "flex", gap: "12px", marginBottom: "24px" }}>
                     <div
                       onClick={() => setCurrentStep(1)}
                       style={{

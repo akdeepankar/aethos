@@ -90,6 +90,7 @@ export default function LandingPage() {
   const router = useRouter();
   const { user, signInWithGoogle, loading } = useAuth();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const paymentContainerRef = useRef<HTMLDivElement>(null);
 
   const handleChoosePlan = async (e: React.MouseEvent) => {
@@ -105,9 +106,63 @@ export default function LandingPage() {
 
   return (
     <div style={{ background: "#090a0d", color: "#f8fafc", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", minHeight: "100vh" }}>
+      <style jsx global>{`
+        @media (max-width: 768px) {
+          .desktop-nav {
+            display: none !important;
+          }
+          .mobile-menu-btn {
+            display: flex !important;
+          }
+          .landing-header {
+            padding: 12px 16px !important;
+          }
+          .hero-section {
+            padding: 48px 16px 36px !important;
+            min-height: auto !important;
+          }
+          .hero-badge {
+            font-size: 9.5px !important;
+            padding: 6px 14px !important;
+            margin-bottom: 16px !important;
+          }
+          .ticker-banner {
+            font-size: 10px !important;
+            padding: 10px 12px !important;
+            letter-spacing: 0.1em !important;
+          }
+          .section-padding {
+            padding: 48px 16px !important;
+            min-height: auto !important;
+          }
+          .philosophy-grid {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+          }
+          .thinking-grid {
+            grid-template-columns: 1fr !important;
+            gap: 24px !important;
+          }
+          .feature-grid-items {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+          .pricing-grid {
+            grid-template-columns: 1fr !important;
+            gap: 20px !important;
+          }
+          .footer-container {
+            flex-direction: column !important;
+            text-align: center !important;
+            gap: 16px !important;
+            padding: 24px 16px !important;
+          }
+        }
+      `}</style>
       
       {/* ── Top Navigation Header ── */}
       <header
+        className="landing-header"
         style={{
           borderBottom: "1px solid rgba(212, 175, 55, 0.15)",
           background: "#08090b",
@@ -144,7 +199,8 @@ export default function LandingPage() {
           </div>
         </Link>
 
-        <nav style={{ display: "flex", alignItems: "center", gap: "28px" }}>
+        {/* Desktop Nav */}
+        <nav className="desktop-nav" style={{ display: "flex", alignItems: "center", gap: "28px" }}>
           <a
             href="#features"
             onClick={(e) => {
@@ -198,12 +254,117 @@ export default function LandingPage() {
             Subscribe
           </Link>
         </nav>
+
+        {/* Mobile Menu Button */}
+        <button
+          className="mobile-menu-btn"
+          type="button"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          style={{
+            display: "none",
+            background: "transparent",
+            border: "1px solid rgba(197, 155, 39, 0.4)",
+            borderRadius: "6px",
+            color: "#e2c275",
+            padding: "6px 10px",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+          }}
+          aria-label="Toggle navigation menu"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2">
+            {mobileMenuOpen ? (
+              <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
+            ) : (
+              <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
+            )}
+          </svg>
+        </button>
       </header>
+
+      {/* Mobile Drawer */}
+      {mobileMenuOpen && (
+        <div
+          style={{
+            position: "fixed",
+            top: "61px",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "#08090b",
+            zIndex: 40,
+            padding: "24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "20px",
+            borderBottom: "1px solid rgba(197, 155, 39, 0.2)",
+          }}
+        >
+          <a
+            href="#features"
+            onClick={(e) => {
+              e.preventDefault();
+              setMobileMenuOpen(false);
+              document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
+            }}
+            style={{ color: "#f8fafc", fontSize: "16px", textDecoration: "none", fontWeight: "600", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            Features
+          </a>
+          <a
+            href="#pricing"
+            onClick={(e) => {
+              e.preventDefault();
+              setMobileMenuOpen(false);
+              document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" });
+            }}
+            style={{ color: "#f8fafc", fontSize: "16px", textDecoration: "none", fontWeight: "600", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            Pricing
+          </a>
+          {user ? (
+            <Link
+              href="/overview"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{ color: "#e2c275", fontSize: "16px", textDecoration: "none", fontWeight: "600", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              Go to Portal →
+            </Link>
+          ) : (
+            <Link
+              href="/signin"
+              onClick={() => setMobileMenuOpen(false)}
+              style={{ color: "#f8fafc", fontSize: "16px", textDecoration: "none", fontWeight: "600", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
+            >
+              Log in
+            </Link>
+          )}
+          <Link
+            href="/membership"
+            onClick={() => setMobileMenuOpen(false)}
+            style={{
+              border: "1px solid #c59b27",
+              background: "rgba(197, 155, 39, 0.1)",
+              color: "#e2c275",
+              padding: "12px",
+              borderRadius: "6px",
+              fontSize: "15px",
+              fontWeight: "700",
+              textDecoration: "none",
+              textAlign: "center",
+              marginTop: "8px",
+            }}
+          >
+            Subscribe
+          </Link>
+        </div>
+      )}
 
       {/* ── Hero Container (Full Viewport) ── */}
       <div style={{ minHeight: "calc(100vh - 68px)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
         {/* Hero Section */}
-        <section style={{ position: "relative", overflow: "hidden", padding: "80px 24px 60px", maxWidth: "1280px", margin: "auto", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "560px", textAlign: "center" }}>
+        <section className="hero-section" style={{ position: "relative", overflow: "hidden", padding: "80px 24px 60px", maxWidth: "1280px", margin: "auto", width: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "560px", textAlign: "center" }}>
           
           {/* Dimmed Eagle Background in Center */}
           <div
@@ -244,6 +405,7 @@ export default function LandingPage() {
             
             {/* Top Badge */}
             <div
+              className="hero-badge"
               style={{
                 fontSize: "11px",
                 fontWeight: "700",
@@ -264,7 +426,7 @@ export default function LandingPage() {
             {/* Hero Main Heading */}
             <h1
               style={{
-                fontSize: "clamp(42px, 5.5vw, 72px)",
+                fontSize: "clamp(32px, 5.5vw, 72px)",
                 fontWeight: "800",
                 color: "#ffffff",
                 lineHeight: "1.08",
@@ -287,24 +449,25 @@ export default function LandingPage() {
             </h1>
 
             {/* Hero Subtitle */}
-            <p style={{ fontSize: "clamp(16px, 1.8vw, 19px)", color: "#94a3b8", lineHeight: "1.65", maxWidth: "660px", marginBottom: "40px", fontWeight: "400" }}>
+            <p style={{ fontSize: "clamp(15px, 1.8vw, 19px)", color: "#94a3b8", lineHeight: "1.65", maxWidth: "660px", marginBottom: "40px", fontWeight: "400" }}>
               Explore businesses, sectors and IPOs through research that connects the numbers, the narrative and the risks.
             </p>
 
             {/* Hero Action Buttons */}
-            <div style={{ display: "flex", gap: "18px", flexWrap: "wrap", justifyContent: "center", alignItems: "center", marginBottom: "32px" }}>
+            <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", justifyContent: "center", alignItems: "center", marginBottom: "32px", width: "100%" }}>
               <Link
                 href="/overview"
                 style={{
                   background: "#e2c275",
                   color: "#090a0d",
-                  padding: "14px 32px",
+                  padding: "14px 28px",
                   borderRadius: "6px",
                   fontSize: "14.5px",
                   fontWeight: "700",
                   textDecoration: "none",
                   display: "inline-flex",
                   alignItems: "center",
+                  justifyContent: "center",
                   gap: "8px",
                   boxShadow: "0 4px 25px rgba(226, 194, 117, 0.3)",
                   transition: "all 0.2s ease",
@@ -318,11 +481,14 @@ export default function LandingPage() {
                   border: "1px solid rgba(197, 155, 39, 0.6)",
                   background: "rgba(18, 21, 28, 0.7)",
                   color: "#ffffff",
-                  padding: "14px 32px",
+                  padding: "14px 28px",
                   borderRadius: "6px",
                   fontSize: "14.5px",
                   fontWeight: "600",
                   textDecoration: "none",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   backdropFilter: "blur(10px)",
                   transition: "all 0.2s ease",
                 }}
@@ -344,6 +510,7 @@ export default function LandingPage() {
 
         {/* ── Golden Ticker Banner ── */}
         <div
+          className="ticker-banner"
           style={{
             borderTop: "1px solid rgba(197, 155, 39, 0.2)",
             borderBottom: "1px solid rgba(197, 155, 39, 0.2)",
@@ -362,15 +529,15 @@ export default function LandingPage() {
       </div>
 
       {/* ── Section 2: INSIDE AETHOS (Cream Light Background - Full Viewport) ── */}
-      <section id="features" style={{ background: "#faf8f5", color: "#0f172a", minHeight: "100vh", display: "flex", alignItems: "center", padding: "80px 36px" }}>
+      <section id="features" className="section-padding" style={{ background: "#faf8f5", color: "#0f172a", minHeight: "100vh", display: "flex", alignItems: "center", padding: "80px 36px" }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto", width: "100%" }}>
-          <div style={{ textAlign: "center", marginBottom: "56px" }}>
+          <div style={{ textAlign: "center", marginBottom: "40px" }}>
             <div style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.2em", color: "#c59b27", textTransform: "uppercase", marginBottom: "12px" }}>
               INSIDE AETHOS
             </div>
             <h2
               style={{
-                fontSize: "clamp(32px, 4vw, 50px)",
+                fontSize: "clamp(28px, 4vw, 50px)",
                 fontWeight: "800",
                 fontFamily: "var(--font-playfair), Georgia, serif",
                 color: "#0f172a",
@@ -380,13 +547,13 @@ export default function LandingPage() {
             >
               Better questions. Deeper research.
             </h2>
-            <p style={{ fontSize: "16px", color: "#64748b", maxWidth: "600px", margin: "0 auto" }}>
+            <p style={{ fontSize: "15px", color: "#64748b", maxWidth: "600px", margin: "0 auto" }}>
               A structured approach to evaluating businesses beyond surface-level narratives.
             </p>
           </div>
 
           {/* 6 Grid items (3 Columns) with premium card styling */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "28px" }}>
+          <div className="feature-grid-items" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
             
             {/* 1. AETHOS IDEAS */}
             <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "14px", padding: "32px 28px", boxShadow: "0 4px 20px rgba(0,0,0,0.03)", transition: "all 0.3s ease", display: "flex", flexDirection: "column" }}>
@@ -489,19 +656,19 @@ export default function LandingPage() {
       </section>
 
       {/* ── Section 3: THE THINKING BEHIND OUR NAME (Dark Luxury Background) ── */}
-      <section style={{ background: "#08090c", minHeight: "100vh", display: "flex", alignItems: "center", borderTop: "1px solid rgba(197, 155, 39, 0.2)", borderBottom: "1px solid rgba(197, 155, 39, 0.2)", padding: "80px 36px", position: "relative", overflow: "hidden" }}>
+      <section className="section-padding" style={{ background: "#08090c", minHeight: "100vh", display: "flex", alignItems: "center", borderTop: "1px solid rgba(197, 155, 39, 0.2)", borderBottom: "1px solid rgba(197, 155, 39, 0.2)", padding: "80px 36px", position: "relative", overflow: "hidden" }}>
         
         {/* Subtle golden ambient light */}
         <div style={{ position: "absolute", top: "10%", left: "50%", transform: "translateX(-50%)", width: "600px", height: "300px", borderRadius: "50%", background: "radial-gradient(circle, rgba(197, 155, 39, 0.15) 0%, rgba(8, 9, 12, 0) 70%)", pointerEvents: "none", filter: "blur(50px)" }} />
 
         <div style={{ maxWidth: "1200px", width: "100%", margin: "0 auto", position: "relative", zIndex: 10 }}>
-          <div style={{ textAlign: "center", marginBottom: "56px" }}>
+          <div style={{ textAlign: "center", marginBottom: "40px" }}>
             <div style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.22em", color: "#c59b27", textTransform: "uppercase", marginBottom: "12px", display: "inline-block", background: "rgba(197, 155, 39, 0.08)", border: "1px solid rgba(197, 155, 39, 0.25)", padding: "6px 18px", borderRadius: "9999px" }}>
               THE THINKING BEHIND OUR NAME
             </div>
             <h2
               style={{
-                fontSize: "clamp(36px, 4.5vw, 58px)",
+                fontSize: "clamp(30px, 4.5vw, 58px)",
                 fontWeight: "800",
                 fontFamily: "var(--font-playfair), Georgia, serif",
                 color: "#ffffff",
@@ -513,45 +680,45 @@ export default function LandingPage() {
             </h2>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "36px", alignItems: "stretch" }}>
+          <div className="thinking-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "28px", alignItems: "stretch" }}>
             
             {/* Left Cards Stack */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
               
               {/* Aetos Card */}
-              <div style={{ background: "linear-gradient(135deg, rgba(22, 26, 35, 0.9) 0%, rgba(14, 16, 22, 0.9) 100%)", border: "1px solid rgba(197, 155, 39, 0.35)", borderRadius: "16px", padding: "36px", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)", position: "relative", overflow: "hidden" }}>
+              <div style={{ background: "linear-gradient(135deg, rgba(22, 26, 35, 0.9) 0%, rgba(14, 16, 22, 0.9) 100%)", border: "1px solid rgba(197, 155, 39, 0.35)", borderRadius: "16px", padding: "28px", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", top: 0, left: 0, width: "4px", height: "100%", background: "#c59b27" }} />
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-                  <h3 style={{ fontSize: "24px", fontWeight: "800", color: "#e2c275", margin: 0, letterSpacing: "0.02em" }}>
+                  <h3 style={{ fontSize: "22px", fontWeight: "800", color: "#e2c275", margin: 0, letterSpacing: "0.02em" }}>
                     Aetos
                   </h3>
-                  <span style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.15em", color: "#e2c275", textTransform: "uppercase", background: "rgba(197, 155, 39, 0.12)", border: "1px solid rgba(197, 155, 39, 0.3)", padding: "5px 14px", borderRadius: "9999px" }}>
+                  <span style={{ fontSize: "10.5px", fontWeight: "700", letterSpacing: "0.15em", color: "#e2c275", textTransform: "uppercase", background: "rgba(197, 155, 39, 0.12)", border: "1px solid rgba(197, 155, 39, 0.3)", padding: "4px 12px", borderRadius: "9999px" }}>
                     The Eagle
                   </span>
                 </div>
-                <div style={{ fontSize: "16px", fontWeight: "700", color: "#ffffff", marginBottom: "10px" }}>
+                <div style={{ fontSize: "15px", fontWeight: "700", color: "#ffffff", marginBottom: "8px" }}>
                   Vision &amp; Precision
                 </div>
-                <p style={{ fontSize: "14.5px", color: "#94a3b8", lineHeight: "1.65", margin: 0 }}>
+                <p style={{ fontSize: "14px", color: "#94a3b8", lineHeight: "1.65", margin: 0 }}>
                   The depth to look closer. The discipline to see beyond the obvious noise and evaluate fundamental strength with clarity.
                 </p>
               </div>
 
               {/* Ethos Card */}
-              <div style={{ background: "linear-gradient(135deg, rgba(22, 26, 35, 0.9) 0%, rgba(14, 16, 22, 0.9) 100%)", border: "1px solid rgba(197, 155, 39, 0.35)", borderRadius: "16px", padding: "36px", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)", position: "relative", overflow: "hidden" }}>
+              <div style={{ background: "linear-gradient(135deg, rgba(22, 26, 35, 0.9) 0%, rgba(14, 16, 22, 0.9) 100%)", border: "1px solid rgba(197, 155, 39, 0.35)", borderRadius: "16px", padding: "28px", boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", top: 0, left: 0, width: "4px", height: "100%", background: "#e2c275" }} />
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-                  <h3 style={{ fontSize: "24px", fontWeight: "800", color: "#e2c275", margin: 0, letterSpacing: "0.02em" }}>
+                  <h3 style={{ fontSize: "22px", fontWeight: "800", color: "#e2c275", margin: 0, letterSpacing: "0.02em" }}>
                     Ethos
                   </h3>
-                  <span style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.15em", color: "#e2c275", textTransform: "uppercase", background: "rgba(197, 155, 39, 0.12)", border: "1px solid rgba(197, 155, 39, 0.3)", padding: "5px 14px", borderRadius: "9999px" }}>
+                  <span style={{ fontSize: "10.5px", fontWeight: "700", letterSpacing: "0.15em", color: "#e2c275", textTransform: "uppercase", background: "rgba(197, 155, 39, 0.12)", border: "1px solid rgba(197, 155, 39, 0.3)", padding: "4px 12px", borderRadius: "9999px" }}>
                     Character &amp; Integrity
                   </span>
                 </div>
-                <div style={{ fontSize: "16px", fontWeight: "700", color: "#ffffff", marginBottom: "10px" }}>
+                <div style={{ fontSize: "15px", fontWeight: "700", color: "#ffffff", marginBottom: "8px" }}>
                   Conviction Grounded in Evidence
                 </div>
-                <p style={{ fontSize: "14.5px", color: "#94a3b8", lineHeight: "1.65", margin: 0 }}>
+                <p style={{ fontSize: "14px", color: "#94a3b8", lineHeight: "1.65", margin: 0 }}>
                   Question assumptions. Acknowledge risks explicitly. Stay open to building a genuine, value-generating perspective.
                 </p>
               </div>
@@ -564,7 +731,7 @@ export default function LandingPage() {
                 border: "1px solid rgba(197, 155, 39, 0.45)",
                 borderRadius: "18px",
                 background: "radial-gradient(circle at top right, rgba(197, 155, 39, 0.22), rgba(12, 14, 18, 0.98))",
-                padding: "48px 38px",
+                padding: "36px 28px",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -573,23 +740,23 @@ export default function LandingPage() {
                 boxShadow: "0 12px 48px rgba(0, 0, 0, 0.6)",
               }}
             >
-              <div style={{ fontSize: "52px", color: "#c59b27", lineHeight: "1", marginBottom: "12px", opacity: 0.8, fontFamily: "serif" }}>
+              <div style={{ fontSize: "44px", color: "#c59b27", lineHeight: "1", marginBottom: "8px", opacity: 0.8, fontFamily: "serif" }}>
                 “
               </div>
               <blockquote
                 style={{
-                  fontSize: "clamp(22px, 2.5vw, 32px)",
+                  fontSize: "clamp(20px, 2.5vw, 32px)",
                   fontFamily: "var(--font-playfair), Georgia, serif",
                   fontStyle: "italic",
                   color: "#ffffff",
                   lineHeight: "1.4",
-                  margin: "0 0 24px 0",
+                  margin: "0 0 20px 0",
                   textAlign: "center",
                 }}
               >
                 We believe wealth built on conviction outlasts wealth built on noise.
               </blockquote>
-              <div style={{ fontSize: "11px", letterSpacing: "0.22em", color: "#c59b27", textTransform: "uppercase", fontWeight: "800", background: "rgba(197, 155, 39, 0.12)", border: "1px solid rgba(197, 155, 39, 0.3)", padding: "6px 18px", borderRadius: "9999px" }}>
+              <div style={{ fontSize: "10.5px", letterSpacing: "0.2em", color: "#c59b27", textTransform: "uppercase", fontWeight: "800", background: "rgba(197, 155, 39, 0.12)", border: "1px solid rgba(197, 155, 39, 0.3)", padding: "5px 16px", borderRadius: "9999px" }}>
                 THE AETHOS PRINCIPLE
               </div>
             </div>
@@ -599,16 +766,16 @@ export default function LandingPage() {
       </section>
 
       {/* ── Section 4: A Clear Lens / Deliberate Filter (Cream Background) ── */}
-      <section style={{ background: "#faf8f5", color: "#0f172a", minHeight: "100vh", display: "flex", alignItems: "center", padding: "80px 36px" }}>
+      <section className="section-padding" style={{ background: "#faf8f5", color: "#0f172a", minHeight: "100vh", display: "flex", alignItems: "center", padding: "80px 36px" }}>
         <div style={{ maxWidth: "1150px", margin: "0 auto", width: "100%" }}>
           
-          <div style={{ textAlign: "center", marginBottom: "56px" }}>
+          <div style={{ textAlign: "center", marginBottom: "40px" }}>
             <div style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.2em", color: "#c59b27", textTransform: "uppercase", marginBottom: "12px" }}>
               OUR PHILOSOPHY
             </div>
             <h2
               style={{
-                fontSize: "clamp(32px, 4vw, 50px)",
+                fontSize: "clamp(28px, 4vw, 50px)",
                 fontWeight: "800",
                 fontFamily: "var(--font-playfair), Georgia, serif",
                 color: "#0f172a",
@@ -618,36 +785,36 @@ export default function LandingPage() {
             >
               A clear lens. A deliberate filter.
             </h2>
-            <p style={{ fontSize: "16px", color: "#64748b", maxWidth: "600px", margin: "0 auto" }}>
+            <p style={{ fontSize: "15px", color: "#64748b", maxWidth: "600px", margin: "0 auto" }}>
               We set strict research parameters so you focus only on what truly moves business value.
             </p>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "36px" }}>
+          <div className="philosophy-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "28px" }}>
             
             {/* What we cover */}
-            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "40px 32px", boxShadow: "0 8px 30px rgba(0, 0, 0, 0.03)" }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.25)", color: "#059669", padding: "6px 16px", borderRadius: "9999px", fontSize: "12px", fontWeight: "700", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "20px" }}>
+            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "32px 24px", boxShadow: "0 8px 30px rgba(0, 0, 0, 0.03)" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.25)", color: "#059669", padding: "5px 14px", borderRadius: "9999px", fontSize: "11px", fontWeight: "700", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "16px" }}>
                 ✓ FOCUS AREAS
               </div>
-              <h3 style={{ fontSize: "24px", fontWeight: "800", fontFamily: "var(--font-playfair), serif", color: "#0f172a", marginBottom: "28px" }}>
+              <h3 style={{ fontSize: "22px", fontWeight: "800", fontFamily: "var(--font-playfair), serif", color: "#0f172a", marginBottom: "20px" }}>
                 What we cover
               </h3>
               
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "20px" }}>
-                <li style={{ display: "flex", alignItems: "flex-start", gap: "14px", fontSize: "15.5px", color: "#334155", fontWeight: "500", lineHeight: "1.5" }}>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "16px" }}>
+                <li style={{ display: "flex", alignItems: "flex-start", gap: "12px", fontSize: "14.5px", color: "#334155", fontWeight: "500", lineHeight: "1.5" }}>
                   <CheckIcon />
                   <span>Businesses beyond the familiar headline names</span>
                 </li>
-                <li style={{ display: "flex", alignItems: "flex-start", gap: "14px", fontSize: "15.5px", color: "#334155", fontWeight: "500", lineHeight: "1.5" }}>
+                <li style={{ display: "flex", alignItems: "flex-start", gap: "12px", fontSize: "14.5px", color: "#334155", fontWeight: "500", lineHeight: "1.5" }}>
                   <CheckIcon />
                   <span>Capacity expansion, execution track record and cash generation</span>
                 </li>
-                <li style={{ display: "flex", alignItems: "flex-start", gap: "14px", fontSize: "15.5px", color: "#334155", fontWeight: "500", lineHeight: "1.5" }}>
+                <li style={{ display: "flex", alignItems: "flex-start", gap: "12px", fontSize: "14.5px", color: "#334155", fontWeight: "500", lineHeight: "1.5" }}>
                   <CheckIcon />
                   <span>Structural industry shifts and emerging corporate developments</span>
                 </li>
-                <li style={{ display: "flex", alignItems: "flex-start", gap: "14px", fontSize: "15.5px", color: "#334155", fontWeight: "500", lineHeight: "1.5" }}>
+                <li style={{ display: "flex", alignItems: "flex-start", gap: "12px", fontSize: "14.5px", color: "#334155", fontWeight: "500", lineHeight: "1.5" }}>
                   <CheckIcon />
                   <span>Discipline on valuation, governance checks and downside risk</span>
                 </li>
@@ -655,28 +822,28 @@ export default function LandingPage() {
             </div>
 
             {/* What we ignore */}
-            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "40px 32px", boxShadow: "0 8px 30px rgba(0, 0, 0, 0.03)" }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.25)", color: "#dc2626", padding: "6px 16px", borderRadius: "9999px", fontSize: "12px", fontWeight: "700", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "20px" }}>
+            <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "32px 24px", boxShadow: "0 8px 30px rgba(0, 0, 0, 0.03)" }}>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.25)", color: "#dc2626", padding: "5px 14px", borderRadius: "9999px", fontSize: "11px", fontWeight: "700", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "16px" }}>
                 ✕ NOISE FILTER
               </div>
-              <h3 style={{ fontSize: "24px", fontWeight: "800", fontFamily: "var(--font-playfair), serif", color: "#0f172a", marginBottom: "28px" }}>
+              <h3 style={{ fontSize: "22px", fontWeight: "800", fontFamily: "var(--font-playfair), serif", color: "#0f172a", marginBottom: "20px" }}>
                 What we ignore
               </h3>
               
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "20px" }}>
-                <li style={{ display: "flex", alignItems: "flex-start", gap: "14px", fontSize: "15.5px", color: "#64748b", lineHeight: "1.5" }}>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "16px" }}>
+                <li style={{ display: "flex", alignItems: "flex-start", gap: "12px", fontSize: "14.5px", color: "#64748b", lineHeight: "1.5" }}>
                   <CrossIcon />
                   <span>Market rumours dressed up as formal research</span>
                 </li>
-                <li style={{ display: "flex", alignItems: "flex-start", gap: "14px", fontSize: "15.5px", color: "#64748b", lineHeight: "1.5" }}>
+                <li style={{ display: "flex", alignItems: "flex-start", gap: "12px", fontSize: "14.5px", color: "#64748b", lineHeight: "1.5" }}>
                   <CrossIcon />
                   <span>Short-term daily price noise and media sensationalism</span>
                 </li>
-                <li style={{ display: "flex", alignItems: "flex-start", gap: "14px", fontSize: "15.5px", color: "#64748b", lineHeight: "1.5" }}>
+                <li style={{ display: "flex", alignItems: "flex-start", gap: "12px", fontSize: "14.5px", color: "#64748b", lineHeight: "1.5" }}>
                   <CrossIcon />
                   <span>Guaranteed-return hype and speculative momentum calls</span>
                 </li>
-                <li style={{ display: "flex", alignItems: "flex-start", gap: "14px", fontSize: "15.5px", color: "#64748b", lineHeight: "1.5" }}>
+                <li style={{ display: "flex", alignItems: "flex-start", gap: "12px", fontSize: "14.5px", color: "#64748b", lineHeight: "1.5" }}>
                   <CrossIcon />
                   <span>Buy / sell tip sheets and arbitrary target-price predictions</span>
                 </li>
@@ -688,22 +855,22 @@ export default function LandingPage() {
       </section>
 
       {/* ── Section 5: THE AETHOS MEMBERSHIP / PRICING SECTION ── */}
-      <section id="pricing" style={{ background: "#0b0d11", color: "#f8fafc", padding: "80px 24px", scrollMarginTop: "60px", borderTop: "1px solid rgba(197, 155, 39, 0.2)" }}>
+      <section id="pricing" className="section-padding" style={{ background: "#0b0d11", color: "#f8fafc", padding: "80px 24px", scrollMarginTop: "60px", borderTop: "1px solid rgba(197, 155, 39, 0.2)" }}>
         <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
           
           {/* Section Header */}
-          <div style={{ textAlign: "center", marginBottom: "50px" }}>
+          <div style={{ textAlign: "center", marginBottom: "40px" }}>
             <div style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.2em", color: "#c59b27", textTransform: "uppercase", marginBottom: "12px" }}>
               THE AETHOS MEMBERSHIP
             </div>
-            <h2 style={{ fontSize: "clamp(32px, 4vw, 52px)", fontWeight: "800", fontFamily: "var(--font-playfair), Georgia, serif", color: "#ffffff", marginBottom: "16px", letterSpacing: "-0.01em" }}>
+            <h2 style={{ fontSize: "clamp(28px, 4vw, 52px)", fontWeight: "800", fontFamily: "var(--font-playfair), Georgia, serif", color: "#ffffff", marginBottom: "16px", letterSpacing: "-0.01em" }}>
               One membership. A deeper perspective.
             </h2>
-            <p style={{ fontSize: "16px", color: "#94a3b8", maxWidth: "640px", margin: "0 auto 24px", lineHeight: "1.6" }}>
+            <p style={{ fontSize: "15px", color: "#94a3b8", maxWidth: "640px", margin: "0 auto 20px", lineHeight: "1.6" }}>
               Explore businesses, sectors and market developments through research built for independent thinking.
             </p>
 
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(197, 155, 39, 0.1)", border: "1px solid rgba(197, 155, 39, 0.3)", padding: "8px 20px", borderRadius: "9999px", fontSize: "12.5px", color: "#e2c275", fontWeight: "500" }}>
+            <div style={{ display: "inline-flex", flexWrap: "wrap", justifyContent: "center", alignItems: "center", gap: "8px", background: "rgba(197, 155, 39, 0.1)", border: "1px solid rgba(197, 155, 39, 0.3)", padding: "8px 16px", borderRadius: "9999px", fontSize: "12px", color: "#e2c275", fontWeight: "500" }}>
               <span>Full research access</span>
               <span style={{ color: "#c59b27" }}>•</span>
               <span>One-time payment</span>
@@ -713,7 +880,7 @@ export default function LandingPage() {
           </div>
 
           {/* Pricing Tier Cards Grid (3 Cards) */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "24px", marginBottom: "32px" }}>
+          <div className="pricing-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "24px", marginBottom: "32px" }}>
             
             {/* 3 Months */}
             <div style={{ background: "#12151c", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", padding: "32px 24px", display: "flex", flexDirection: "column", justifyContent: "space-between", position: "relative" }}>

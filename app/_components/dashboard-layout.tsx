@@ -694,11 +694,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               )}
 
-              <button className="header-icon-btn" aria-label="Notifications" title="Notifications">
-                <IconBell />
-                <span className="notif-dot" />
-              </button>
-
               <div
                 className="header-avatar-circle"
                 title={user ? displayName : "Guest Member"}

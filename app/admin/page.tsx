@@ -321,7 +321,7 @@ function AdminPageContent() {
           </h2>
           <p style={{ margin: "0 0 24px 0", fontSize: "13.5px", color: "#64748b", lineHeight: "1.6" }}>
             {user
-              ? `You are signed in as (${user.email}). The /admin console is strictly restricted to akdeepaknyc@gmail.com.`
+              ? `You are signed in as (${user.email}), which does not have administrator privileges.`
               : "Access to the Aethos Admin Studio is restricted to authorized administrators only. Please sign in to proceed."}
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>

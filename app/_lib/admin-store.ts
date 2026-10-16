@@ -718,6 +718,81 @@ export function useAdminStore() {
     return fallbackFile;
   };
 
+  const addPaymentRecord = async (newPayment: Omit<PaymentRecord, "id"> & { id?: string }): Promise<{ success: boolean; error?: string; record?: PaymentRecord }> => {
+    const recordId = newPayment.id || "manual_" + Math.random().toString(36).substring(2, 11);
+    const fullRecord: PaymentRecord = {
+      ...newPayment,
+      id: recordId,
+      $id: recordId,
+      status: newPayment.status || "paid",
+      createdAt: newPayment.createdAt || new Date().toISOString(),
+      paidAt: newPayment.paidAt || new Date().toISOString(),
+    };
+
+    const updated = [fullRecord, ...payments.filter((p) => p.id !== recordId && p.$id !== recordId)];
+    setPayments(updated);
+    setStoredData(STORAGE_KEYS.PAYMENTS, updated);
+
+    const persistRes = await persistToAppwrite("payments", recordId, {
+      orderId: fullRecord.orderId,
+      paymentId: fullRecord.paymentId,
+      planId: fullRecord.planId || "manual_pro",
+      planName: fullRecord.planName || "Manual Pro Pass",
+      amount: fullRecord.amount || 0,
+      status: fullRecord.status,
+      customerName: fullRecord.customerName || "",
+      customerEmail: fullRecord.customerEmail || "",
+      customerPhone: fullRecord.customerPhone || "",
+      userId: fullRecord.userId || "",
+      paidAt: fullRecord.paidAt,
+      expiresAt: fullRecord.expiresAt || "",
+    });
+
+    return {
+      success: persistRes.success,
+      error: persistRes.error,
+      record: fullRecord,
+    };
+  };
+
+  const updatePaymentRecord = async (id: string, updatedData: Partial<PaymentRecord>): Promise<{ success: boolean; error?: string; record?: PaymentRecord }> => {
+    const existing = payments.find((p) => p.id === id || p.$id === id);
+    if (!existing) {
+      return { success: false, error: "Payment record not found" };
+    }
+    const merged: PaymentRecord = {
+      ...existing,
+      ...updatedData,
+      id,
+      $id: id,
+    };
+
+    const updated = payments.map((p) => (p.id === id || p.$id === id ? merged : p));
+    setPayments(updated);
+    setStoredData(STORAGE_KEYS.PAYMENTS, updated);
+
+    const persistRes = await persistToAppwrite("payments", id, {
+      orderId: merged.orderId,
+      paymentId: merged.paymentId,
+      planId: merged.planId || "manual_pro",
+      planName: merged.planName || "Manual Pro Pass",
+      amount: merged.amount || 0,
+      status: merged.status,
+      customerName: merged.customerName || "",
+      customerEmail: merged.customerEmail || "",
+      customerPhone: merged.customerPhone || "",
+      userId: merged.userId || "",
+      paidAt: merged.paidAt,
+      expiresAt: merged.expiresAt || "",
+    });
+
+    return {
+      success: persistRes.success,
+      error: persistRes.error,
+      record: merged,
+    };
+  };
+
   const deletePaymentRecord = async (id: string): Promise<{ success: boolean; error?: string }> => {
     const updated = payments.filter((p) => p.id !== id && p.$id !== id);
     setPayments(updated);
@@ -751,6 +826,8 @@ export function useAdminStore() {
     updateJournal,
     updateUsers,
     updateMedia,
+    addPaymentRecord,
+    updatePaymentRecord,
     deletePaymentRecord,
     uploadPdfFile,
     resetToDefaults,

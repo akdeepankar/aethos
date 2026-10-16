@@ -9,6 +9,7 @@ import {
   StockIdea,
   AdminUser,
   StoredMediaFile,
+  PaymentRecord,
 } from "../_lib/admin-store";
 import { Report, Ipo, Post } from "../_lib/content";
 import ReportView from "../_components/ReportView";
@@ -199,6 +200,15 @@ function IconTrash() {
   );
 }
 
+function IconEdit() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function IconCopy() {
   return (
     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -245,6 +255,8 @@ function AdminPageContent() {
     updateJournal,
     updateUsers,
     updateMedia,
+    addPaymentRecord,
+    updatePaymentRecord,
     deletePaymentRecord,
     uploadPdfFile,
   } = useAdminStore();
@@ -627,6 +639,294 @@ function AdminPageContent() {
     htmlUrl: "",
     htmlContent: "",
   });
+
+  // Manual Pro / Payment Modal State
+  const [editingPaymentRecord, setEditingPaymentRecord] = useState<PaymentRecord | null>(null);
+  const [isManualPaymentModalOpen, setIsManualPaymentModalOpen] = useState(false);
+  const [isUserPickerModalOpen, setIsUserPickerModalOpen] = useState(false);
+  const [userPickerSearch, setUserPickerSearch] = useState("");
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const [manualPaymentUserMode, setManualPaymentUserMode] = useState<"existing" | "custom">("existing");
+  const [selectedUserId, setSelectedUserId] = useState<string>("");
+  const [manualPaymentForm, setManualPaymentForm] = useState({
+    customerName: "",
+    customerEmail: "",
+    customerPhone: "",
+    userId: "",
+    planId: "1_month",
+    planName: "1 Month Pass",
+    amount: 1999,
+    status: "paid",
+    paymentMethod: "Bank Transfer / UPI",
+    paymentId: "",
+    expiryDate: (() => {
+      const d = new Date();
+      d.setDate(d.getDate() + 30);
+      return d.toISOString().split("T")[0];
+    })(),
+    daysCount: 30,
+    notes: "",
+  });
+
+  // Helper to generate a unique manual payment reference from user ID / email
+  const generateManualPaymentRef = (uId?: string, email?: string) => {
+    const rawSeed = uId || (email ? email.split("@")[0] : "") || "USR";
+    const cleanSeed = rawSeed.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toUpperCase();
+    const randPart = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `MANUAL-${cleanSeed || "PRO"}-${randPart}`;
+  };
+
+  // Helper to sync days count and expiry date
+  const setExpiryByDays = (days: number, customPlanName?: string) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const dateStr = d.toISOString().split("T")[0];
+    setManualPaymentForm((prev) => ({
+      ...prev,
+      expiryDate: dateStr,
+      daysCount: days,
+      planName: customPlanName !== undefined ? customPlanName : (prev.planId === "custom" ? `${days} Days Pass` : prev.planName),
+    }));
+  };
+
+  const handleExpiryDateChange = (dateStr: string) => {
+    if (!dateStr) {
+      setManualPaymentForm((prev) => ({ ...prev, expiryDate: "", daysCount: 0 }));
+      return;
+    }
+    const target = new Date(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    target.setHours(0, 0, 0, 0);
+    const diffTime = target.getTime() - today.getTime();
+    const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+
+    // When expiry date is selected manually, set plan name dynamically to "{diffDays} Days Pass"
+    setManualPaymentForm((prev) => ({
+      ...prev,
+      expiryDate: dateStr,
+      daysCount: diffDays,
+      planId: "custom",
+      planName: `${diffDays} Days Pass`,
+    }));
+  };
+
+  const handlePlanPresetSelect = (planKey: "1_month" | "3_months" | "6_months" | "1_year" | "custom") => {
+    if (planKey === "1_month") {
+      setManualPaymentForm((prev) => ({
+        ...prev,
+        planId: "1_month",
+        planName: "1 Month Pass",
+        amount: 1999,
+      }));
+      setExpiryByDays(30, "1 Month Pass");
+    } else if (planKey === "3_months") {
+      setManualPaymentForm((prev) => ({
+        ...prev,
+        planId: "3_months",
+        planName: "3 Months Pass",
+        amount: 4999,
+      }));
+      setExpiryByDays(90, "3 Months Pass");
+    } else if (planKey === "6_months") {
+      setManualPaymentForm((prev) => ({
+        ...prev,
+        planId: "6_months",
+        planName: "6 Months Pass",
+        amount: 8999,
+      }));
+      setExpiryByDays(180, "6 Months Pass");
+    } else if (planKey === "1_year") {
+      setManualPaymentForm((prev) => ({
+        ...prev,
+        planId: "1_year",
+        planName: "Annual Pass",
+        amount: 14999,
+      }));
+      setExpiryByDays(365, "Annual Pass");
+    } else {
+      setManualPaymentForm((prev) => ({
+        ...prev,
+        planId: "custom",
+        planName: `${prev.daysCount || 30} Days Pass`,
+      }));
+    }
+  };
+
+  const handleSelectExistingUser = (uId: string) => {
+    setSelectedUserId(uId);
+    const found = users.find((u) => u.id === uId);
+    if (found) {
+      setManualPaymentUserMode("existing");
+      setManualPaymentForm((prev) => ({
+        ...prev,
+        userId: found.id,
+        customerName: found.name || "",
+        customerEmail: found.email || "",
+        paymentId: generateManualPaymentRef(found.id, found.email),
+      }));
+    } else {
+      setManualPaymentForm((prev) => ({
+        ...prev,
+        userId: "",
+        customerName: "",
+        customerEmail: "",
+      }));
+    }
+  };
+
+  const handleOpenManualPaymentModal = () => {
+    setEditingPaymentRecord(null);
+    const defaultDays = 30;
+    const d = new Date();
+    d.setDate(d.getDate() + defaultDays);
+    const dateStr = d.toISOString().split("T")[0];
+
+    setSelectedUserId("");
+    setManualPaymentUserMode("existing");
+    setManualPaymentForm({
+      customerName: "",
+      customerEmail: "",
+      customerPhone: "",
+      userId: "",
+      planId: "1_month",
+      planName: "1 Month Pass",
+      amount: 1999,
+      status: "paid",
+      paymentMethod: "Bank Transfer / UPI",
+      paymentId: generateManualPaymentRef(),
+      expiryDate: dateStr,
+      daysCount: defaultDays,
+      notes: "",
+    });
+    setIsManualPaymentModalOpen(true);
+  };
+
+  const handleOpenEditPaymentModal = (record: PaymentRecord) => {
+    setEditingPaymentRecord(record);
+
+    // Parse expiry date and calculate days
+    let expiryDateStr = "";
+    let calculatedDays = 30;
+    if (record.expiresAt) {
+      const expDate = new Date(record.expiresAt);
+      if (!isNaN(expDate.getTime())) {
+        expiryDateStr = expDate.toISOString().split("T")[0];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        expDate.setHours(0, 0, 0, 0);
+        const diffTime = expDate.getTime() - today.getTime();
+        calculatedDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+      }
+    }
+    if (!expiryDateStr) {
+      const d = new Date();
+      d.setDate(d.getDate() + 30);
+      expiryDateStr = d.toISOString().split("T")[0];
+    }
+
+    const matchedUser = record.userId
+      ? users.find((u) => u.id === record.userId)
+      : users.find((u) => u.email.toLowerCase() === (record.customerEmail || "").toLowerCase());
+
+    if (matchedUser) {
+      setSelectedUserId(matchedUser.id);
+      setManualPaymentUserMode("existing");
+    } else {
+      setSelectedUserId(record.userId || "");
+      setManualPaymentUserMode("custom");
+    }
+
+    setManualPaymentForm({
+      customerName: record.customerName || matchedUser?.name || "",
+      customerEmail: record.customerEmail || matchedUser?.email || "",
+      customerPhone: record.customerPhone || "",
+      userId: record.userId || matchedUser?.id || "",
+      planId: record.planId || "custom",
+      planName: record.planName || "Membership Pass",
+      amount: record.amount || 0,
+      status: record.status || "paid",
+      paymentMethod: (record.paymentId || "").startsWith("MANUAL") ? "Bank Transfer / UPI" : "Razorpay Online",
+      paymentId: record.paymentId || record.orderId || "",
+      expiryDate: expiryDateStr,
+      daysCount: calculatedDays,
+      notes: "",
+    });
+
+    setIsManualPaymentModalOpen(true);
+  };
+
+  const handleSaveManualPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualPaymentForm.customerEmail.trim()) {
+      showNotification("Customer email is required", "error");
+      return;
+    }
+    if (!manualPaymentForm.expiryDate) {
+      showNotification("Expiry date is required", "error");
+      return;
+    }
+
+    setIsSubmittingPayment(true);
+    showNotification(editingPaymentRecord ? "Updating payment record..." : "Saving manual payment record & granting Pro access...", "info");
+
+    try {
+      const expiresAtIso = new Date(manualPaymentForm.expiryDate + "T23:59:59.999Z").toISOString();
+
+      if (editingPaymentRecord) {
+        const recordId = editingPaymentRecord.$id || editingPaymentRecord.id;
+        const result = await updatePaymentRecord(recordId, {
+          paymentId: manualPaymentForm.paymentId.trim() || editingPaymentRecord.paymentId,
+          planId: manualPaymentForm.planId,
+          planName: manualPaymentForm.planName || `${manualPaymentForm.daysCount} Days Pass`,
+          amount: Number(manualPaymentForm.amount) || 0,
+          status: manualPaymentForm.status || editingPaymentRecord.status || "paid",
+          customerName: manualPaymentForm.customerName.trim() || manualPaymentForm.customerEmail.split("@")[0],
+          customerEmail: manualPaymentForm.customerEmail.trim().toLowerCase(),
+          customerPhone: manualPaymentForm.customerPhone.trim(),
+          userId: manualPaymentForm.userId.trim() || undefined,
+          expiresAt: expiresAtIso,
+        });
+
+        if (result.success) {
+          showNotification(`Payment record for ${manualPaymentForm.customerEmail} updated successfully!`, "success");
+          setIsManualPaymentModalOpen(false);
+          setEditingPaymentRecord(null);
+        } else {
+          showNotification(`Failed to update payment: ${result.error || "Unknown error"}`, "error");
+        }
+      } else {
+        const orderId = "MANUAL_ORD_" + Date.now().toString(36).toUpperCase();
+        const paymentId = manualPaymentForm.paymentId.trim() || generateManualPaymentRef(manualPaymentForm.userId, manualPaymentForm.customerEmail);
+
+        const result = await addPaymentRecord({
+          orderId,
+          paymentId,
+          planId: manualPaymentForm.planId,
+          planName: manualPaymentForm.planName || `${manualPaymentForm.daysCount} Days Pass`,
+          amount: Number(manualPaymentForm.amount) || 0,
+          status: manualPaymentForm.status || "paid",
+          customerName: manualPaymentForm.customerName.trim() || manualPaymentForm.customerEmail.split("@")[0],
+          customerEmail: manualPaymentForm.customerEmail.trim().toLowerCase(),
+          customerPhone: manualPaymentForm.customerPhone.trim(),
+          userId: manualPaymentForm.userId.trim() || undefined,
+          paidAt: new Date().toISOString(),
+          expiresAt: expiresAtIso,
+        });
+
+        if (result.success) {
+          showNotification(`Pro access granted to ${manualPaymentForm.customerEmail} (Valid for ${manualPaymentForm.daysCount} days)!`, "success");
+          setIsManualPaymentModalOpen(false);
+        } else {
+          showNotification(`Failed to save payment: ${result.error || "Unknown error"}`, "error");
+        }
+      }
+    } catch (err: any) {
+      showNotification(`Error saving payment: ${err?.message || String(err)}`, "error");
+    } finally {
+      setIsSubmittingPayment(false);
+    }
+  };
 
   const [isConnecting, setIsConnecting] = useState(false);
   const [isRunningIpoSync, setIsRunningIpoSync] = useState(false);
@@ -2241,13 +2541,13 @@ function AdminPageContent() {
           <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "20px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Payment History & Transactions</h3>
-                <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748b" }}>Fetched directly from Appwrite `payments` collection.</p>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600", color: "#0f172a" }}>Payment History &amp; Subscriptions</h3>
+                <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748b" }}>Track Razorpay orders and offline/manual payments synced with Appwrite `payments` collection.</p>
               </div>
-              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
                 <input
                   type="text"
-                  placeholder="Search by customer, email, order ID, or plan..."
+                  placeholder="Search customer, email, plan..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
@@ -2256,10 +2556,31 @@ function AdminPageContent() {
                     border: "1px solid #cbd5e1",
                     borderRadius: "6px",
                     fontSize: "12.5px",
-                    width: "280px",
+                    width: "240px",
                     outline: "none",
                   }}
                 />
+                <button
+                  type="button"
+                  onClick={handleOpenManualPaymentModal}
+                  style={{
+                    padding: "7px 14px",
+                    background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+                    color: "#ffffff",
+                    border: "1px solid #0f172a",
+                    borderRadius: "6px",
+                    fontSize: "12.5px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                  }}
+                >
+                  <IconPlus />
+                  <span>+ Grant Access</span>
+                </button>
               </div>
             </div>
 
@@ -2271,9 +2592,10 @@ function AdminPageContent() {
                       <th style={{ padding: "12px 16px" }}>Customer Info</th>
                       <th style={{ padding: "12px 16px" }}>Plan Name</th>
                       <th style={{ padding: "12px 16px" }}>Amount</th>
-                      <th style={{ padding: "12px 16px" }}>Order ID / Payment ID</th>
+                      <th style={{ padding: "12px 16px" }}>Order / Payment ID</th>
                       <th style={{ padding: "12px 16px" }}>Status</th>
                       <th style={{ padding: "12px 16px" }}>Paid At</th>
+                      <th style={{ padding: "12px 16px" }}>Expires At / Access</th>
                       <th style={{ padding: "12px 16px", textAlign: "right" }}>Actions</th>
                     </tr>
                   </thead>
@@ -2295,6 +2617,29 @@ function AdminPageContent() {
                         const rowId = p.$id || p.id;
                         const statusLower = (p.status || "").toLowerCase();
                         const isSuccess = statusLower === "captured" || statusLower === "active" || statusLower === "paid" || statusLower === "success";
+
+                        let expiryBadge = null;
+                        if (p.expiresAt) {
+                          const expDate = new Date(p.expiresAt);
+                          const isExpired = expDate.getTime() < Date.now();
+                          const formattedExp = expDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+                          
+                          // Days remaining
+                          const diffDays = Math.ceil((expDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+
+                          expiryBadge = (
+                            <div>
+                              <div style={{ fontSize: "12px", fontWeight: "600", color: isExpired ? "#ef4444" : "#0f172a" }}>
+                                {formattedExp}
+                              </div>
+                              <div style={{ fontSize: "10.5px", color: isExpired ? "#dc2626" : "#16a34a", fontWeight: "500" }}>
+                                {isExpired ? "Expired" : `${diffDays} days left`}
+                              </div>
+                            </div>
+                          );
+                        } else {
+                          expiryBadge = <span style={{ fontSize: "11px", color: "#94a3b8" }}>—</span>;
+                        }
 
                         return (
                           <tr key={`${rowId}-${idx}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
@@ -2336,36 +2681,64 @@ function AdminPageContent() {
                               </span>
                             </td>
                             <td style={{ padding: "14px 16px", color: "#64748b", fontSize: "12px" }}>
-                              {p.paidAt || p.createdAt || p.$createdAt || "—"}
+                              {p.paidAt ? new Date(p.paidAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : (p.createdAt || p.$createdAt || "—")}
+                            </td>
+                            <td style={{ padding: "14px 16px" }}>
+                              {expiryBadge}
                             </td>
                             <td style={{ padding: "14px 16px", textAlign: "right" }}>
-                              <button
-                                type="button"
-                                onClick={async () => {
-                                  if (confirm(`Are you sure you want to delete payment record (${p.orderId || rowId})?`)) {
-                                    const res = await deletePaymentRecord(rowId);
-                                    if (res.success) {
-                                      showNotification("Payment record deleted from database", "info");
-                                    } else {
-                                      showNotification(`Failed deleting payment: ${res.error}`, "error");
+                              <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditPaymentModal(p)}
+                                  title="Edit payment & access details"
+                                  style={{
+                                    padding: "6px 10px",
+                                    background: "#f1f5f9",
+                                    border: "1px solid #cbd5e1",
+                                    borderRadius: "6px",
+                                    color: "#334155",
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "5px",
+                                    fontSize: "12px",
+                                    fontWeight: "600",
+                                    transition: "all 0.15s ease",
+                                  }}
+                                >
+                                  <IconEdit />
+                                  <span>Edit</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (confirm(`Are you sure you want to delete payment record (${p.orderId || rowId})?`)) {
+                                      const res = await deletePaymentRecord(rowId);
+                                      if (res.success) {
+                                        showNotification("Payment record deleted from database", "info");
+                                      } else {
+                                        showNotification(`Failed deleting payment: ${res.error}`, "error");
+                                      }
                                     }
-                                  }
-                                }}
-                                title="Delete payment record"
-                                style={{
-                                  padding: "6px 8px",
-                                  background: "#fff1f2",
-                                  border: "1px solid #fecdd3",
-                                  borderRadius: "6px",
-                                  color: "#e11d48",
-                                  cursor: "pointer",
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                }}
-                              >
-                                <IconTrash />
-                              </button>
+                                  }}
+                                  title="Delete payment record"
+                                  style={{
+                                    padding: "6px 8px",
+                                    background: "#fff1f2",
+                                    border: "1px solid #fecdd3",
+                                    borderRadius: "6px",
+                                    color: "#e11d48",
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    transition: "all 0.15s ease",
+                                  }}
+                                >
+                                  <IconTrash />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -2375,10 +2748,768 @@ function AdminPageContent() {
               </div>
             ) : (
               <div style={{ padding: "36px 20px", textAlign: "center", color: "#64748b" }}>
-                No payment records found. Click Refresh above to load payments from Appwrite.
+                No payment records found. Click Refresh above or create a manual payment.
               </div>
             )}
           </div>
+
+          {/* Manual Payment / Edit Payment Modal */}
+          {isManualPaymentModalOpen && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                backgroundColor: "rgba(15, 23, 42, 0.7)",
+                backdropFilter: "blur(6px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 9999,
+                padding: "20px",
+              }}
+              onClick={() => !isSubmittingPayment && setIsManualPaymentModalOpen(false)}
+            >
+              <div
+                style={{
+                  background: "#ffffff",
+                  borderRadius: "16px",
+                  boxShadow: "0 25px 50px -12px rgba(15, 23, 42, 0.25), 0 0 0 1px rgba(15, 23, 42, 0.08)",
+                  width: "100%",
+                  maxWidth: "560px",
+                  maxHeight: "92vh",
+                  overflowY: "auto",
+                  padding: "26px",
+                  border: "1px solid #e2e8f0",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px", borderBottom: "1px solid #f1f5f9", paddingBottom: "16px" }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                      <h3 style={{ margin: 0, fontSize: "18px", fontWeight: "700", color: "#0f172a", letterSpacing: "-0.01em" }}>
+                        {editingPaymentRecord ? "Edit Payment Record" : "Grant Access / Manual Payment"}
+                      </h3>
+                      {editingPaymentRecord && (
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            padding: "2px 7px",
+                            borderRadius: "999px",
+                            background: "#fef3c7",
+                            color: "#92400e",
+                            fontWeight: "700",
+                            border: "1px solid #fde68a",
+                          }}
+                        >
+                          Editing
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ margin: 0, fontSize: "12.5px", color: "#64748b" }}>
+                      {editingPaymentRecord
+                        ? `Update details and membership validity for record ${editingPaymentRecord.orderId || editingPaymentRecord.id}`
+                        : "Add an offline payment record and set premium access expiry for a user."}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => !isSubmittingPayment && setIsManualPaymentModalOpen(false)}
+                    style={{
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "8px",
+                      color: "#64748b",
+                      cursor: "pointer",
+                      fontSize: "15px",
+                      width: "32px",
+                      height: "32px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveManualPayment} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  {/* Select User Mode */}
+                  <div>
+                    <label style={{ fontSize: "12px", fontWeight: "700", color: "#334155", display: "block", marginBottom: "6px" }}>
+                      Target User Account
+                    </label>
+                    <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setManualPaymentUserMode("existing");
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: "8px 12px",
+                          borderRadius: "8px",
+                          border: manualPaymentUserMode === "existing" ? "2px solid #0f172a" : "1px solid #cbd5e1",
+                          background: manualPaymentUserMode === "existing" ? "#0f172a" : "#f8fafc",
+                          color: manualPaymentUserMode === "existing" ? "#ffffff" : "#475569",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        Select Existing User ({users.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setManualPaymentUserMode("custom");
+                          setSelectedUserId("");
+                          setManualPaymentForm((prev) => ({
+                            ...prev,
+                            userId: "",
+                            customerName: "",
+                            customerEmail: "",
+                            paymentId: generateManualPaymentRef(),
+                          }));
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: "8px 12px",
+                          borderRadius: "8px",
+                          border: manualPaymentUserMode === "custom" ? "2px solid #0f172a" : "1px solid #cbd5e1",
+                          background: manualPaymentUserMode === "custom" ? "#0f172a" : "#f8fafc",
+                          color: manualPaymentUserMode === "custom" ? "#ffffff" : "#475569",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        Enter User Manually
+                      </button>
+                    </div>
+
+                    {manualPaymentUserMode === "existing" && (
+                      <div>
+                        {selectedUserId ? (
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "12px 14px",
+                              background: "#f8fafc",
+                              border: "1.5px solid #e2e8f0",
+                              borderRadius: "10px",
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                              <div
+                                style={{
+                                  width: "38px",
+                                  height: "38px",
+                                  borderRadius: "50%",
+                                  background: "linear-gradient(135deg, #b45309 0%, #d97706 100%)",
+                                  color: "#ffffff",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  fontWeight: "700",
+                                  fontSize: "14px",
+                                  boxShadow: "0 2px 4px rgba(180, 83, 9, 0.2)",
+                                }}
+                              >
+                                {(manualPaymentForm.customerName || manualPaymentForm.customerEmail || "U")[0].toUpperCase()}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: "13.5px", fontWeight: "700", color: "#0f172a" }}>
+                                  {manualPaymentForm.customerName || "Unnamed User"}
+                                </div>
+                                <div style={{ fontSize: "11.5px", color: "#64748b" }}>
+                                  {manualPaymentForm.customerEmail} • <span style={{ fontFamily: "monospace", fontSize: "10.5px", color: "#94a3b8" }}>ID: {manualPaymentForm.userId}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setUserPickerSearch("");
+                                setIsUserPickerModalOpen(true);
+                              }}
+                              style={{
+                                padding: "6px 12px",
+                                background: "#ffffff",
+                                border: "1px solid #cbd5e1",
+                                borderRadius: "6px",
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                color: "#0f172a",
+                                cursor: "pointer",
+                                boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                              }}
+                            >
+                              Change User
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setUserPickerSearch("");
+                              setIsUserPickerModalOpen(true);
+                            }}
+                            style={{
+                              width: "100%",
+                              padding: "14px",
+                              border: "2px dashed #cbd5e1",
+                              borderRadius: "10px",
+                              background: "#f8fafc",
+                              color: "#b45309",
+                              fontSize: "13px",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                              textAlign: "center",
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            + Choose User from List ({users.length} registered)
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Customer Details */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                        <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#334155" }}>
+                          Customer Name
+                        </label>
+                        {manualPaymentUserMode === "existing" && (
+                          <span style={{ fontSize: "10px", color: "#94a3b8", fontWeight: "600" }}>Locked</span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        readOnly={manualPaymentUserMode === "existing"}
+                        value={manualPaymentForm.customerName}
+                        onChange={(e) => setManualPaymentForm((prev) => ({ ...prev, customerName: e.target.value }))}
+                        placeholder="e.g. John Doe"
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "8px",
+                          fontSize: "12.5px",
+                          background: manualPaymentUserMode === "existing" ? "#f1f5f9" : "#ffffff",
+                          color: manualPaymentUserMode === "existing" ? "#475569" : "#0f172a",
+                          cursor: manualPaymentUserMode === "existing" ? "not-allowed" : "text",
+                          outline: "none",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                        <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#334155" }}>
+                          Email <span style={{ color: "#ef4444" }}>*</span>
+                        </label>
+                        {manualPaymentUserMode === "existing" && (
+                          <span style={{ fontSize: "10px", color: "#94a3b8", fontWeight: "600" }}>Locked</span>
+                        )}
+                      </div>
+                      <input
+                        type="email"
+                        required
+                        readOnly={manualPaymentUserMode === "existing"}
+                        value={manualPaymentForm.customerEmail}
+                        onChange={(e) => setManualPaymentForm((prev) => ({ ...prev, customerEmail: e.target.value }))}
+                        placeholder="john@example.com"
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "8px",
+                          fontSize: "12.5px",
+                          background: manualPaymentUserMode === "existing" ? "#f1f5f9" : "#ffffff",
+                          color: manualPaymentUserMode === "existing" ? "#475569" : "#0f172a",
+                          cursor: manualPaymentUserMode === "existing" ? "not-allowed" : "text",
+                          outline: "none",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Plan Preset Selector (1 Month, 3 Months, 6 Months, 1 Year) */}
+                  <div>
+                    <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#334155", display: "block", marginBottom: "6px" }}>
+                      Quick Duration Presets
+                    </label>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px" }}>
+                      {[
+                        { key: "1_month", label: "1 Month", sub: "30 Days" },
+                        { key: "3_months", label: "3 Months", sub: "90 Days" },
+                        { key: "6_months", label: "6 Months", sub: "180 Days" },
+                        { key: "1_year", label: "1 Year", sub: "365 Days" },
+                      ].map((item) => {
+                        const isSelected = manualPaymentForm.planId === item.key;
+                        return (
+                          <button
+                            key={item.key}
+                            type="button"
+                            onClick={() => handlePlanPresetSelect(item.key as any)}
+                            style={{
+                              padding: "10px 6px",
+                              borderRadius: "8px",
+                              border: isSelected ? "2px solid #b45309" : "1px solid #e2e8f0",
+                              background: isSelected ? "#fffbeb" : "#f8fafc",
+                              color: isSelected ? "#92400e" : "#334155",
+                              cursor: "pointer",
+                              textAlign: "center",
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            <div style={{ fontSize: "12.5px", fontWeight: "700" }}>{item.label}</div>
+                            <div style={{ fontSize: "10.5px", color: isSelected ? "#b45309" : "#64748b" }}>{item.sub}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Expiry Date & Dynamic Days Counter */}
+                  <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "12px", alignItems: "center" }}>
+                      <div>
+                        <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#1e293b", display: "block", marginBottom: "4px" }}>
+                          Access Expiry Date <span style={{ color: "#ef4444" }}>*</span>
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={manualPaymentForm.expiryDate}
+                          onChange={(e) => handleExpiryDateChange(e.target.value)}
+                          style={{
+                            width: "100%",
+                            padding: "8px 10px",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "8px",
+                            fontSize: "13px",
+                            background: "#ffffff",
+                            fontWeight: "600",
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#1e293b", display: "block", marginBottom: "4px" }}>
+                          Calculated Days
+                        </label>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <input
+                            type="number"
+                            min={1}
+                            value={manualPaymentForm.daysCount || ""}
+                            onChange={(e) => {
+                              const days = parseInt(e.target.value, 10);
+                              if (!isNaN(days)) {
+                                setExpiryByDays(days, `${days} Days Pass`);
+                              }
+                            }}
+                            style={{
+                              width: "100%",
+                              padding: "8px 10px",
+                              border: "1px solid #cbd5e1",
+                              borderRadius: "8px",
+                              fontSize: "13px",
+                              fontWeight: "700",
+                              color: "#0f172a",
+                            }}
+                          />
+                          <span style={{ fontSize: "12px", color: "#64748b", whiteSpace: "nowrap", fontWeight: "600" }}>days</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: "8px", fontSize: "11.5px", color: "#64748b", lineHeight: "1.4" }}>
+                      Plan label set to <strong style={{ color: "#0f172a" }}>&ldquo;{manualPaymentForm.planName}&rdquo;</strong>. Premium membership and Pro badge will be active for <strong style={{ color: "#b45309" }}>{manualPaymentForm.daysCount} days</strong> until <strong style={{ color: "#0f172a" }}>{manualPaymentForm.expiryDate || "—"}</strong>.
+                    </div>
+                  </div>
+
+                  {/* Plan Name & Amount */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "12px" }}>
+                    <div>
+                      <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        Plan Display Name
+                      </label>
+                      <input
+                        type="text"
+                        value={manualPaymentForm.planName}
+                        onChange={(e) => setManualPaymentForm((prev) => ({ ...prev, planName: e.target.value }))}
+                        placeholder="e.g. 1 Month Pass"
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "8px",
+                          fontSize: "12.5px",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        Amount (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        value={manualPaymentForm.amount}
+                        onChange={(e) => setManualPaymentForm((prev) => ({ ...prev, amount: Number(e.target.value) }))}
+                        placeholder="1999"
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "8px",
+                          fontSize: "12.5px",
+                          fontWeight: "700",
+                          color: "#0f172a",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Payment Reference, Method & Status */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                        <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#334155" }}>
+                          Payment Ref / Txn ID
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setManualPaymentForm((prev) => ({
+                              ...prev,
+                              paymentId: generateManualPaymentRef(prev.userId, prev.customerEmail),
+                            }));
+                          }}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: "#b45309",
+                            fontSize: "11px",
+                            cursor: "pointer",
+                            padding: 0,
+                            fontWeight: "600",
+                            textDecoration: "underline",
+                          }}
+                        >
+                          Regenerate
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={manualPaymentForm.paymentId}
+                        onChange={(e) => setManualPaymentForm((prev) => ({ ...prev, paymentId: e.target.value }))}
+                        placeholder="MANUAL-USR-XXXX"
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "8px",
+                          fontSize: "12px",
+                          fontFamily: "monospace",
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#334155", display: "block", marginBottom: "4px" }}>
+                        Payment Method
+                      </label>
+                      <select
+                        value={manualPaymentForm.paymentMethod}
+                        onChange={(e) => setManualPaymentForm((prev) => ({ ...prev, paymentMethod: e.target.value }))}
+                        style={{
+                          width: "100%",
+                          padding: "8px 12px",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "8px",
+                          fontSize: "12.5px",
+                          background: "#ffffff",
+                        }}
+                      >
+                        <option value="Bank Transfer / UPI">Bank Transfer / UPI</option>
+                        <option value="Cash / Cheque">Cash / Cheque</option>
+                        <option value="Razorpay Manual">Razorpay Manual</option>
+                        <option value="Complimentary / Trial">Complimentary / Trial</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Payment Status */}
+                  <div>
+                    <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#334155", display: "block", marginBottom: "4px" }}>
+                      Payment Status
+                    </label>
+                    <select
+                      value={manualPaymentForm.status}
+                      onChange={(e) => setManualPaymentForm((prev) => ({ ...prev, status: e.target.value as any }))}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "8px",
+                        fontSize: "12.5px",
+                        background: "#ffffff",
+                        fontWeight: "600",
+                      }}
+                    >
+                      <option value="paid">Paid / Completed (Active Access)</option>
+                      <option value="pending">Pending</option>
+                      <option value="cancelled">Cancelled</option>
+                      <option value="refunded">Refunded</option>
+                    </select>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px", borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
+                    <button
+                      type="button"
+                      disabled={isSubmittingPayment}
+                      onClick={() => setIsManualPaymentModalOpen(false)}
+                      style={{
+                        padding: "9px 18px",
+                        background: "#ffffff",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "8px",
+                        fontSize: "12.5px",
+                        fontWeight: "600",
+                        color: "#475569",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmittingPayment}
+                      style={{
+                        padding: "9px 22px",
+                        background: "linear-gradient(135deg, #b45309 0%, #d97706 100%)",
+                        border: "none",
+                        borderRadius: "8px",
+                        fontSize: "12.5px",
+                        fontWeight: "700",
+                        color: "#ffffff",
+                        cursor: isSubmittingPayment ? "not-allowed" : "pointer",
+                        opacity: isSubmittingPayment ? 0.7 : 1,
+                        boxShadow: "0 4px 12px rgba(180, 83, 9, 0.25)",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      {isSubmittingPayment
+                        ? "Saving..."
+                        : editingPaymentRecord
+                        ? "Save Changes"
+                        : "Grant Access & Save"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Custom User Picker Modal */}
+          {isUserPickerModalOpen && (
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                backgroundColor: "rgba(15, 23, 42, 0.75)",
+                backdropFilter: "blur(4px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 10000,
+                padding: "20px",
+              }}
+              onClick={() => setIsUserPickerModalOpen(false)}
+            >
+              <div
+                style={{
+                  background: "#ffffff",
+                  borderRadius: "14px",
+                  boxShadow: "0 25px 30px -5px rgba(0, 0, 0, 0.25)",
+                  width: "100%",
+                  maxWidth: "500px",
+                  maxHeight: "85vh",
+                  display: "flex",
+                  flexDirection: "column",
+                  overflow: "hidden",
+                  border: "1px solid #e2e8f0",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Modal Header */}
+                <div style={{ padding: "18px 20px", borderBottom: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "700", color: "#0f172a" }}>
+                      Select Registered User
+                    </h3>
+                    <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748b" }}>
+                      Choose a user to grant manual Pro access
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsUserPickerModalOpen(false)}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "#94a3b8",
+                      cursor: "pointer",
+                      fontSize: "18px",
+                      lineHeight: "1",
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Search Bar */}
+                <div style={{ padding: "12px 20px", background: "#f8fafc", borderBottom: "1px solid #f1f5f9" }}>
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="Search by name, email, or user ID..."
+                    value={userPickerSearch}
+                    onChange={(e) => setUserPickerSearch(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      background: "#ffffff",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                      outline: "none",
+                    }}
+                  />
+                </div>
+
+                {/* User List */}
+                <div style={{ overflowY: "auto", flex: 1, padding: "8px" }}>
+                  {users
+                    .filter((u) => {
+                      if (!userPickerSearch.trim()) return true;
+                      const q = userPickerSearch.toLowerCase();
+                      return (
+                        (u.name || "").toLowerCase().includes(q) ||
+                        (u.email || "").toLowerCase().includes(q) ||
+                        (u.id || "").toLowerCase().includes(q)
+                      );
+                    })
+                    .map((u) => {
+                      const isSelected = selectedUserId === u.id;
+                      const initials = (u.name || u.email || "U")
+                        .split(" ")
+                        .map((p) => p[0])
+                        .slice(0, 2)
+                        .join("")
+                        .toUpperCase();
+
+                      return (
+                        <div
+                          key={u.id}
+                          onClick={() => {
+                            handleSelectExistingUser(u.id);
+                            setIsUserPickerModalOpen(false);
+                          }}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            padding: "10px 12px",
+                            borderRadius: "8px",
+                            marginBottom: "4px",
+                            cursor: "pointer",
+                            background: isSelected ? "#eff6ff" : "transparent",
+                            border: isSelected ? "1.5px solid #3b82f6" : "1px solid transparent",
+                            transition: "all 0.1s ease",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isSelected) e.currentTarget.style.background = "#f8fafc";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSelected) e.currentTarget.style.background = "transparent";
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <div
+                              style={{
+                                width: "36px",
+                                height: "36px",
+                                borderRadius: "50%",
+                                background: isSelected
+                                  ? "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)"
+                                  : "linear-gradient(135deg, #64748b 0%, #475569 100%)",
+                                color: "#ffffff",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontWeight: "700",
+                                fontSize: "13px",
+                              }}
+                            >
+                              {initials}
+                            </div>
+                            <div>
+                              <div style={{ fontSize: "13.5px", fontWeight: "600", color: "#0f172a" }}>
+                                {u.name || "Unnamed User"}
+                              </div>
+                              <div style={{ fontSize: "11.5px", color: "#64748b" }}>
+                                {u.email}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontFamily: "monospace", fontSize: "11px", color: "#94a3b8" }}>
+                              ID: {u.id.slice(0, 10)}...
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                  {users.length === 0 && (
+                    <div style={{ padding: "24px", textAlign: "center", color: "#94a3b8", fontSize: "13px" }}>
+                      No registered users available.
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div style={{ padding: "12px 18px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "flex-end", background: "#f8fafc" }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsUserPickerModalOpen(false)}
+                    style={{
+                      padding: "6px 14px",
+                      background: "#ffffff",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "6px",
+                      fontSize: "12.5px",
+                      color: "#475569",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

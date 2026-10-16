@@ -73,12 +73,12 @@ export default function OverviewPage() {
   const { reports: storeReports, ideas: storeIdeas, ipos: storeIpos } = useAdminStore();
 
   const allReports = storeReports && storeReports.length > 0 ? storeReports : defaultReports;
-  const availableReports = isPaid ? allReports : allReports.filter((r) => r.isFree === true);
-  const latestResearch = availableReports[0] || null;
+  const latestResearch = allReports[0] || null;
+  const isResearchLocked = !isPaid && !latestResearch?.isFree;
 
   const allIdeas = storeIdeas ?? [];
-  const availableIdeas = isPaid ? allIdeas : allIdeas.filter((idea) => idea.isFree === true);
-  const latestIdea = availableIdeas[0] || null;
+  const latestIdea = allIdeas[0] || null;
+  const isIdeaLocked = !isPaid && !latestIdea?.isFree;
 
   const allIpos = storeIpos && storeIpos.length > 0 ? storeIpos : defaultIpos;
   const activeIpos = allIpos.filter((item) => {
@@ -243,10 +243,10 @@ export default function OverviewPage() {
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
               <span style={{ fontSize: "24px", fontWeight: "800", color: "#0f172a" }}>
-                {availableReports.length}
+                {allReports.length}
               </span>
               <span style={{ fontSize: "13.5px", color: "#475569", fontWeight: "500" }}>
-                {isPaid ? "Research notes" : "Free research notes"}
+                Research notes
               </span>
             </div>
           </div>
@@ -357,8 +357,8 @@ export default function OverviewPage() {
                         </span>
                         <span
                           style={{
-                            background: "#fef3c7",
-                            color: "#b45309",
+                            background: latestResearch.isFree ? "#ecfdf5" : "#fef3c7",
+                            color: latestResearch.isFree ? "#047857" : "#b45309",
                             fontSize: "9.5px",
                             fontWeight: "800",
                             padding: "2px 8px",
@@ -396,22 +396,44 @@ export default function OverviewPage() {
                         <span>{latestResearch.readTime || "10 min read"}</span>
                       </div>
 
-                      <Link
-                        href={`/research/${latestResearch.slug}`}
-                        style={{
-                          border: "1px solid #c59b27",
-                          color: "#0f172a",
-                          background: "#faf5eb",
-                          padding: "8px 18px",
-                          borderRadius: "6px",
-                          fontSize: "13px",
-                          fontWeight: "700",
-                          textDecoration: "none",
-                          transition: "all 0.15s ease",
-                        }}
-                      >
-                        Read research →
-                      </Link>
+                      {isResearchLocked ? (
+                        <Link
+                          href={`/research/${latestResearch.slug}`}
+                          style={{
+                            border: "1px solid #0f172a",
+                            color: "#ffffff",
+                            background: "#0f172a",
+                            padding: "8px 18px",
+                            borderRadius: "6px",
+                            fontSize: "13px",
+                            fontWeight: "700",
+                            textDecoration: "none",
+                            transition: "all 0.15s ease",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                          }}
+                        >
+                          🔒 Unlock →
+                        </Link>
+                      ) : (
+                        <Link
+                          href={`/research/${latestResearch.slug}`}
+                          style={{
+                            border: "1px solid #c59b27",
+                            color: "#0f172a",
+                            background: "#faf5eb",
+                            padding: "8px 18px",
+                            borderRadius: "6px",
+                            fontSize: "13px",
+                            fontWeight: "700",
+                            textDecoration: "none",
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          Read research →
+                        </Link>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -450,8 +472,8 @@ export default function OverviewPage() {
                         </span>
                         <span
                           style={{
-                            background: "#fef3c7",
-                            color: "#b45309",
+                            background: latestIdea.isFree ? "#ecfdf5" : "#fef3c7",
+                            color: latestIdea.isFree ? "#047857" : "#b45309",
                             fontSize: "9px",
                             fontWeight: "800",
                             padding: "2px 6px",
@@ -468,8 +490,31 @@ export default function OverviewPage() {
                         {latestIdea.thesis || latestIdea.studying || `Sector: ${latestIdea.sector}`}
                       </p>
                     </div>
-                    <div style={{ fontSize: "11.5px", color: "#94a3b8", marginTop: "16px" }}>
-                      {latestIdea.published || latestIdea.sharedDate || "Latest Idea"} • {latestIdea.sector}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "16px" }}>
+                      <div style={{ fontSize: "11.5px", color: "#94a3b8" }}>
+                        {latestIdea.published || latestIdea.sharedDate || "Latest Idea"} • {latestIdea.sector}
+                      </div>
+                      {isIdeaLocked ? (
+                        <span
+                          style={{
+                            fontSize: "11.5px",
+                            fontWeight: "700",
+                            color: "#ffffff",
+                            background: "#0f172a",
+                            padding: "4px 10px",
+                            borderRadius: "4px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}
+                        >
+                          🔒 Unlock →
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: "12px", color: "#b45309", fontWeight: "600" }}>
+                          View idea →
+                        </span>
+                      )}
                     </div>
                   </Link>
                 </div>

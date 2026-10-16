@@ -238,6 +238,15 @@ function IconUpload() {
   );
 }
 
+function IconCreditCard() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="2" y="5" width="20" height="14" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="2" y1="10" x2="22" y2="10" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function AdminPageContent() {
   const { user, loading, signInWithGoogle, signOut } = useAuth();
   const {
@@ -1537,6 +1546,77 @@ function AdminPageContent() {
         </div>
       )}
 
+      {/* Top Admin Navigation Tab Strip (Directly Below Navbar) */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+          overflowX: "auto",
+          whiteSpace: "nowrap",
+          paddingBottom: "16px",
+          marginBottom: "24px",
+          borderBottom: "1px solid #e2e8f0",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
+        {[
+          { key: "reports" as TabType, label: "Research", icon: IconBook, count: reports.length },
+          { key: "ideas" as TabType, label: "Ideas", icon: IconSparkles, count: ideas.length },
+          { key: "ipos" as TabType, label: "IPOs", icon: IconTrend, count: ipos.length },
+          { key: "journal" as TabType, label: "Journal", icon: IconFileText, count: journal.length },
+          { key: "users" as TabType, label: "Users", icon: IconUsers, count: users.length },
+          { key: "payments" as TabType, label: "Payments", icon: IconCreditCard, count: payments.length },
+          { key: "media" as TabType, label: "Files & Media", icon: IconFolder, count: media.length },
+          { key: "database" as TabType, label: "Database", icon: IconDatabase },
+        ].map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.key;
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setActiveTab(item.key)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "8px 16px",
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: isActive ? "600" : "500",
+                color: isActive ? "#0f172a" : "#64748b",
+                background: isActive ? "#ffffff" : "#f8fafc",
+                border: isActive ? "1.5px solid #0f172a" : "1px solid #e2e8f0",
+                boxShadow: isActive ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                flexShrink: 0,
+              }}
+            >
+              <Icon />
+              <span>{item.label}</span>
+              {typeof item.count === "number" && (
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: "600",
+                    padding: "1px 6px",
+                    borderRadius: "10px",
+                    background: isActive ? "#0f172a" : "#e2e8f0",
+                    color: isActive ? "#ffffff" : "#475569",
+                  }}
+                >
+                  {item.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Header Bar */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", borderBottom: "1px solid #e2e8f0", paddingBottom: "16px" }}>
         <div>
@@ -1699,7 +1779,6 @@ function AdminPageContent() {
           )}
         </div>
       </div>
-
 
       {/* Main Content Area */}
       {activeTab === "reports" && (

@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useState, useEffect, useCallback, createContext, useContext, Suspense } from "react";
 import { useAuth } from "../_context/auth-context";
+import { ADMIN_EMAILS } from "../_hooks/use-paid-access";
 import { AuthGate } from "./auth-gate";
 
 // Icons
@@ -251,60 +252,6 @@ const navGroups: NavGroup[] = [
     ],
   },
 ];
-
-const adminNavItems: AdminNavItem[] = [
-  { label: "Research", tab: "reports", href: "/admin?tab=reports", icon: IconResearch },
-  { label: "Aethos Ideas", tab: "ideas", href: "/admin?tab=ideas", icon: IconIdeas },
-  { label: "IPOs", tab: "ipos", href: "/admin?tab=ipos", icon: IconIpos },
-  { label: "Journal", tab: "journal", href: "/admin?tab=journal", icon: IconJournal },
-  { label: "Users", tab: "users", href: "/admin?tab=users", icon: IconUsers },
-  { label: "Payments", tab: "payments", href: "/admin?tab=payments", icon: IconCreditCard },
-  { label: "Files & Media", tab: "media", href: "/admin?tab=media", icon: IconFolder },
-  { label: "Database", tab: "database", href: "/admin?tab=database", icon: IconDatabase },
-];
-
-function AdminNavbarTabs() {
-  const { user } = useAuth();
-  const searchParams = useSearchParams();
-  const activeAdminTab = searchParams.get("tab") || "reports";
-
-  if (user?.email?.toLowerCase() !== "akdeepaknyc@gmail.com") {
-    return null;
-  }
-
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-      {adminNavItems.map((item) => {
-        const Icon = item.icon;
-        const isActive = activeAdminTab === item.tab;
-
-        return (
-          <Link
-            key={item.tab}
-            href={item.href}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "6px 14px",
-              borderRadius: "6px",
-              fontSize: "12.5px",
-              fontWeight: isActive ? "600" : "500",
-              color: isActive ? "#0f172a" : "#64748b",
-              background: isActive ? "#f1f5f9" : "transparent",
-              border: isActive ? "1px solid #cbd5e1" : "1px solid transparent",
-              textDecoration: "none",
-              transition: "all 0.15s ease",
-            }}
-          >
-            <Icon />
-            <span>{item.label}</span>
-          </Link>
-        );
-      })}
-    </div>
-  );
-}
 
 export interface SidebarContextValue {
   sidebarOpen: boolean;
@@ -595,7 +542,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         {!isResearchDetail && (
           <header className="dashboard-header" style={isAdminRoute ? { padding: "0 24px" } : undefined}>
             {isAdminRoute ? (
-              <div style={{ display: "flex", alignItems: "center", gap: "20px", flex: 1 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
                 <Link href="/" style={{ display: "flex", alignItems: "center", gap: "10px", textDecoration: "none" }}>
                   <Image
                     src="/aethos-eagle-logo.jpeg"
@@ -614,12 +561,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     </span>
                   </div>
                 </Link>
-
-                <div style={{ height: "24px", width: "1px", background: "#cbd5e1" }} />
-
-                <Suspense fallback={null}>
-                  <AdminNavbarTabs />
-                </Suspense>
               </div>
             ) : (
               <>

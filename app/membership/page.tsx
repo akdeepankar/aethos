@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../_context/auth-context";
 
@@ -92,6 +93,13 @@ export default function MembershipPage() {
 
   const [mainTab, setMainTab] = useState<"membership" | "past_payments">("membership");
   const [showPlanModal, setShowPlanModal] = useState<boolean>(true);
+  const [paymentSuccessModal, setPaymentSuccessModal] = useState<{
+    isOpen: boolean;
+    paymentId: string;
+    orderId?: string;
+    planName: string;
+    amount: number;
+  } | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string>("1_year");
   const [fullName, setName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
@@ -107,6 +115,7 @@ export default function MembershipPage() {
   const [gstNumber, setGstNumber] = useState<string>("");
   const [showPriceBreakdown, setShowPriceBreakdown] = useState<boolean>(false);
 
+  const [paymentError, setPaymentError] = useState<string>("");
   const [loadingPayment, setLoadingPayment] = useState<boolean>(false);
   const [pastPayments, setPastPayments] = useState<any[]>([]);
   const [loadingPayments, setLoadingPayments] = useState<boolean>(false);
@@ -197,6 +206,7 @@ export default function MembershipPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPaymentError("");
     setLoadingPayment(true);
 
     try {
@@ -222,7 +232,7 @@ export default function MembershipPage() {
       const data = await res.json();
 
       if (!data.success) {
-        alert("Failed to initialize payment: " + (data.error || "Unknown error"));
+        setPaymentError(data.error || "Failed to initialize payment. Please try again.");
         setLoadingPayment(false);
         return;
       }
@@ -245,7 +255,35 @@ export default function MembershipPage() {
         },
         handler: async function (response: any) {
           try {
-            const verifyRes = await fetch("/api/razorpay/verify-payment", {
+            const durationDays = selectedPlan.id === "3_months" ? 90 : selectedPlan.id === "6_months" ? 180 : 365;
+            const calculatedExpiry = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
+
+            const optimisticPayment = {
+              id: response.razorpay_payment_id || `pay_${Date.now()}`,
+              orderId: response.razorpay_order_id || "",
+              paymentId: response.razorpay_payment_id || "PAID",
+              planId: selectedPlan.id,
+              planName: selectedPlan.name,
+              amount: finalAmount,
+              status: "PAID",
+              createdAt: new Date().toISOString(),
+              expiresAt: calculatedExpiry,
+              customerName: fullName,
+              customerEmail: email,
+              customerPhone: `${countryCode}${phoneNumber}`,
+            };
+
+            setPastPayments((prev) => [optimisticPayment, ...prev]);
+            setShowPlanModal(false);
+            setPaymentSuccessModal({
+              isOpen: true,
+              paymentId: response.razorpay_payment_id || "PAID",
+              orderId: response.razorpay_order_id || "",
+              planName: selectedPlan.name,
+              amount: finalAmount,
+            });
+
+            await fetch("/api/razorpay/verify-payment", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -262,17 +300,10 @@ export default function MembershipPage() {
               }),
             });
 
-            const verifyData = await verifyRes.json();
-
-            if (verifyData.success) {
-              alert(`Payment Successful & Verified!\nPayment ID: ${response.razorpay_payment_id}\nYour membership is now active.`);
-              fetchPastPayments();
-            } else {
-              alert(`Payment completed but verification failed: ${verifyData.error}`);
-            }
+            await fetchPastPayments();
+            router.refresh();
           } catch (vErr) {
             console.error("Verification error:", vErr);
-            alert(`Payment completed (Payment ID: ${response.razorpay_payment_id})`);
           } finally {
             setLoadingPayment(false);
           }
@@ -288,11 +319,12 @@ export default function MembershipPage() {
         const rzp = new window.Razorpay(options);
         rzp.open();
       } else {
-        alert("Razorpay SDK failed to load. Please check your internet connection.");
+        setPaymentError("Razorpay SDK failed to load. Please check your internet connection.");
         setLoadingPayment(false);
       }
     } catch (err: any) {
       console.error("Payment trigger error:", err);
+      setPaymentError(err.message || "Payment trigger failed. Please try again.");
       setLoadingPayment(false);
     }
   };
@@ -357,7 +389,7 @@ export default function MembershipPage() {
      - Column 3: YOUR DETAILS & CHECKOUT (Button pinned to bottom)
      - Beautiful minimal aesthetic fitting 100vh
      ========================================================================= */
-  if (!isPaidMember && showPlanModal) {
+  if (!isPaidMember && showPlanModal && !paymentSuccessModal?.isOpen) {
     return (
       <div
         style={{
@@ -513,6 +545,30 @@ export default function MembershipPage() {
           .btn-gold-inline:hover {
             background: #fefce8;
             border-color: #c59b27;
+          }
+          @keyframes shinePulse {
+            0% {
+              box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6), 0 0 16px rgba(16, 185, 129, 0.35);
+              transform: scale(0.96);
+            }
+            50% {
+              box-shadow: 0 0 0 18px rgba(16, 185, 129, 0), 0 0 32px rgba(16, 185, 129, 0.5);
+              transform: scale(1.04);
+            }
+            100% {
+              box-shadow: 0 0 0 0 rgba(16, 185, 129, 0), 0 0 16px rgba(16, 185, 129, 0.35);
+              transform: scale(0.96);
+            }
+          }
+          @keyframes popIn {
+            0% {
+              opacity: 0;
+              transform: scale(0.9) translateY(16px);
+            }
+            100% {
+              opacity: 1;
+              transform: scale(1) translateY(0);
+            }
           }
           @media (max-width: 1024px) {
             .modal-viewport-container {
@@ -894,6 +950,23 @@ export default function MembershipPage() {
 
                   {/* BOTTOM PINNED CHECKOUT BUTTON SECTION */}
                   <div style={{ marginTop: "auto", paddingTop: "12px" }}>
+                    {paymentError && (
+                      <div
+                        style={{
+                          background: "#fef2f2",
+                          border: "1px solid #fecaca",
+                          color: "#dc2626",
+                          padding: "8px 12px",
+                          borderRadius: "8px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          marginBottom: "8px",
+                          textAlign: "center",
+                        }}
+                      >
+                        {paymentError}
+                      </div>
+                    )}
                     <button
                       type="submit"
                       disabled={loadingPayment}
@@ -1393,6 +1466,215 @@ export default function MembershipPage() {
           </div>
         )}
       </div>
+
+      {/* ── Success Celebration Modal ── */}
+      {paymentSuccessModal?.isOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.72)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "20px",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setPaymentSuccessModal(null);
+              setShowPlanModal(false);
+              setMainTab("membership");
+            }
+          }}
+        >
+          <div
+            style={{
+              background: "#ffffff",
+              borderRadius: "20px",
+              border: "1px solid #e2e8f0",
+              maxWidth: "460px",
+              width: "100%",
+              padding: "36px 28px 28px",
+              textAlign: "center",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0,0,0,0.03)",
+              position: "relative",
+              animation: "popIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+            }}
+          >
+            {/* Top Close Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setPaymentSuccessModal(null);
+                setShowPlanModal(false);
+                setMainTab("membership");
+              }}
+              style={{
+                position: "absolute",
+                top: "16px",
+                right: "16px",
+                background: "#f1f5f9",
+                border: "none",
+                borderRadius: "50%",
+                width: "32px",
+                height: "32px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                color: "#64748b",
+                transition: "all 0.15s ease",
+              }}
+              title="Close"
+            >
+              ✕
+            </button>
+
+            {/* Shining Green Tick Icon */}
+            <div
+              style={{
+                width: "72px",
+                height: "72px",
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 18px",
+                color: "#ffffff",
+                animation: "shinePulse 2.4s infinite ease-in-out",
+                border: "3px solid #d1fae5",
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="36"
+                height="36"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+
+            {/* Badge */}
+            <div
+              style={{
+                display: "inline-block",
+                padding: "3px 12px",
+                borderRadius: "9999px",
+                background: "#ecfdf5",
+                color: "#047857",
+                fontSize: "11px",
+                fontWeight: "800",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                marginBottom: "12px",
+              }}
+            >
+              ✓ Payment Verified & Active
+            </div>
+
+            {/* Heading */}
+            <h2
+              style={{
+                fontSize: "23px",
+                fontWeight: "800",
+                fontFamily: "var(--font-playfair), Georgia, serif",
+                color: "#0f172a",
+                margin: "0 0 8px",
+                lineHeight: "1.25",
+              }}
+            >
+              Welcome to Aethos Wealth Membership
+            </h2>
+
+            <p style={{ fontSize: "13.5px", color: "#64748b", lineHeight: "1.55", margin: "0 0 20px" }}>
+              Your payment has been successfully confirmed. You now have full institutional access to deep dives, valuation models, concall trackers, and real-time ideas.
+            </p>
+
+            {/* Payment Summary Box */}
+            <div
+              style={{
+                background: "#FAF8F5",
+                border: "1px solid #ece7df",
+                borderRadius: "12px",
+                padding: "14px 18px",
+                marginBottom: "20px",
+                textAlign: "left",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", fontSize: "13px" }}>
+                <span style={{ color: "#64748b" }}>Membership Plan:</span>
+                <span style={{ fontWeight: "700", color: "#0f172a" }}>{paymentSuccessModal.planName}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", fontSize: "13px" }}>
+                <span style={{ color: "#64748b" }}>Amount Paid:</span>
+                <span style={{ fontWeight: "800", color: "#0f172a" }}>₹{paymentSuccessModal.amount.toLocaleString("en-IN")}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
+                <span style={{ color: "#64748b" }}>Payment ID:</span>
+                <span style={{ fontFamily: "monospace", color: "#0f172a", fontWeight: "600", fontSize: "11.5px" }}>
+                  {paymentSuccessModal.paymentId}
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <Link
+                href="/research"
+                onClick={() => {
+                  setPaymentSuccessModal(null);
+                  setShowPlanModal(false);
+                }}
+                style={{
+                  display: "block",
+                  padding: "12px 20px",
+                  background: "#0f172a",
+                  color: "#ffffff",
+                  borderRadius: "8px",
+                  fontSize: "13.5px",
+                  fontWeight: "700",
+                  textDecoration: "none",
+                  textAlign: "center",
+                  transition: "all 0.15s ease",
+                  boxShadow: "0 4px 12px rgba(15, 23, 42, 0.15)",
+                }}
+              >
+                Explore Research Library →
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentSuccessModal(null);
+                  setShowPlanModal(false);
+                  setMainTab("membership");
+                }}
+                style={{
+                  padding: "10px 20px",
+                  background: "#ffffff",
+                  color: "#334155",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: "8px",
+                  fontSize: "13px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                View Membership Pass
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

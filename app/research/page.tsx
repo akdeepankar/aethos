@@ -134,9 +134,6 @@ export default function ResearchPage() {
   // Filtering
   const filteredReports = useMemo(() => {
     return allReports.filter((report) => {
-      // If user is not a premium/paid member, strictly keep only reports explicitly marked as free access (isFree === true)
-      if (!isPaid && report.isFree !== true) return false;
-
       const isSaved = Boolean(savedSlugs[report.slug]);
       const isUnread = !readSlugs[report.slug];
 
@@ -629,9 +626,24 @@ export default function ResearchPage() {
                           <span className="rl-card-meta">
                             {report.date}
                           </span>
-                          <Link href={`/research/${report.slug}`} onClick={() => markAsRead(report.slug)} className="rl-read-btn">
-                            Read <span className="rl-read-arrow">→</span>
-                          </Link>
+                          {!isPaid && !report.isFree ? (
+                            <Link
+                              href={`/research/${report.slug}`}
+                              onClick={() => markAsRead(report.slug)}
+                              className="rl-read-btn"
+                              style={{
+                                borderColor: "#0f172a",
+                                background: "#0f172a",
+                                color: "#ffffff",
+                              }}
+                            >
+                              <span>🔒 Unlock</span> <span className="rl-read-arrow">→</span>
+                            </Link>
+                          ) : (
+                            <Link href={`/research/${report.slug}`} onClick={() => markAsRead(report.slug)} className="rl-read-btn">
+                              Read <span className="rl-read-arrow">→</span>
+                            </Link>
+                          )}
                         </div>
                       </div>
                     </article>

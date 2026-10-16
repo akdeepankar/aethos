@@ -9,8 +9,11 @@ import DynamicReportView from "../../_components/dynamic-report-view";
 import CleanPdfRenderer from "../../_components/clean-pdf-renderer";
 import { adaptReportToRichView } from "../../_lib/report-adapter";
 
+import { usePaidAccess } from "../../_hooks/use-paid-access";
+
 export default function ResearchDetailClient({ slug }: { slug: string }) {
   const { reports: storeReports } = useAdminStore();
+  const { isPaid, checking: checkingPaid } = usePaidAccess();
   const [report, setReport] = useState<Report | null>(null);
   const [rawHtml, setRawHtml] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -129,6 +132,87 @@ export default function ResearchDetailClient({ slug }: { slug: string }) {
           >
             Return to Research Library
           </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const isFreeReport = Boolean(report?.isFree);
+  const hasAccess = isFreeReport || isPaid;
+
+  if (loading || checkingPaid) {
+    return (
+      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+        <div style={{ display: "inline-block", padding: "18px 32px", background: "#ffffff", borderRadius: "10px", border: "1px solid #e2e8f0", boxShadow: "0 2px 10px rgba(0,0,0,0.03)" }}>
+          <div style={{ fontSize: "13.5px", fontWeight: "600", color: "#64748b" }}>
+            Loading research note...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Paywall Gate for Paid Research Reports when user does not have active paid access
+  if (!hasAccess && report) {
+    return (
+      <div style={{ maxWidth: "800px", margin: "0 auto", padding: "48px 20px" }}>
+        <div style={{ marginBottom: "20px" }}>
+          <Link
+            href="/research"
+            style={{ fontSize: "13px", color: "#64748b", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "6px" }}
+          >
+            ← Back to Research Library
+          </Link>
+        </div>
+
+        <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "16px", padding: "48px 32px", textAlign: "center", boxShadow: "0 4px 20px rgba(0,0,0,0.04)" }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "6px 14px", borderRadius: "50px", background: "#fefce8", border: "1px solid #fef08a", color: "#854d0e", fontSize: "11.5px", fontWeight: "700", marginBottom: "18px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            🔒 Pro Research Report
+          </div>
+
+          <h2 style={{ fontSize: "24px", fontWeight: "800", color: "#0f172a", marginBottom: "10px", lineHeight: "1.3" }}>
+            {report.title}
+          </h2>
+
+          <p style={{ fontSize: "14px", color: "#64748b", maxWidth: "560px", margin: "0 auto 28px", lineHeight: "1.6" }}>
+            {report.deck || "This comprehensive institutional research note and financial model are reserved exclusively for Aethos Pro Members."}
+          </p>
+
+          <div style={{ display: "inline-flex", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
+            <Link
+              href="/membership"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "12px 26px",
+                background: "#0f172a",
+                color: "#ffffff",
+                borderRadius: "8px",
+                fontSize: "13.5px",
+                fontWeight: "700",
+                textDecoration: "none",
+                boxShadow: "0 4px 14px rgba(15,23,42,0.18)",
+              }}
+            >
+              <span>Upgrade to Aethos Pro</span>
+              <span style={{ fontSize: "16px" }}>→</span>
+            </Link>
+            <Link
+              href="/research"
+              style={{
+                padding: "12px 20px",
+                fontSize: "13px",
+                fontWeight: "600",
+                color: "#475569",
+                background: "#f1f5f9",
+                borderRadius: "8px",
+                textDecoration: "none",
+              }}
+            >
+              Explore Research Library
+            </Link>
+          </div>
         </div>
       </div>
     );

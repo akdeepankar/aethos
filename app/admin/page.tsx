@@ -247,6 +247,26 @@ function IconCreditCard() {
   );
 }
 
+function IconShare() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconCheck() {
+  return (
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5">
+      <polyline points="20 6 9 17 4 12" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function AdminPageContent() {
   const { user, loading, signInWithGoogle, signOut } = useAuth();
   const {
@@ -400,6 +420,7 @@ function AdminPageContent() {
   const [activeDrawer, setActiveDrawer] = useState<DrawerType>(null);
   const [selectedFile, setSelectedFile] = useState<StoredMediaFile | null>(null);
   const [hasCopiedUrl, setHasCopiedUrl] = useState(false);
+  const [copiedShareKey, setCopiedShareKey] = useState<string | null>(null);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [reportDrawerMode, setReportDrawerMode] = useState<"edit" | "preview" | "split">("edit");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -943,6 +964,37 @@ function AdminPageContent() {
   const showNotification = (msg: string, type: "success" | "error" | "info" = "success") => {
     setNotification({ msg, type });
     setTimeout(() => setNotification(null), 3500);
+  };
+
+  const handleShareReport = (slug: string) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://aethos.co";
+    const url = `${origin}/research/${slug}`;
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(url);
+      setCopiedShareKey(`report-${slug}`);
+      setTimeout(() => {
+        setCopiedShareKey((prev) => (prev === `report-${slug}` ? null : prev));
+      }, 2500);
+      showNotification("Research report link copied to clipboard", "success");
+    } else {
+      showNotification(url, "info");
+    }
+  };
+
+  const handleShareIdea = (idea: StockIdea) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://aethos.co";
+    const slug = idea.slug || idea.id;
+    const url = `${origin}/ideas/${slug}`;
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(url);
+      setCopiedShareKey(`idea-${slug}`);
+      setTimeout(() => {
+        setCopiedShareKey((prev) => (prev === `idea-${slug}` ? null : prev));
+      }, 2500);
+      showNotification(`Idea link for "${idea.company}" copied to clipboard`, "success");
+    } else {
+      showNotification(url, "info");
+    }
   };
 
   const handleRunIpoSync = async () => {
@@ -1883,6 +1935,35 @@ function AdminPageContent() {
                       <div style={{ display: "inline-flex", gap: "6px" }}>
                         <button
                           type="button"
+                          onClick={() => handleShareReport(report.slug)}
+                          style={{
+                            padding: "5px 10px",
+                            background: copiedShareKey === `report-${report.slug}` ? "#f0fdf4" : "#ffffff",
+                            border: copiedShareKey === `report-${report.slug}` ? "1px solid #86efac" : "1px solid #cbd5e1",
+                            borderRadius: "4px",
+                            fontSize: "11.5px",
+                            fontWeight: copiedShareKey === `report-${report.slug}` ? "600" : "500",
+                            color: copiedShareKey === `report-${report.slug}` ? "#16a34a" : "#334155",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            transition: "all 0.15s ease",
+                          }}
+                          title="Copy research report share link"
+                        >
+                          {copiedShareKey === `report-${report.slug}` ? (
+                            <>
+                              <IconCheck /> Copied
+                            </>
+                          ) : (
+                            <>
+                              <IconShare /> Share
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleOpenReportDrawer(report)}
                           style={{
                             padding: "5px 10px",
@@ -2021,6 +2102,35 @@ function AdminPageContent() {
                       </td>
                       <td style={{ padding: "12px 16px", textAlign: "right" }}>
                         <div style={{ display: "inline-flex", gap: "6px" }}>
+                          <button
+                            type="button"
+                            onClick={() => handleShareIdea(idea)}
+                            style={{
+                              padding: "4px 8px",
+                              background: copiedShareKey === `idea-${idea.slug || idea.id}` ? "#f0fdf4" : "#ffffff",
+                              border: copiedShareKey === `idea-${idea.slug || idea.id}` ? "1px solid #86efac" : "1px solid #cbd5e1",
+                              borderRadius: "4px",
+                              fontSize: "11.5px",
+                              fontWeight: copiedShareKey === `idea-${idea.slug || idea.id}` ? "600" : "500",
+                              color: copiedShareKey === `idea-${idea.slug || idea.id}` ? "#16a34a" : "#334155",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              transition: "all 0.15s ease",
+                            }}
+                            title="Copy idea share link"
+                          >
+                            {copiedShareKey === `idea-${idea.slug || idea.id}` ? (
+                              <>
+                                <IconCheck /> Copied
+                              </>
+                            ) : (
+                              <>
+                                <IconShare /> Share
+                              </>
+                            )}
+                          </button>
                           <button
                             type="button"
                             onClick={() => {

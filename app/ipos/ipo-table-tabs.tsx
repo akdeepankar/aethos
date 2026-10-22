@@ -45,6 +45,18 @@ export type ApiIpo = {
   hasReport?: boolean;
   slug?: string;
   externalId?: string;
+  issueSizeCr?: string | null;
+  faceValue?: string | null;
+  minimumQuantity?: string | null;
+  cutOffPrice?: string | null;
+  listingExchange?: string | null;
+  isin?: string | null;
+  issueType?: string | null;
+  totalSubscription?: string | null;
+  rhpUrl?: string | null;
+  drhpUrl?: string | null;
+  upstoxTimeline?: string | null;
+  registrarInfo?: string | null;
 };
 
 type UpstoxTimeline = {
@@ -91,6 +103,15 @@ type UpstoxIpoDetail = {
   total_subscription?: string | null;
   investors?: { category?: string | null; description?: string | null }[] | null;
 };
+
+function parseJson<T>(value?: string | null): T | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
 
 function formatIpoDate(value?: string | null) {
   if (!value) return "—";
@@ -1671,11 +1692,18 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
               item.action_slug ||
               (item.name || item.company || item.symbol || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
             const live = upstoxDetail;
-            const timeline = live?.timeline;
-            const registrar = live?.registrar_info;
+            const storedTimeline = parseJson<UpstoxTimeline>(item.upstoxTimeline);
+            const storedRegistrar = parseJson<UpstoxRegistrar>(item.registrarInfo);
+            const timeline = live?.timeline ?? storedTimeline;
+            const registrar = live?.registrar_info ?? storedRegistrar;
+            const hasStoredDetail = Boolean(
+              item.issueSizeCr || item.faceValue || item.minimumQuantity || item.cutOffPrice ||
+              item.listingExchange || item.isin || item.totalSubscription || item.upstoxTimeline
+            );
             const detailLoading = !live && !upstoxError;
-            const issueTypeLabel = live?.issue_type
-              ? live.issue_type.toLowerCase() === "sme"
+            const issueTypeValue = live?.issue_type ?? item.issueType ?? null;
+            const issueTypeLabel = issueTypeValue
+              ? issueTypeValue.toLowerCase() === "sme"
                 ? "SME"
                 : "Mainboard"
               : item.is_sme || item.isSme
@@ -1686,8 +1714,27 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
               : item.min_price && item.max_price
                 ? `${item.min_price} – ${item.max_price}`
                 : item.price || "—";
-            const issueSize =
-              live?.issue_size != null ? live.issue_size.toLocaleString("en-IN") : "—";
+            const issueSize = live?.issue_size != null
+              ? live.issue_size.toLocaleString("en-IN")
+              : item.issueSizeCr
+                ? Number.isNaN(Number(item.issueSizeCr))
+                  ? item.issueSizeCr
+                  : Number(item.issueSizeCr).toLocaleString("en-IN")
+                : "—";
+            const faceValue = live?.face_value ?? item.faceValue ?? "—";
+            const lotSize = live?.lot_size ?? item.lot_size ?? "—";
+            const minimumQuantity = live?.minimum_quantity ?? item.minimumQuantity ?? "—";
+            const cutOffPrice = live?.cut_off_price ?? item.cutOffPrice ?? "—";
+            const listingExchange = live?.listing_exchange ?? item.listingExchange ?? "—";
+            const isin = live?.isin ?? item.isin ?? "—";
+            const totalSubscription = live?.total_subscription ?? item.totalSubscription ?? null;
+            const dataSourceLabel = live
+              ? "Live · Upstox"
+              : hasStoredDetail
+                ? "Last synced · Upstox"
+                : detailLoading
+                  ? "Loading live data…"
+                  : "Stored data";
 
             return (
               <div className="ipo-side-column-card">
@@ -1699,7 +1746,7 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                     </h3>
                     <div style={{ fontSize: "13px", color: "#64748b" }}>
                       {item.sector || "Unclassified"} &nbsp;|&nbsp; {issueTypeLabel}
-                      {live?.listing_exchange ? ` | ${live.listing_exchange}` : ""}
+                      {listingExchange !== "—" ? ` | ${listingExchange}` : ""}
                     </div>
                   </div>
                   <button
@@ -1745,39 +1792,41 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                 <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
                   <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
                     <span>Issue details</span>
-                    <span style={{ fontWeight: "500", textTransform: "none", color: live ? "#047857" : "#94a3b8" }}>
-                      {live ? "Live · Upstox" : detailLoading ? "Loading live data…" : "Stored data"}
+                    <span style={{ fontWeight: "500", textTransform: "none", color: live ? "#047857" : hasStoredDetail ? "#b45309" : "#94a3b8" }}>
+                      {dataSourceLabel}
                     </span>
                   </h4>
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
                     <Row label="Issue size (₹ Cr)" value={issueSize} />
                     <Row label="Price band (₹)" value={priceBand} />
-                    <Row label="Face value (₹)" value={live?.face_value ?? "—"} />
-                    <Row label="Lot size" value={live?.lot_size ?? item.lot_size ?? "—"} />
-                    <Row label="Minimum quantity" value={live?.minimum_quantity ?? "—"} />
-                    <Row label="Cut-off price (₹)" value={live?.cut_off_price ?? "—"} />
+                    <Row label="Face value (₹)" value={faceValue} />
+                    <Row label="Lot size" value={lotSize} />
+                    <Row label="Minimum quantity" value={minimumQuantity} />
+                    <Row label="Cut-off price (₹)" value={cutOffPrice} />
                     <Row label="Issue type" value={issueTypeLabel} />
-                    <Row label="Listing exchange" value={live?.listing_exchange ?? "—"} />
-                    <Row label="ISIN" value={live?.isin ?? "—"} />
+                    <Row label="Listing exchange" value={listingExchange} />
+                    <Row label="ISIN" value={isin} />
                     {item.mcap && <Row label="Market cap" value={item.mcap} />}
                     {item.gmp && <Row label="Grey market premium" value={item.gmp} valueColor={item.gmp.startsWith("-") ? "#dc2626" : "#15803d"} />}
                   </div>
                   {upstoxError && (
-                    <div style={{ marginTop: "10px", padding: "8px 10px", borderRadius: "6px", backgroundColor: "#fffbeb", border: "1px solid #fde68a", color: "#92400e", fontSize: "11.5px", lineHeight: "1.4" }}>
-                      Live Upstox details unavailable. Showing stored values where available.
+                    <div style={{ marginTop: "10px", padding: "8px 10px", borderRadius: "6px", backgroundColor: hasStoredDetail ? "#f8fafc" : "#fffbeb", border: hasStoredDetail ? "1px solid #e2e8f0" : "1px solid #fde68a", color: hasStoredDetail ? "#475569" : "#92400e", fontSize: "11.5px", lineHeight: "1.4" }}>
+                      {hasStoredDetail
+                        ? "Live refresh unavailable — showing the last synced Upstox data."
+                        : `Live Upstox details unavailable: ${upstoxError}`}
                     </div>
                   )}
                 </div>
 
                 {/* Subscription section */}
-                {(live?.total_subscription || (live?.investors && live.investors.length > 0)) && (
+                {(totalSubscription || (live?.investors && live.investors.length > 0)) && (
                   <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
                     <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0" }}>
                       Subscription
                     </h4>
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
-                      {live?.total_subscription && (
-                        <Row label="Total subscription" value={`${live.total_subscription}x`} />
+                      {totalSubscription && (
+                        <Row label="Total subscription" value={`${totalSubscription}x`} />
                       )}
                     </div>
                     {live?.investors && live.investors.length > 0 && (
@@ -1796,8 +1845,8 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                 <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
                   <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
                     <span>Key dates</span>
-                    <span style={{ fontWeight: "500", textTransform: "none", color: live ? "#047857" : "#94a3b8" }}>
-                      {live ? "Live · Upstox" : detailLoading ? "Loading live data…" : "Stored data"}
+                    <span style={{ fontWeight: "500", textTransform: "none", color: live ? "#047857" : hasStoredDetail ? "#b45309" : "#94a3b8" }}>
+                      {dataSourceLabel}
                     </span>
                   </h4>
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>

@@ -23,6 +23,8 @@ type UpstoxDetailResponse = {
   data?: Record<string, unknown> & { id?: string };
 };
 
+class UpstoxAuthError extends Error {}
+
 function normalize(value: unknown) {
   return String(value ?? "")
     .toLowerCase()
@@ -32,10 +34,20 @@ function normalize(value: unknown) {
 async function getJson<T>(url: string, token: string): Promise<T | null> {
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-    next: { revalidate: 300 },
+    cache: "no-store",
   });
   const json = (await res.json().catch(() => null)) as T | null;
-  if (!res.ok) return null;
+  if (res.status === 401 || res.status === 403) {
+    throw new UpstoxAuthError(
+      `Upstox rejected the access token (${res.status}). Set a valid UPSTOX_ACCESS_TOKEN in this environment.`
+    );
+  }
+  if (!res.ok) {
+    console.error(
+      `[upstox/ipo] Upstox request failed (${res.status}) for ${url.replace(UPSTOX_BASE, "")}`
+    );
+    return null;
+  }
   return json;
 }
 
@@ -96,8 +108,9 @@ async function findIpoId(
 export async function GET(req: NextRequest) {
   const token = process.env.UPSTOX_ACCESS_TOKEN;
   if (!token) {
+    console.error("[upstox/ipo] UPSTOX_ACCESS_TOKEN is not configured in this environment");
     return NextResponse.json(
-      { success: false, error: "UPSTOX_ACCESS_TOKEN is not configured" },
+      { success: false, error: "UPSTOX_ACCESS_TOKEN is not configured in this environment" },
       { status: 500 }
     );
   }
@@ -115,21 +128,33 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const resolvedId = await findIpoId(token, { id, slug, symbol, name });
-  if (!resolvedId) {
+  try {
+    const resolvedId = await findIpoId(token, { id, slug, symbol, name });
+    if (!resolvedId) {
+      return NextResponse.json(
+        { success: false, error: "IPO not found on Upstox" },
+        { status: 404 }
+      );
+    }
+
+    const detail = await fetchDetail(resolvedId, token);
+    if (!detail) {
+      return NextResponse.json(
+        { success: false, error: "Could not load IPO details from Upstox" },
+        { status: 502 }
+      );
+    }
+
+    return NextResponse.json({ success: true, data: detail });
+  } catch (err) {
+    if (err instanceof UpstoxAuthError) {
+      console.error("[upstox/ipo]", err.message);
+      return NextResponse.json({ success: false, error: err.message }, { status: 502 });
+    }
+    console.error("[upstox/ipo] Unexpected error:", err);
     return NextResponse.json(
-      { success: false, error: "IPO not found on Upstox" },
-      { status: 404 }
+      { success: false, error: "Unexpected error loading IPO details from Upstox" },
+      { status: 500 }
     );
   }
-
-  const detail = await fetchDetail(resolvedId, token);
-  if (!detail) {
-    return NextResponse.json(
-      { success: false, error: "Could not load IPO details from Upstox" },
-      { status: 502 }
-    );
-  }
-
-  return NextResponse.json({ success: true, data: detail });
 }

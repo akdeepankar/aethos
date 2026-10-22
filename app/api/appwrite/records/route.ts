@@ -23,6 +23,18 @@ function getAppwriteClient() {
   return { client, tablesDB, databases, storage, databaseId: process.env.APPWRITE_DATABASE_ID || "aethos_db" };
 }
 
+const slugifyText = (value: unknown) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+const ipoNameSlug = (value: unknown) =>
+  slugifyText(String(value || "").replace(/\s+IPO$/i, ""));
+
+const ipoIdSlug = (value: unknown) =>
+  slugifyText(value).replace(/(-limited)?-ipo$/, "");
+
 // GET /api/appwrite/records?table=reports
 export async function GET(req: NextRequest) {
   try {
@@ -64,7 +76,20 @@ export async function GET(req: NextRequest) {
             console.warn("Appwrite Functions SDK execution skipped/failed:", fnErr);
           }
 
-          // 2. Fetch live market data (Try Upstox API first, fallback to Indian API)
+          // 2. The deployed function persists the full dataset itself; use its summary.
+          if (fnExecuted && fnOutput?.success) {
+            const finalRes = await tablesDB.listRows(databaseId, "ipos");
+            return NextResponse.json({
+              success: true,
+              action: "sync-ipos",
+              addedCount: fnOutput.created || 0,
+              updatedCount: fnOutput.updated || 0,
+              totalFetched: fnOutput.totalItems || 0,
+              rows: finalRes.rows,
+            });
+          }
+
+          // 3. Fallback: fetch live market data and sync from the Next.js server.
           let fetchedListings: any[] = [];
           if (fnOutput?.data && Array.isArray(fnOutput.data)) {
             fetchedListings = fnOutput.data;
@@ -86,6 +111,19 @@ export async function GET(req: NextRequest) {
                     let rhpUrl = null;
                     let lotSize = item.lot_size;
                     let listingDate = null;
+                    let detail: {
+                      isin?: string;
+                      issue_type?: string;
+                      issue_size?: number;
+                      face_value?: number;
+                      cut_off_price?: number;
+                      minimum_quantity?: number;
+                      listing_exchange?: string;
+                      rhp_url?: string;
+                      drhp_url?: string;
+                      timeline?: Record<string, string | null>;
+                      registrar_info?: Record<string, string | null>;
+                    } | null = null;
 
                     if (item.id) {
                       try {
@@ -99,6 +137,7 @@ export async function GET(req: NextRequest) {
                         if (detailRes.ok) {
                           const detailJson = await detailRes.json();
                           const d = detailJson?.data || {};
+                          detail = d;
                           rhpUrl = d.rhp_url || d.drhp_url || null;
                           lotSize = d.lot_size || lotSize;
                           listingDate = d.timeline?.listing_date || null;
@@ -125,8 +164,19 @@ export async function GET(req: NextRequest) {
                       bidding_end_date: item.bidding_end_date,
                       listing_date: listingDate,
                       lot_size: lotSize,
+                      minimum_quantity: detail?.minimum_quantity ?? null,
                       total_subscription_rate: item.total_subscription,
                       document_url: rhpUrl,
+                      isin: item.isin || detail?.isin || null,
+                      issue_type: item.issue_type || detail?.issue_type || null,
+                      issue_size: item.issue_size ?? detail?.issue_size ?? null,
+                      face_value: detail?.face_value ?? null,
+                      cut_off_price: detail?.cut_off_price ?? null,
+                      listing_exchange: detail?.listing_exchange || null,
+                      rhp_url: detail?.rhp_url || null,
+                      drhp_url: detail?.drhp_url || null,
+                      timeline: detail?.timeline || null,
+                      registrar_info: detail?.registrar_info || null,
                     });
                   }
                 }
@@ -141,7 +191,11 @@ export async function GET(req: NextRequest) {
           const existingRows = existingRes.rows || [];
           const existingMap = new Map<string, any>();
           existingRows.forEach((r: any) => {
-            if (r.slug) existingMap.set(r.slug.toLowerCase(), r);
+            [r.slug, r.externalId, r.$id].forEach((k) => {
+              if (k) existingMap.set(String(k).toLowerCase(), r);
+            });
+            if (r.company) existingMap.set(ipoNameSlug(r.company), r);
+            if (r.name) existingMap.set(ipoNameSlug(r.name), r);
           });
 
           const deepDivesRes = await tablesDB.listRows(databaseId, "ipo_deep_dives").catch(() => ({ rows: [] }));
@@ -157,35 +211,29 @@ export async function GET(req: NextRequest) {
           let updatedCount = 0;
 
           for (const item of fetchedListings) {
-            const rawBase = (item.action_slug || item.symbol || item.name || "")
-              .toLowerCase()
-              .replace(/[^a-z0-9]+/g, "-")
-              .replace(/^-|-$/g, "");
+            const candidates = [
+              item.upstoxId,
+              item.symbol,
+              slugifyText(item.symbol),
+              ipoNameSlug(item.name),
+              ipoIdSlug(item.upstoxId),
+            ]
+              .filter(Boolean)
+              .map((k) => String(k).toLowerCase());
 
-            let monthYearSuffix = "";
-            const dateRef = item.bidding_start_date || item.listing_date;
-            if (dateRef) {
-              const parsedDate = new Date(dateRef);
-              if (!isNaN(parsedDate.getTime())) {
-                const m = parsedDate.toLocaleDateString("en-US", { month: "short", year: "numeric" }).toLowerCase().replace(/[^a-z0-9]+/g, "-");
-                monthYearSuffix = `-ipo-${m}`;
-              }
-            }
-            if (!monthYearSuffix) {
-              const currentM = new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" }).toLowerCase().replace(/[^a-z0-9]+/g, "-");
-              monthYearSuffix = `-ipo-${currentM}`;
-            }
-
-            const slug = rawBase.includes("-ipo-") ? rawBase : `${rawBase}${monthYearSuffix}`;
+            const existing = candidates.map((k) => existingMap.get(k)).find(Boolean);
+            const slug =
+              existing?.slug ||
+              ipoNameSlug(item.name) ||
+              slugifyText(item.symbol) ||
+              ipoIdSlug(item.upstoxId);
 
             if (!slug) continue;
 
-            const existing = existingMap.get(slug);
-
             // Cross-check ipo_deep_dives by unique identifier
             const archivedDeepDive = deepDiveMap.get(slug.toLowerCase()) ||
-              deepDiveMap.get(rawBase.toLowerCase()) ||
-              deepDiveMap.get(item.symbol?.toLowerCase());
+              deepDiveMap.get(ipoNameSlug(item.name)) ||
+              deepDiveMap.get(String(item.symbol || "").toLowerCase());
 
             const pdfUrl = existing?.pdfUrl || archivedDeepDive?.pdfUrl || "";
             const deck = existing?.deck || archivedDeepDive?.deck || item.additional_text || "";
@@ -208,19 +256,32 @@ export async function GET(req: NextRequest) {
               hasReport: hasReport,
               deck,
               issueSize: item.total_subscription_rate ? `${item.total_subscription_rate}x Subscribed` : existing?.issueSize || "—",
+              issueSizeCr: item.issue_size != null ? String(item.issue_size) : existing?.issueSizeCr || "",
+              faceValue: item.face_value != null ? String(item.face_value) : existing?.faceValue || "",
+              minimumQuantity: item.minimum_quantity != null ? String(item.minimum_quantity) : existing?.minimumQuantity || "",
+              cutOffPrice: item.cut_off_price != null ? String(item.cut_off_price) : existing?.cutOffPrice || "",
+              listingExchange: item.listing_exchange || existing?.listingExchange || "",
+              isin: item.isin || existing?.isin || "",
+              issueType: item.issue_type || existing?.issueType || "",
+              totalSubscription: item.total_subscription_rate != null ? String(item.total_subscription_rate) : existing?.totalSubscription || "",
+              rhpUrl: item.rhp_url || existing?.rhpUrl || "",
+              drhpUrl: item.drhp_url || existing?.drhpUrl || "",
+              upstoxTimeline: item.timeline ? JSON.stringify(item.timeline) : existing?.upstoxTimeline || "",
               lotSize: item.lot_size ? `${item.lot_size} shares` : existing?.lotSize || "—",
               listing: item.listing_date || existing?.listing || "TBA",
               externalId: String(item.upstoxId || item.externalId || item.symbol || slug),
               status: String(item.status || "active"),
               isSme: Boolean(item.is_sme),
-              additionalText: item.additional_text ? String(item.additional_text).slice(0, 500) : "",
+              additionalText: item.registrar_info
+                ? JSON.stringify(item.registrar_info).slice(0, 500)
+                : existing?.additionalText || "",
               pdfUrl,
               documentUrl: item.document_url || existing?.documentUrl || "",
               lastSyncedAt: new Date().toISOString(),
               closedAt: item.bidding_end_date ? new Date(item.bidding_end_date).toISOString() : undefined,
             };
 
-            const rowId = slug.length <= 36 ? slug : slug.slice(0, 36);
+            const rowId = existing?.$id || (slug.length <= 36 ? slug : slug.slice(0, 36));
 
             try {
               if (existing) {
@@ -337,6 +398,24 @@ export async function GET(req: NextRequest) {
             bidding_end_date: biddingEnd,
             listing_date: r.listing && r.listing !== "TBA" ? r.listing : (r.period || "TBA"),
             lot_size: r.lotSize ? parseInt(r.lotSize) || null : null,
+            issueSizeCr: r.issueSizeCr || null,
+            faceValue: r.faceValue || null,
+            minimumQuantity: r.minimumQuantity || null,
+            cutOffPrice: r.cutOffPrice || null,
+            listingExchange: r.listingExchange || null,
+            isin: r.isin || null,
+            issueType: r.issueType || null,
+            totalSubscription: r.totalSubscription || null,
+            rhpUrl: r.rhpUrl || null,
+            drhpUrl: r.drhpUrl || null,
+            upstoxTimeline: r.upstoxTimeline || null,
+            registrarInfo: (() => {
+              const raw = typeof r.additionalText === "string" && r.additionalText.trim().startsWith("{")
+                ? r.additionalText
+                : r.registrarInfo;
+              if (!raw) return null;
+              return typeof raw === "string" ? raw : JSON.stringify(raw);
+            })(),
             mcap: r.mcap || null,
             gmp: r.gmp || null,
             hasReport: Boolean(r.hasReport || r.deepDive || r.htmlContent || r.pdfUrl || (r.htmlUrl && !r.htmlUrl.startsWith("/"))),

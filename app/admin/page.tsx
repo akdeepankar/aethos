@@ -1002,7 +1002,7 @@ function AdminPageContent() {
     showNotification("Executing IPO Sync & Deduplication...", "info");
     try {
       // Execute server-side Market Feed fetch & Appwrite DB deduplication
-      const syncRes = await fetch("/api/appwrite/records?action=sync-ipos", {
+      const syncRes = await fetch("/api/appwrite/records?table=ipos&action=sync-ipos", {
         cache: "no-store",
       });
       const json = await syncRes.json();

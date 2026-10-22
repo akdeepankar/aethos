@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
 import Link from "next/link";
 import { useAdminStore } from "../_lib/admin-store";
 import { useSidebar } from "../_components/dashboard-layout";
@@ -44,7 +44,69 @@ export type ApiIpo = {
   deepDive?: boolean;
   hasReport?: boolean;
   slug?: string;
+  externalId?: string;
 };
+
+type UpstoxTimeline = {
+  pre_apply_start_date?: string | null;
+  application_start_date?: string | null;
+  application_end_date?: string | null;
+  allotment_start_date?: string | null;
+  allotment_date?: string | null;
+  refund_initiation_date?: string | null;
+  listing_date?: string | null;
+  mandate_end_date?: string | null;
+};
+
+type UpstoxRegistrar = {
+  name?: string | null;
+  email?: string | null;
+  contact_name?: string | null;
+  contact_number?: string | null;
+  website?: string | null;
+  registrar?: string | null;
+};
+
+type UpstoxIpoDetail = {
+  id?: string;
+  symbol?: string | null;
+  name?: string | null;
+  status?: string | null;
+  isin?: string | null;
+  issue_type?: string | null;
+  issue_size?: number | null;
+  industry?: string | null;
+  minimum_price?: number | null;
+  maximum_price?: number | null;
+  face_value?: number | null;
+  lot_size?: number | null;
+  minimum_quantity?: number | null;
+  cut_off_price?: number | null;
+  listing_price?: number | null;
+  listing_exchange?: string | null;
+  rhp_url?: string | null;
+  drhp_url?: string | null;
+  timeline?: UpstoxTimeline | null;
+  registrar_info?: UpstoxRegistrar | null;
+  total_subscription?: string | null;
+  investors?: { category?: string | null; description?: string | null }[] | null;
+};
+
+function formatIpoDate(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function Row({ label, value, valueColor }: { label: string; value: ReactNode; valueColor?: string }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", color: "#475569" }}>
+      <span>{label}</span>
+      <span style={{ fontWeight: "600", color: valueColor || "#0f172a", textAlign: "right" }}>{value}</span>
+    </div>
+  );
+}
 
 // Rich default dataset covering Open, Upcoming, Listed, and Archive IPOs
 export const defaultAllIpos: ApiIpo[] = [
@@ -476,6 +538,8 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
   const { requestSidebarCollapse } = useSidebar();
   const [selectedIpo, setSelectedIpo] = useState<ApiIpo | null>(null);
   const [displayedIpo, setDisplayedIpo] = useState<ApiIpo | null>(null);
+  const [upstoxDetail, setUpstoxDetail] = useState<UpstoxIpoDetail | null>(null);
+  const [upstoxError, setUpstoxError] = useState<string | null>(null);
 
   // Automatically minimize main sidebar when IPO sidebar opens, and restore when it closes
   useEffect(() => {
@@ -506,6 +570,45 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
       return () => clearTimeout(timer);
     }
   }, [selectedIpo]);
+
+  useEffect(() => {
+    if (!selectedIpo) return;
+    const controller = new AbortController();
+    const query = new URLSearchParams();
+    const id = selectedIpo.externalId || selectedIpo.action_slug;
+    if (id) query.set("id", id);
+    if (selectedIpo.slug) query.set("slug", selectedIpo.slug);
+    if (selectedIpo.symbol) query.set("symbol", selectedIpo.symbol);
+    if (selectedIpo.name) query.set("name", selectedIpo.name);
+
+    fetch(`/api/upstox/ipo?${query.toString()}`, { signal: controller.signal })
+      .then(async (res) => {
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json?.success) {
+          throw new Error(json?.error || "Unable to load live IPO details");
+        }
+        setUpstoxDetail(json.data as UpstoxIpoDetail);
+        setUpstoxError(null);
+      })
+      .catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setUpstoxDetail(null);
+        setUpstoxError(err instanceof Error ? err.message : "Unable to load live IPO details");
+      });
+
+    return () => controller.abort();
+  }, [selectedIpo]);
+
+  const toggleIpo = (item: ApiIpo, isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedIpo(null);
+      return;
+    }
+    setUpstoxDetail(null);
+    setUpstoxError(null);
+    setSelectedIpo(item);
+  };
+
   const [activeTab, setActiveTab] = useState<"upcoming" | "open" | "recently_listed" | "archive" | "deep_dives">("upcoming");
   const [searchQuery, setSearchQuery] = useState("");
   const [segmentFilter, setSegmentFilter] = useState("all");
@@ -1109,15 +1212,7 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                 return (
                   <tr
                     key={`${rowKey}-${idx}`}
-                    onClick={() =>
-                      setSelectedIpo((prev) => {
-                        const match =
-                          (prev?.symbol && prev.symbol === item.symbol) ||
-                          (prev?.slug && item.slug && prev.slug === item.slug) ||
-                          (prev?.action_slug && item.action_slug && prev.action_slug === item.action_slug);
-                        return match ? null : item;
-                      })
-                    }
+                    onClick={() => toggleIpo(item, isSelected)}
                     style={{
                       borderBottom: "1px solid #f4f4f5",
                       backgroundColor: isSelected ? "#fef8ee" : "#ffffff",
@@ -1335,15 +1430,7 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
               return (
                 <div
                   key={`${rowKey}-${idx}`}
-                  onClick={() =>
-                    setSelectedIpo((prev) => {
-                      const match =
-                        (prev?.symbol && prev.symbol === item.symbol) ||
-                        (prev?.slug && item.slug && prev.slug === item.slug) ||
-                        (prev?.action_slug && item.action_slug && prev.action_slug === item.action_slug);
-                      return match ? null : item;
-                    })
-                  }
+                  onClick={() => toggleIpo(item, isSelected)}
                   style={{
                     backgroundColor: isSelected ? "#fef8ee" : "#ffffff",
                     borderRadius: "10px",
@@ -1583,6 +1670,24 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
               item.slug ||
               item.action_slug ||
               (item.name || item.company || item.symbol || "").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+            const live = upstoxDetail;
+            const timeline = live?.timeline;
+            const registrar = live?.registrar_info;
+            const detailLoading = !live && !upstoxError;
+            const issueTypeLabel = live?.issue_type
+              ? live.issue_type.toLowerCase() === "sme"
+                ? "SME"
+                : "Mainboard"
+              : item.is_sme || item.isSme
+                ? "SME"
+                : "Mainboard";
+            const priceBand = live
+              ? `${live.minimum_price ?? "—"} – ${live.maximum_price ?? "—"}`
+              : item.min_price && item.max_price
+                ? `${item.min_price} – ${item.max_price}`
+                : item.price || "—";
+            const issueSize =
+              live?.issue_size != null ? live.issue_size.toLocaleString("en-IN") : "—";
 
             return (
               <div className="ipo-side-column-card">
@@ -1593,7 +1698,8 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                       {item.name || item.company || item.symbol}
                     </h3>
                     <div style={{ fontSize: "13px", color: "#64748b" }}>
-                      {item.sector || "Auto components"} &nbsp;|&nbsp; {item.is_sme || item.isSme ? "SME" : "Mainboard"}
+                      {item.sector || "Unclassified"} &nbsp;|&nbsp; {issueTypeLabel}
+                      {live?.listing_exchange ? ` | ${live.listing_exchange}` : ""}
                     </div>
                   </div>
                   <button
@@ -1608,6 +1714,11 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
 
                 {/* Status Badges */}
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  {live?.status && (
+                    <span style={{ fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "6px", backgroundColor: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe", display: "inline-flex", alignItems: "center", gap: "6px", textTransform: "capitalize" }}>
+                      ● {live.status}
+                    </span>
+                  )}
                   {item.gmp && (
                     <span style={{ fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "6px", backgroundColor: item.gmp.startsWith("-") ? "#fef2f2" : "#f0fdf4", color: item.gmp.startsWith("-") ? "#dc2626" : "#15803d", border: item.gmp.startsWith("-") ? "1px solid #fecaca" : "1px solid #bbf7d0", display: "inline-flex", alignItems: "center", gap: "6px" }}>
                       📈 GMP: {item.gmp}
@@ -1623,70 +1734,114 @@ export default function IpoTableTabs({ ipos, deepDives = [] }: { ipos: ApiIpo[];
                       📄 Deep dive available
                     </span>
                   )}
-                  {item.bidding_start_date && (
+                  {(timeline?.application_start_date || item.bidding_start_date) && (
                     <span style={{ fontSize: "12px", fontWeight: "600", padding: "4px 10px", borderRadius: "6px", backgroundColor: "#fffbeb", color: "#b45309", border: "1px solid #fde68a", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                      📅 Opens {item.bidding_start_date} • Expected
+                      📅 Opens {formatIpoDate(timeline?.application_start_date || item.bidding_start_date)}
                     </span>
                   )}
                 </div>
 
                 {/* Issue details section */}
                 <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
-                  <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0" }}>
-                    Issue details <span style={{ fontWeight: "400", textTransform: "none", color: "#94a3b8" }}>(Illustrative)</span>
+                  <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+                    <span>Issue details</span>
+                    <span style={{ fontWeight: "500", textTransform: "none", color: live ? "#047857" : "#94a3b8" }}>
+                      {live ? "Live · Upstox" : detailLoading ? "Loading live data…" : "Stored data"}
+                    </span>
                   </h4>
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
-                    {item.mcap && (
-                      <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                        <span>Market Cap (MCAP)</span>
-                        <span style={{ fontWeight: "600", color: "#0f172a" }}>{item.mcap}</span>
-                      </div>
-                    )}
-                    {item.gmp && (
-                      <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                        <span>Grey Market Premium (GMP)</span>
-                        <span style={{ fontWeight: "600", color: item.gmp.startsWith("-") ? "#dc2626" : "#15803d" }}>{item.gmp}</span>
-                      </div>
-                    )}
-                    <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                      <span>Issue size (₹ Cr)</span>
-                      <span style={{ fontWeight: "600", color: "#0f172a" }}>{item.issueSize ? item.issueSize.replace(/[^0-9.]/g, "") || "240" : "240"}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                      <span>Fresh issue (₹ Cr)</span>
-                      <span style={{ fontWeight: "600", color: "#0f172a" }}>180</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                      <span>Offer for sale (₹ Cr)</span>
-                      <span style={{ fontWeight: "600", color: "#0f172a" }}>60</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                      <span>Price band (₹)</span>
-                      <span style={{ fontWeight: "600", color: "#0f172a" }}>{item.min_price && item.max_price ? `${item.min_price} – ${item.max_price}` : item.price || "118 – 124"}</span>
-                    </div>
+                    <Row label="Issue size (₹ Cr)" value={issueSize} />
+                    <Row label="Price band (₹)" value={priceBand} />
+                    <Row label="Face value (₹)" value={live?.face_value ?? "—"} />
+                    <Row label="Lot size" value={live?.lot_size ?? item.lot_size ?? "—"} />
+                    <Row label="Minimum quantity" value={live?.minimum_quantity ?? "—"} />
+                    <Row label="Cut-off price (₹)" value={live?.cut_off_price ?? "—"} />
+                    <Row label="Issue type" value={issueTypeLabel} />
+                    <Row label="Listing exchange" value={live?.listing_exchange ?? "—"} />
+                    <Row label="ISIN" value={live?.isin ?? "—"} />
+                    {item.mcap && <Row label="Market cap" value={item.mcap} />}
+                    {item.gmp && <Row label="Grey market premium" value={item.gmp} valueColor={item.gmp.startsWith("-") ? "#dc2626" : "#15803d"} />}
                   </div>
+                  {upstoxError && (
+                    <div style={{ marginTop: "10px", padding: "8px 10px", borderRadius: "6px", backgroundColor: "#fffbeb", border: "1px solid #fde68a", color: "#92400e", fontSize: "11.5px", lineHeight: "1.4" }}>
+                      Live Upstox details unavailable. Showing stored values where available.
+                    </div>
+                  )}
                 </div>
+
+                {/* Subscription section */}
+                {(live?.total_subscription || (live?.investors && live.investors.length > 0)) && (
+                  <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
+                    <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0" }}>
+                      Subscription
+                    </h4>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+                      {live?.total_subscription && (
+                        <Row label="Total subscription" value={`${live.total_subscription}x`} />
+                      )}
+                    </div>
+                    {live?.investors && live.investors.length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "10px" }}>
+                        {live.investors.map((investor, idx) => (
+                          <span key={`${investor.category || "category"}-${idx}`} style={{ fontSize: "11px", fontWeight: "600", padding: "3px 8px", borderRadius: "999px", backgroundColor: "#f1f5f9", color: "#334155", border: "1px solid #e2e8f0" }}>
+                            {investor.category || "Category"}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Key dates section */}
                 <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
-                  <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0" }}>
-                    Key dates <span style={{ fontWeight: "400", textTransform: "none", color: "#94a3b8" }}>(Expected)</span>
+                  <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+                    <span>Key dates</span>
+                    <span style={{ fontWeight: "500", textTransform: "none", color: live ? "#047857" : "#94a3b8" }}>
+                      {live ? "Live · Upstox" : detailLoading ? "Loading live data…" : "Stored data"}
+                    </span>
                   </h4>
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                      <span>Opens</span>
-                      <span style={{ fontWeight: "500", color: "#0f172a" }}>{item.bidding_start_date || "09 Oct 2026"}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                      <span>Closes</span>
-                      <span style={{ fontWeight: "500", color: "#0f172a" }}>{item.bidding_end_date || "11 Oct 2026"}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", color: "#475569" }}>
-                      <span>Tentative listing</span>
-                      <span style={{ fontWeight: "500", color: "#0f172a" }}>{item.listing_date || "16 Oct 2026"}</span>
-                    </div>
+                    <Row label="Opens" value={formatIpoDate(timeline?.application_start_date || item.bidding_start_date)} />
+                    <Row label="Closes" value={formatIpoDate(timeline?.application_end_date || item.bidding_end_date)} />
+                    {timeline?.allotment_date && <Row label="Allotment" value={formatIpoDate(timeline.allotment_date)} />}
+                    {timeline?.refund_initiation_date && <Row label="Refund initiation" value={formatIpoDate(timeline.refund_initiation_date)} />}
+                    <Row label="Tentative listing" value={formatIpoDate(timeline?.listing_date || item.listing_date)} />
+                    {timeline?.mandate_end_date && <Row label="Mandate end" value={formatIpoDate(timeline.mandate_end_date)} />}
                   </div>
                 </div>
+
+                {/* Registrar section */}
+                {registrar && (registrar.name || registrar.email || registrar.contact_number || registrar.website) && (
+                  <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "16px" }}>
+                    <h4 style={{ fontSize: "12px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 12px 0" }}>
+                      Registrar
+                    </h4>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+                      {registrar.name && <Row label="Name" value={registrar.name.trim()} />}
+                      {registrar.email && (
+                        <Row
+                          label="Email"
+                          value={
+                            <a href={`mailto:${registrar.email}`} style={{ color: "#b45309", textDecoration: "none" }}>
+                              {registrar.email}
+                            </a>
+                          }
+                        />
+                      )}
+                      {registrar.contact_number && <Row label="Phone" value={registrar.contact_number} />}
+                      {registrar.website && (
+                        <Row
+                          label="Website"
+                          value={
+                            <a href={registrar.website} target="_blank" rel="noreferrer" style={{ color: "#b45309", textDecoration: "none" }}>
+                              Visit ↗
+                            </a>
+                          }
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Deep Dive Action Button */}
                 {isDeepDiveAvailable && (

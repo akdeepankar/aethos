@@ -113,6 +113,7 @@ export async function GET(req: NextRequest) {
                     else if (item.status === "closed") normalizedStatus = "closed";
 
                     fetchedListings.push({
+                      upstoxId: item.id,
                       symbol: item.symbol || item.id,
                       name: item.name ? item.name.replace(/\s+IPO$/i, "").trim() : item.symbol,
                       status: normalizedStatus,
@@ -209,7 +210,7 @@ export async function GET(req: NextRequest) {
               issueSize: item.total_subscription_rate ? `${item.total_subscription_rate}x Subscribed` : existing?.issueSize || "—",
               lotSize: item.lot_size ? `${item.lot_size} shares` : existing?.lotSize || "—",
               listing: item.listing_date || existing?.listing || "TBA",
-              externalId: String(item.symbol || slug),
+              externalId: String(item.upstoxId || item.externalId || item.symbol || slug),
               status: String(item.status || "active"),
               isSme: Boolean(item.is_sme),
               additionalText: item.additional_text ? String(item.additional_text).slice(0, 500) : "",

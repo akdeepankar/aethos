@@ -48,7 +48,7 @@ const PLANS: Plan[] = [
 
 const INCLUDED_PERKS = [
   {
-    title: "2-3 Stock Deep Dives / month",
+    title: "4-5 Stock Deep Dives / month",
     desc: "In-depth fundamental research notes with financial models.",
   },
   {

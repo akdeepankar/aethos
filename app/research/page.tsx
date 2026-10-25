@@ -12,6 +12,21 @@ type TabFilter = "all" | "saved" | "unread";
 type SortOption = "newest" | "oldest";
 type ViewMode = "grid" | "list";
 
+function reportTimestamp(date: string) {
+  const value = (date || "").trim();
+  if (!value) return 0;
+  if (/^today$/i.test(value)) return Date.now();
+  if (/^yesterday$/i.test(value)) return Date.now() - 86_400_000;
+
+  const numeric = value.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+  if (numeric) {
+    return new Date(Number(numeric[3]), Number(numeric[2]) - 1, Number(numeric[1])).getTime();
+  }
+
+  const parsed = Date.parse(value.replace(",", ""));
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
 export default function ResearchPage() {
   const router = useRouter();
   const { reports: storeReports } = useAdminStore();
@@ -187,13 +202,11 @@ export default function ResearchPage() {
   // Sorting
   const sortedReports = useMemo(() => {
     const list = [...filteredReports];
-    if (sortOption === "newest") {
-      // Keep natural order or sort by date
-      return list;
-    } else if (sortOption === "oldest") {
-      return list.reverse();
-    }
-    return list;
+    const direction = sortOption === "oldest" ? 1 : -1;
+    return list.sort((a, b) => {
+      const difference = reportTimestamp(a.date) - reportTimestamp(b.date);
+      return difference === 0 ? 0 : difference * direction;
+    });
   }, [filteredReports, sortOption]);
 
   const itemsPerPage = 6;

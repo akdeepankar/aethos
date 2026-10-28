@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { databases, Query } from "../_lib/appwrite";
 
 type TabId = "brief" | "deals" | "fundraises" | "news";
@@ -101,7 +101,38 @@ const fundraises: FundraiseRow[] = [
   },
 ];
 
-const initialDate = new Date(2026, 9, 22);
+function getToday(): Date {
+  return new Date();
+}
+
+function toDateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function isToday(d: Date): boolean {
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
+function matchesDate(docDate: string, target: Date): boolean {
+  if (!docDate) return false;
+  const targetKey = toDateKey(target);
+  if (docDate === targetKey || docDate.startsWith(targetKey)) {
+    return true;
+  }
+  const parsed = new Date(docDate);
+  if (!isNaN(parsed.getTime())) {
+    return toDateKey(parsed) === targetKey;
+  }
+  return false;
+}
 
 function formatDate(date: Date) {
   return new Intl.DateTimeFormat("en-GB", {
@@ -264,7 +295,7 @@ function SectionHead({
         <h2 className="mp-card-title">{title}</h2>
         <span className="mp-card-meta">{meta}</span>
       </div>
-      {showViewAll && (
+      {showViewAll && total !== 0 && total !== "0" && total !== "—" && (
         <button type="button" className="mp-view-all" onClick={onViewAll}>
           View all {total}
           <IconArrowRight size={15} />
@@ -299,13 +330,19 @@ function SourceLink({ label, href }: { label: string; href?: string }) {
 
 export default function MarketPulsePage() {
   const [activeTab, setActiveTab] = useState<TabId>("brief");
-  const [date, setDate] = useState(initialDate);
+  const [date, setDate] = useState<Date>(getToday);
   const [query, setQuery] = useState("");
   const [watchlistOnly, setWatchlistOnly] = useState(false);
   const [starred, setStarred] = useState<Set<string>>(new Set());
   const [newsDocs, setNewsDocs] = useState<MarketNewsDoc[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState<string | null>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Ensure current client browser date is selected
+    setDate(new Date());
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -346,6 +383,11 @@ export default function MarketPulsePage() {
 
   const term = query.trim().toLowerCase();
 
+  const newsForDate = useMemo(
+    () => newsDocs.filter((row) => matchesDate(row.newsDate, date)),
+    [newsDocs, date],
+  );
+
   const filteredDeals = useMemo(
     () =>
       deals.filter(
@@ -370,7 +412,7 @@ export default function MarketPulsePage() {
 
   const filteredNews = useMemo(
     () =>
-      newsDocs.filter(
+      newsForDate.filter(
         (row) =>
           (!watchlistOnly || starred.has(row.$id)) &&
           (!term ||
@@ -378,7 +420,7 @@ export default function MarketPulsePage() {
               value.toLowerCase().includes(term),
             )),
       ),
-    [newsDocs, term, watchlistOnly, starred],
+    [newsForDate, term, watchlistOnly, starred],
   );
 
   const showDeals = activeTab === "brief" || activeTab === "deals";
@@ -386,7 +428,7 @@ export default function MarketPulsePage() {
   const showNews = activeTab === "brief" || activeTab === "news";
   const shortDate = formatShortDate(date);
   const visibleNews = activeTab === "brief" ? filteredNews.slice(0, 2) : filteredNews;
-  const publishedLabel = newsDocs.length > 0 ? formatDbDate(newsDocs[0].newsDate) : shortDate;
+  const publishedLabel = newsForDate.length > 0 ? formatDbDate(newsForDate[0].newsDate) : shortDate;
 
   return (
     <div className="dash-overview-page mp-page">
@@ -418,9 +460,40 @@ export default function MarketPulsePage() {
 
       <div className="mp-toolbar">
         <div className="mp-toolbar-left">
-          <button type="button" className="mp-control mp-date">
+          <button
+            type="button"
+            className="mp-control mp-date"
+            onClick={() => {
+              try {
+                dateInputRef.current?.showPicker();
+              } catch {
+                dateInputRef.current?.focus();
+              }
+            }}
+          >
             <IconCalendar />
             {formatDate(date)}
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={toDateKey(date)}
+              onChange={(e) => {
+                if (!e.target.value) return;
+                const [y, m, d] = e.target.value.split("-").map(Number);
+                if (y && m && d) {
+                  setDate(new Date(y, m - 1, d));
+                }
+              }}
+              style={{
+                position: "absolute",
+                opacity: 0,
+                width: 0,
+                height: 0,
+                pointerEvents: "none",
+              }}
+              tabIndex={-1}
+              aria-hidden="true"
+            />
           </button>
           <div className="mp-stepper">
             <button
@@ -477,6 +550,13 @@ export default function MarketPulsePage() {
 
       {activeTab === "brief" && (
         <div className="mp-stats">
+          <button type="button" className="mp-stat" onClick={() => setActiveTab("news")}>
+            <span className="mp-stat-icon">
+              <IconNews />
+            </span>
+            <span className="mp-stat-number">{newsLoading ? "—" : newsForDate.length}</span>
+            <span className="mp-stat-label">News updates</span>
+          </button>
           <button type="button" className="mp-stat" onClick={() => setActiveTab("deals")}>
             <span className="mp-stat-icon">
               <IconDeals />
@@ -491,14 +571,98 @@ export default function MarketPulsePage() {
             <span className="mp-stat-number">5</span>
             <span className="mp-stat-label">Fundraise announcements</span>
           </button>
-          <button type="button" className="mp-stat" onClick={() => setActiveTab("news")}>
-            <span className="mp-stat-icon">
-              <IconNews />
-            </span>
-            <span className="mp-stat-number">{newsLoading ? "—" : newsDocs.length}</span>
-            <span className="mp-stat-label">News updates</span>
-          </button>
         </div>
+      )}
+
+      {showNews && (
+        <section className="mp-card" aria-label="News & Announcements">
+          <SectionHead
+            icon={<IconNews />}
+            title="News & Announcements"
+            meta={`Published: ${publishedLabel} · ${newsLoading ? "Loading updates" : `${newsForDate.length} updates`}`}
+            total={newsLoading ? "—" : newsForDate.length}
+            showViewAll={activeTab === "brief" && filteredNews.length > 0}
+            onViewAll={() => setActiveTab("news")}
+          />
+          {visibleNews.length > 0 ? (
+            <div className="mp-table-wrap">
+              <table className="mp-table mp-news-table">
+                <thead>
+                  <tr>
+                    <th className="mp-col-star"><span className="mp-sr-only">Watchlist</span></th>
+                    <th>Time</th>
+                    <th>Company</th>
+                    <th>Headline</th>
+                    <th>Category</th>
+                    <th>Sentiment</th>
+                    <th>Source</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleNews.map((row) => {
+                    const tone = sentimentTone(row.sentiment);
+                    return (
+                      <tr key={row.$id}>
+                        <td className="mp-col-star">
+                          <button
+                            type="button"
+                            className={`mp-star${starred.has(row.$id) ? " is-starred" : ""}`}
+                            aria-label={`${starred.has(row.$id) ? "Remove" : "Add"} ${row.company} ${starred.has(row.$id) ? "from" : "to"} watchlist`}
+                            onClick={() => toggleStar(row.$id)}
+                          >
+                            <IconStar filled={starred.has(row.$id)} />
+                          </button>
+                        </td>
+                        <td className="mp-time">
+                          {row.filedTime}
+                          <span className="mp-news-scan">Scan {formatDbDate(row.newsDate)}</span>
+                        </td>
+                        <td>
+                          <strong>{row.company}</strong>
+                          <span className="mp-company-ticker">{row.ticker}</span>
+                        </td>
+                        <td>
+                          <strong className="mp-headline">{row.headline}</strong>
+                          <span className="mp-headline-sub">{row.summary}</span>
+                        </td>
+                        <td><span className={`mp-badge is-${tone}`}>{row.category}</span></td>
+                        <td><span className={`mp-sentiment is-${tone}`}>{row.sentiment}</span></td>
+                        <td><SourceLink label={row.sourceName} href={row.sourceUrl} /></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="mp-empty mp-empty-center">
+              {newsLoading ? (
+                <p className="mp-empty-title">Loading market news…</p>
+              ) : newsError ? (
+                <p className="mp-empty-title">Unable to load market news: {newsError}</p>
+              ) : (
+                <>
+                  <div className="mp-empty-icon" aria-hidden="true">
+                    <IconNews />
+                  </div>
+                  <p className="mp-empty-title">
+                    {newsForDate.length === 0
+                      ? "No news today"
+                      : "No news updates match the current filters."}
+                  </p>
+                  <p className="mp-empty-desc">
+                    {newsForDate.length === 0
+                      ? isToday(date)
+                        ? "There are no corporate filings or market news announcements reported yet today."
+                        : `There are no corporate filings or market news announcements reported for ${shortDate}.`
+                      : "Try clearing search keywords or unchecking watchlist only."}
+                  </p>
+                </>
+              )}
+            </div>
+          )}
+          <p className="mp-card-foot">Use News filters for results, orders, M&amp;A, demergers, buybacks, rights, bonus and splits.</p>
+        </section>
       )}
 
       {showDeals && (
@@ -613,77 +777,13 @@ export default function MarketPulsePage() {
         </section>
       )}
 
-      {showNews && (
-        <section className="mp-card" aria-label="News & Announcements">
-          <SectionHead
-            icon={<IconNews />}
-            title="News & Announcements"
-            meta={`Published: ${publishedLabel} · ${newsLoading ? "Loading updates" : `${newsDocs.length} updates`}`}
-            total={newsLoading ? "—" : newsDocs.length}
-            showViewAll={activeTab === "brief"}
-            onViewAll={() => setActiveTab("news")}
-          />
-          <div className="mp-table-wrap">
-            <table className="mp-table mp-news-table">
-              <thead>
-                <tr>
-                  <th className="mp-col-star"><span className="mp-sr-only">Watchlist</span></th>
-                  <th>Time</th>
-                  <th>Company</th>
-                  <th>Headline</th>
-                  <th>Category</th>
-                  <th>Sentiment</th>
-                  <th>Source</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleNews.map((row) => {
-                  const tone = sentimentTone(row.sentiment);
-                  return (
-                    <tr key={row.$id}>
-                      <td className="mp-col-star">
-                        <button
-                          type="button"
-                          className={`mp-star${starred.has(row.$id) ? " is-starred" : ""}`}
-                          aria-label={`${starred.has(row.$id) ? "Remove" : "Add"} ${row.company} ${starred.has(row.$id) ? "from" : "to"} watchlist`}
-                          onClick={() => toggleStar(row.$id)}
-                        >
-                          <IconStar filled={starred.has(row.$id)} />
-                        </button>
-                      </td>
-                      <td className="mp-time">
-                        {row.filedTime}
-                        <span className="mp-news-scan">Scan {formatDbDate(row.newsDate)}</span>
-                      </td>
-                      <td>
-                        <strong>{row.company}</strong>
-                        <span className="mp-company-ticker">{row.ticker}</span>
-                      </td>
-                      <td>
-                        <strong className="mp-headline">{row.headline}</strong>
-                        <span className="mp-headline-sub">{row.summary}</span>
-                      </td>
-                      <td><span className={`mp-badge is-${tone}`}>{row.category}</span></td>
-                      <td><span className={`mp-sentiment is-${tone}`}>{row.sentiment}</span></td>
-                      <td><SourceLink label={row.sourceName} href={row.sourceUrl} /></td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            {newsLoading && <p className="mp-empty">Loading market news…</p>}
-            {!newsLoading && newsError && <p className="mp-empty">Unable to load market news: {newsError}</p>}
-            {!newsLoading && !newsError && visibleNews.length === 0 && (
-              <p className="mp-empty">No news updates match the current filters.</p>
-            )}
-          </div>
-          <p className="mp-card-foot">Use News filters for results, orders, M&amp;A, demergers, buybacks, rights, bonus and splits.</p>
-        </section>
-      )}
-
       <div className="mp-page-foot">
         <span>Daily scans are dated snapshots. Open the source for the full disclosure.</span>
-        <button type="button" className="mp-edition-link">
+        <button
+          type="button"
+          className="mp-edition-link"
+          onClick={() => setDate((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1))}
+        >
           <IconChevronLeft />
           Previous edition
         </button>

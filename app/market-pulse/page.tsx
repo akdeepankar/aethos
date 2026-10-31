@@ -380,6 +380,13 @@ function formatShortDate(date: Date) {
   }).format(date);
 }
 
+function formatMonthYear(date: Date) {
+  return new Intl.DateTimeFormat("en-GB", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function formatDbDate(value: string) {
@@ -421,6 +428,14 @@ function IconChevronDown() {
   return (
     <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function IconX() {
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M18 6 6 18M6 6l12 12" />
     </svg>
   );
 }
@@ -584,26 +599,47 @@ function MarketPulseContent() {
   const [newsDocs, setNewsDocs] = useState<MarketNewsDoc[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState<string | null>(null);
-  const [archiveOpen, setArchiveOpen] = useState(false);
-
-  const dateInputRef = useRef<HTMLInputElement>(null);
-  const archiveDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close archive dropdown on outside click
-  useEffect(() => {
-    if (!archiveOpen) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (archiveDropdownRef.current && !archiveDropdownRef.current.contains(e.target as Node)) {
-        setArchiveOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [archiveOpen]);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   // Active tab and date: URL parameter takes priority, otherwise internal state
   const activeTab = parsedUrlTab ?? internalTab;
   const date = parsedUrlDate ?? internalDate;
+
+  const [calendarMonth, setCalendarMonth] = useState<Date>(
+    () => new Date(date.getFullYear(), date.getMonth(), 1),
+  );
+
+  const calendarContainerRef = useRef<HTMLDivElement>(null);
+
+  // Close calendar popover on outside click or Escape key
+  useEffect(() => {
+    if (!calendarOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (calendarContainerRef.current && !calendarContainerRef.current.contains(e.target as Node)) {
+        setCalendarOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setCalendarOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [calendarOpen]);
+
+  const handleToggleCalendar = useCallback(() => {
+    setCalendarOpen((prev) => {
+      if (!prev) {
+        setCalendarMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+      }
+      return !prev;
+    });
+  }, [date]);
 
   // Change tab and synchronize the URL parameter ?tab=... while preserving active date
   const changeTab = useCallback(
@@ -623,7 +659,7 @@ function MarketPulseContent() {
   const changeDate = useCallback(
     (newDate: Date) => {
       setInternalDate(newDate);
-      setArchiveOpen(false);
+      setCalendarOpen(false);
       const newKey = toDateKey(newDate);
       const params = new URLSearchParams(searchParams ? searchParams.toString() : "");
       if (params.get("date") !== newKey) {
@@ -693,22 +729,60 @@ function MarketPulseContent() {
     return fundraises;
   }, [date]);
 
-  // Group and sort available dates from database to offer easy edition navigation
-  const availableScanDates = useMemo(() => {
-    const map = new Map<string, number>();
+  // Map of available dates with update counts
+  const availableScanMap = useMemo(() => {
+    const map = new Map<string, { count: number; newsCount: number; dealsCount: number; fundsCount: number }>();
     for (const doc of newsDocs) {
       if (!doc.newsDate) continue;
       const key = doc.newsDate.split("T")[0];
-      map.set(key, (map.get(key) || 0) + 1);
+      const cur = map.get(key) || { count: 0, newsCount: 0, dealsCount: 0, fundsCount: 0 };
+      cur.count += 1;
+      cur.newsCount += 1;
+      map.set(key, cur);
     }
-    return Array.from(map.entries())
-      .map(([dateKey, count]) => ({
+    for (const deal of deals) {
+      if (!deal.dealDate) continue;
+      const key = deal.dealDate.split("T")[0];
+      const cur = map.get(key) || { count: 0, newsCount: 0, dealsCount: 0, fundsCount: 0 };
+      cur.dealsCount += 1;
+      if (cur.newsCount === 0) cur.count += 1;
+      map.set(key, cur);
+    }
+    for (const fund of fundraises) {
+      if (!fund.fundDate) continue;
+      const key = fund.fundDate.split("T")[0];
+      const cur = map.get(key) || { count: 0, newsCount: 0, dealsCount: 0, fundsCount: 0 };
+      cur.fundsCount += 1;
+      if (cur.newsCount === 0 && cur.dealsCount === 0) cur.count += 1;
+      map.set(key, cur);
+    }
+    return map;
+  }, [newsDocs]);
+
+  // Group and sort available dates to offer easy edition navigation
+  const availableScanDates = useMemo(() => {
+    return Array.from(availableScanMap.entries())
+      .map(([dateKey, info]) => ({
         dateKey,
         date: parseDateParam(dateKey) || new Date(dateKey),
-        count,
+        count: info.count,
+        newsCount: info.newsCount,
       }))
       .sort((a, b) => b.dateKey.localeCompare(a.dateKey));
-  }, [newsDocs]);
+  }, [availableScanMap]);
+
+  // Computed days for calendar month grid
+  const calendarGrid = useMemo(() => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const firstDayIndex = new Date(year, month, 1).getDay(); // 0 for Sunday
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const blanks = Array.from({ length: firstDayIndex }, (_, i) => i);
+    const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+    return { year, month, blanks, days };
+  }, [calendarMonth]);
 
   const filteredDeals = useMemo(
     () =>
@@ -761,10 +835,6 @@ function MarketPulseContent() {
           <h1 className="mp-title">Market Pulse</h1>
           <p className="mp-subtitle">Daily deal activity, fundraising announcements and company news.</p>
         </div>
-        <span className="mp-demo-tag">
-          <IconInfo />
-          Illustrative demo · Deals & fundraises
-        </span>
       </header>
 
       <div className="mp-tabs" role="tablist" aria-label="Market Pulse sections">
@@ -783,42 +853,21 @@ function MarketPulseContent() {
       </div>
 
       <div className="mp-toolbar">
-        <div className="mp-toolbar-left" style={{ position: "relative" }}>
+        <div className="mp-toolbar-left" style={{ position: "relative" }} ref={calendarContainerRef}>
           <button
             type="button"
-            className="mp-control mp-date"
-            onClick={() => {
-              try {
-                dateInputRef.current?.showPicker();
-              } catch {
-                dateInputRef.current?.focus();
-              }
+            className={`mp-control mp-date${calendarOpen ? " is-active" : ""}`}
+            onClick={handleToggleCalendar}
+            title="Open archive calendar"
+            aria-expanded={calendarOpen}
+            style={{
+              cursor: "pointer",
+              borderColor: calendarOpen ? "#0f172a" : undefined,
             }}
-            title="Click to select date"
           >
             <IconCalendar />
-            {formatDate(date)}
-            <input
-              ref={dateInputRef}
-              type="date"
-              value={toDateKey(date)}
-              onChange={(e) => {
-                if (!e.target.value) return;
-                const parsed = parseDateParam(e.target.value);
-                if (parsed) {
-                  changeDate(parsed);
-                }
-              }}
-              style={{
-                position: "absolute",
-                opacity: 0,
-                width: 0,
-                height: 0,
-                pointerEvents: "none",
-              }}
-              tabIndex={-1}
-              aria-hidden="true"
-            />
+            <span>{formatDate(date)}</span>
+            <IconChevronDown />
           </button>
 
           <div className="mp-stepper">
@@ -860,163 +909,318 @@ function MarketPulseContent() {
             </button>
           )}
 
-          <div className="mp-select">
-            <select
-              aria-label="Edition"
-              value={
-                availableScanDates.some((item) => item.dateKey === toDateKey(date))
-                  ? toDateKey(date)
-                  : "daily"
-              }
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === "daily") {
-                  changeDate(new Date());
-                } else if (val) {
-                  const parsed = parseDateParam(val);
-                  if (parsed) changeDate(parsed);
-                }
+          {calendarOpen && (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(100% + 8px)",
+                left: 0,
+                zIndex: 50,
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "14px",
+                boxShadow: "0 20px 35px -5px rgba(15, 23, 42, 0.15), 0 10px 15px -5px rgba(15, 23, 42, 0.08)",
+                padding: "16px",
+                width: "min(340px, calc(100vw - 32px))",
+                color: "#0f172a",
               }}
             >
-              <option value="daily">Daily scan edition</option>
-              {availableScanDates.map((item) => (
-                <option key={item.dateKey} value={item.dateKey}>
-                  Edition {formatDate(item.date)} ({item.count})
-                </option>
-              ))}
-            </select>
-            <IconChevronDown />
-          </div>
-
-          <div ref={archiveDropdownRef} style={{ position: "relative" }}>
-            <button
-              type="button"
-              className={`mp-control${archiveOpen ? " is-active" : ""}`}
-              onClick={() => setArchiveOpen((prev) => !prev)}
-              aria-expanded={archiveOpen}
-              title="Browse past editions archive"
-            >
-              <IconFolder />
-              Archive
-              <IconChevronDown />
-            </button>
-
-            {archiveOpen && (
+              {/* Header */}
               <div
                 style={{
-                  position: "absolute",
-                  top: "calc(100% + 6px)",
-                  left: 0,
-                  zIndex: 40,
-                  background: "#ffffff",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "10px",
-                  boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)",
-                  padding: "8px",
-                  minWidth: "220px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: "12px",
                 }}
               >
-                <div
-                  style={{
-                    padding: "6px 10px",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                    color: "#64748b",
-                    borderBottom: "1px solid #f1f5f9",
-                    marginBottom: "4px",
-                  }}
-                >
-                  Available Editions
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>
+                    {formatMonthYear(calendarMonth)}
+                  </span>
                 </div>
-                {availableScanDates.length > 0 ? (
-                  availableScanDates.map((item) => {
-                    const isSelected = item.dateKey === toDateKey(date);
-                    return (
-                      <button
-                        key={item.dateKey}
-                        type="button"
-                        onClick={() => changeDate(item.date)}
-                        style={{
-                          width: "100%",
-                          textAlign: "left",
-                          padding: "8px 10px",
-                          borderRadius: "6px",
-                          border: "none",
-                          background: isSelected ? "#f8fafc" : "transparent",
-                          fontWeight: isSelected ? 700 : 500,
-                          fontSize: "12.5px",
-                          color: isSelected ? "#0f172a" : "#334155",
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          transition: "background 0.15s",
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!isSelected) e.currentTarget.style.background = "#f1f5f9";
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isSelected) e.currentTarget.style.background = "transparent";
-                        }}
-                      >
-                        <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <IconCalendar />
-                          {formatDate(item.date)}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            padding: "2px 6px",
-                            borderRadius: "10px",
-                            background: isSelected ? "#e2e8f0" : "#f1f5f9",
-                            color: "#64748b",
-                          }}
-                        >
-                          {item.count} updates
-                        </span>
-                      </button>
-                    );
-                  })
-                ) : (
-                  <div style={{ padding: "10px", fontSize: "12px", color: "#64748b" }}>
-                    No recorded archives yet.
-                  </div>
-                )}
-                <div style={{ borderTop: "1px solid #f1f5f9", marginTop: "4px", paddingTop: "4px" }}>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))
+                    }
+                    style={{
+                      width: "28px",
+                      height: "28px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: "6px",
+                      border: "1px solid #e2e8f0",
+                      background: "#ffffff",
+                      color: "#64748b",
+                      cursor: "pointer",
+                    }}
+                    title="Previous month"
+                    aria-label="Previous month"
+                  >
+                    <IconChevronLeft />
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
-                      setArchiveOpen(false);
-                      try {
-                        dateInputRef.current?.showPicker();
-                      } catch {
-                        dateInputRef.current?.focus();
-                      }
+                      const now = new Date();
+                      setCalendarMonth(new Date(now.getFullYear(), now.getMonth(), 1));
                     }}
                     style={{
-                      width: "100%",
-                      textAlign: "left",
-                      padding: "8px 10px",
+                      height: "28px",
+                      padding: "0 8px",
+                      borderRadius: "6px",
+                      border: "1px solid #e2e8f0",
+                      background: "#ffffff",
+                      color: "#475569",
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                    title="Jump to current month"
+                  >
+                    This Month
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))
+                    }
+                    style={{
+                      width: "28px",
+                      height: "28px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: "6px",
+                      border: "1px solid #e2e8f0",
+                      background: "#ffffff",
+                      color: "#64748b",
+                      cursor: "pointer",
+                    }}
+                    title="Next month"
+                    aria-label="Next month"
+                  >
+                    <IconChevronRight />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCalendarOpen(false)}
+                    style={{
+                      width: "28px",
+                      height: "28px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                       borderRadius: "6px",
                       border: "none",
                       background: "transparent",
-                      fontSize: "12px",
-                      color: "#b45309",
-                      fontWeight: 600,
+                      color: "#94a3b8",
                       cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
+                      marginLeft: "2px",
                     }}
+                    title="Close calendar"
+                    aria-label="Close calendar"
                   >
-                    <span>Custom calendar date...</span>
+                    <IconX />
                   </button>
                 </div>
               </div>
-            )}
-          </div>
+
+              {/* Legend Banner */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "6px 10px",
+                  background: "#fefce8",
+                  border: "1px solid #fef08a",
+                  borderRadius: "8px",
+                  fontSize: "11px",
+                  color: "#854d0e",
+                  fontWeight: 500,
+                  marginBottom: "12px",
+                }}
+              >
+                <span
+                  style={{
+                    width: "7px",
+                    height: "7px",
+                    borderRadius: "50%",
+                    background: "#eab308",
+                    flexShrink: 0,
+                  }}
+                />
+                <span>
+                  <strong>Gold highlighted dates</strong> have past archives available.
+                </span>
+              </div>
+
+              {/* Weekday headers */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(7, 1fr)",
+                  gap: "4px",
+                  marginBottom: "6px",
+                  textAlign: "center",
+                }}
+              >
+                {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((dayName) => (
+                  <span
+                    key={dayName}
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: "#94a3b8",
+                      padding: "2px 0",
+                    }}
+                  >
+                    {dayName}
+                  </span>
+                ))}
+              </div>
+
+              {/* Day cells grid */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(7, 1fr)",
+                  gap: "4px",
+                }}
+              >
+                {calendarGrid.blanks.map((blankIndex) => (
+                  <div key={`blank-${blankIndex}`} style={{ height: "34px" }} />
+                ))}
+
+                {calendarGrid.days.map((dayNum) => {
+                  const cellDate = new Date(calendarGrid.year, calendarGrid.month, dayNum);
+                  const cellKey = toDateKey(cellDate);
+                  const scanInfo = availableScanMap.get(cellKey);
+                  const isAvailable = Boolean(scanInfo);
+                  const isSelected = cellKey === toDateKey(date);
+                  const isCurrentDay = isToday(cellDate);
+
+                  return (
+                    <button
+                      key={cellKey}
+                      type="button"
+                      onClick={() => changeDate(cellDate)}
+                      title={
+                        isAvailable
+                          ? `${formatDate(cellDate)}: ${scanInfo?.count} updates in archive (Click to view)`
+                          : formatDate(cellDate)
+                      }
+                      style={{
+                        height: "34px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        position: "relative",
+                        borderRadius: "7px",
+                        border: isSelected
+                          ? "1.5px solid #0f172a"
+                          : isAvailable
+                          ? "1.5px solid #eab308"
+                          : isCurrentDay
+                          ? "1px dashed #94a3b8"
+                          : "1px solid transparent",
+                        background: isSelected
+                          ? "#0f172a"
+                          : isAvailable
+                          ? "#fef9c3"
+                          : "transparent",
+                        color: isSelected
+                          ? "#ffffff"
+                          : isAvailable
+                          ? "#854d0e"
+                          : "#334155",
+                        fontWeight: isSelected || isAvailable ? 700 : 500,
+                        fontSize: "12px",
+                        cursor: "pointer",
+                        transition: "all 0.12s ease",
+                        boxShadow: isSelected
+                          ? "0 2px 4px rgba(15,23,42,0.2)"
+                          : isAvailable
+                          ? "0 1px 2px rgba(234, 179, 8, 0.15)"
+                          : "none",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) {
+                          e.currentTarget.style.background = isAvailable ? "#fef08a" : "#f1f5f9";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSelected) {
+                          e.currentTarget.style.background = isAvailable ? "#fef9c3" : "transparent";
+                        }
+                      }}
+                    >
+                      <span style={{ lineHeight: "1" }}>{dayNum}</span>
+                      {isAvailable && (
+                        <span
+                          style={{
+                            width: "4px",
+                            height: "4px",
+                            borderRadius: "50%",
+                            background: isSelected ? "#facc15" : "#ca8a04",
+                            marginTop: "2px",
+                          }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Jump to latest edition */}
+              {availableScanDates.length > 0 && (
+                <div
+                  style={{
+                    marginTop: "12px",
+                    paddingTop: "10px",
+                    borderTop: "1px solid #f1f5f9",
+                    display: "flex",
+                    justifyContent: "center",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const latest = availableScanDates[0];
+                      setCalendarMonth(new Date(latest.date.getFullYear(), latest.date.getMonth(), 1));
+                      changeDate(latest.date);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "7px 12px",
+                      borderRadius: "7px",
+                      border: "1px solid #fef08a",
+                      background: "#fefce8",
+                      color: "#854d0e",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      transition: "background 0.15s ease",
+                    }}
+                    title={`Jump to latest edition (${formatDate(availableScanDates[0].date)})`}
+                  >
+                    <span>Jump to latest edition</span>
+                    <span style={{ fontSize: "11px", opacity: 0.8 }}>({formatDate(availableScanDates[0].date)})</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="mp-toolbar-right">
@@ -1155,38 +1359,32 @@ function MarketPulseContent() {
                       : "Try clearing search keywords or unchecking watchlist only."}
                   </p>
 
-                  {newsForDate.length === 0 && availableScanDates.length > 0 && (
-                    <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
-                      <span style={{ fontSize: "12px", color: "var(--muted, #64748b)" }}>
-                        Browse available archive editions:
-                      </span>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center" }}>
-                        {availableScanDates.map((item) => (
-                          <button
-                            key={item.dateKey}
-                            type="button"
-                            onClick={() => changeDate(item.date)}
-                            className="mp-control"
-                            style={{
-                              fontSize: "12px",
-                              padding: "4px 12px",
-                              borderRadius: "20px",
-                              background: "#ffffff",
-                              borderColor: "#cbd5e1",
-                              cursor: "pointer",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "6px",
-                            }}
-                          >
-                            <IconCalendar />
-                            <strong>{formatDate(item.date)}</strong>
-                            <span style={{ fontSize: "10.5px", background: "#f1f5f9", padding: "1px 6px", borderRadius: "8px", color: "#64748b" }}>
-                              {item.count} updates
-                            </span>
-                          </button>
-                        ))}
-                      </div>
+                  {newsForDate.length === 0 && (
+                    <div style={{ marginTop: "16px", display: "flex", justifyContent: "center" }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCalendarMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+                          setCalendarOpen(true);
+                        }}
+                        className="mp-control"
+                        style={{
+                          fontSize: "12.5px",
+                          padding: "6px 16px",
+                          borderRadius: "8px",
+                          background: "#fefce8",
+                          borderColor: "#fef08a",
+                          color: "#854d0e",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "7px",
+                        }}
+                      >
+                        <IconCalendar />
+                        Open Calendar
+                      </button>
                     </div>
                   )}
                 </>

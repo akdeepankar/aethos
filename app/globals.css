@@ -3060,6 +3060,10 @@ footer{background:var(--paper);color:var(--muted);padding-top:59px;border-top:1p
     display: block;
   }
 
+  .sidebar-minimize-btn {
+    display: none !important;
+  }
+
   .mobile-toggle-btn {
     display: block;
   }

@@ -572,32 +572,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   >
                     <IconMenu />
                   </button>
-
-                  <button
-                    type="button"
-                    onClick={toggleSidebarCollapsed}
-                    className="header-sidebar-toggle-btn"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      background: "#f8fafc",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: "8px",
-                      padding: "6px 10px",
-                      fontSize: "12px",
-                      fontWeight: "600",
-                      color: "#475569",
-                      cursor: "pointer",
-                      transition: "all 0.15s ease",
-                    }}
-                    title={sidebarCollapsed ? "Expand sidebar" : "Minimize sidebar"}
-                  >
-                    <IconSidebarToggle collapsed={sidebarCollapsed} />
-                    <span className="sidebar-toggle-text" style={{ fontSize: "11px" }}>
-                      {sidebarCollapsed ? "Expand" : "Collapse"}
-                    </span>
-                  </button>
                 </div>
 
                 <div className="header-search-bar">

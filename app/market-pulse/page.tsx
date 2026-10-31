@@ -16,6 +16,7 @@ type DealRow = {
   price: string;
   value: string;
   source: string;
+  dealDate?: string;
 };
 
 type FundraiseRow = {
@@ -27,6 +28,7 @@ type FundraiseRow = {
   amount: string;
   keyDate: string;
   source: string;
+  fundDate?: string;
 };
 
 type MarketNewsDoc = {
@@ -57,6 +59,90 @@ const tabs: { id: TabId; label: string }[] = [
 const deals: DealRow[] = [
   {
     id: "deal-1",
+    company: "NLC India",
+    dealType: "BULK",
+    participant: "Societe Generale",
+    side: "BUY",
+    quantity: "15,00,000",
+    price: "₹248.50",
+    value: "₹37.28 Cr",
+    source: "NSE",
+    dealDate: "2026-10-23",
+  },
+  {
+    id: "deal-2",
+    company: "Petronet LNG",
+    dealType: "BLOCK",
+    participant: "ICICI Prudential Mutual Fund",
+    side: "BUY",
+    quantity: "8,50,000",
+    price: "₹312.00",
+    value: "₹26.52 Cr",
+    source: "BSE",
+    dealDate: "2026-10-23",
+  },
+  {
+    id: "deal-3",
+    company: "BlueStone Jewellery",
+    dealType: "BULK",
+    participant: "Peak XV Partners",
+    side: "SELL",
+    quantity: "12,00,000",
+    price: "₹520.00",
+    value: "₹62.40 Cr",
+    source: "NSE",
+    dealDate: "2026-10-23",
+  },
+  {
+    id: "deal-4",
+    company: "GPT Infraprojects",
+    dealType: "BULK",
+    participant: "Nine Rivers Capital",
+    side: "BUY",
+    quantity: "4,20,000",
+    price: "₹185.00",
+    value: "₹7.77 Cr",
+    source: "NSE",
+    dealDate: "2026-10-23",
+  },
+  {
+    id: "deal-5",
+    company: "Sagility",
+    dealType: "BULK",
+    participant: "Morgan Stanley Asia",
+    side: "BUY",
+    quantity: "25,00,000",
+    price: "₹42.50",
+    value: "₹10.63 Cr",
+    source: "NSE",
+    dealDate: "2026-10-26",
+  },
+  {
+    id: "deal-6",
+    company: "Waaree Energies",
+    dealType: "BLOCK",
+    participant: "Goldman Sachs Investments",
+    side: "BUY",
+    quantity: "3,50,000",
+    price: "₹2,840.00",
+    value: "₹99.40 Cr",
+    source: "NSE",
+    dealDate: "2026-10-26",
+  },
+  {
+    id: "deal-7",
+    company: "Deep Industries",
+    dealType: "BULK",
+    participant: "Quant Mutual Fund",
+    side: "BUY",
+    quantity: "6,00,000",
+    price: "₹480.00",
+    value: "₹28.80 Cr",
+    source: "BSE",
+    dealDate: "2026-10-26",
+  },
+  {
+    id: "deal-demo-1",
     company: "Sample Engineering",
     dealType: "BULK",
     participant: "Example Capital Fund",
@@ -67,7 +153,7 @@ const deals: DealRow[] = [
     source: "NSE",
   },
   {
-    id: "deal-2",
+    id: "deal-demo-2",
     company: "Sample Cables",
     dealType: "BLOCK",
     participant: "Example Holdings",
@@ -82,6 +168,50 @@ const deals: DealRow[] = [
 const fundraises: FundraiseRow[] = [
   {
     id: "fund-1",
+    company: "BlueStone Jewellery and Lifestyle",
+    route: "Non-Convertible Debentures (NCD)",
+    stage: "BOARD APPROVED",
+    stageTone: "proposed",
+    amount: "₹300 Cr",
+    keyDate: "Board · 23 Oct",
+    source: "Filing",
+    fundDate: "2026-10-23",
+  },
+  {
+    id: "fund-2",
+    company: "NLC India",
+    route: "Project Debt & Equity via JV",
+    stage: "MoU SIGNED",
+    stageTone: "neutral",
+    amount: "₹19,422 Cr",
+    keyDate: "MoU · 23 Oct",
+    source: "Filing",
+    fundDate: "2026-10-23",
+  },
+  {
+    id: "fund-3",
+    company: "Waaree Energies",
+    route: "Qualified Institutional Placement (QIP)",
+    stage: "PROPOSED",
+    stageTone: "proposed",
+    amount: "₹1,500 Cr",
+    keyDate: "EGM · 26 Oct",
+    source: "Filing",
+    fundDate: "2026-10-26",
+  },
+  {
+    id: "fund-4",
+    company: "Sagility",
+    route: "Interim Dividend Allotment",
+    stage: "DECLARED",
+    stageTone: "neutral",
+    amount: "₹72 Cr",
+    keyDate: "Record · 05 Nov",
+    source: "Filing",
+    fundDate: "2026-10-26",
+  },
+  {
+    id: "fund-demo-1",
     company: "Sample Industries",
     route: "Preferential warrants",
     stage: "PROPOSED",
@@ -91,7 +221,7 @@ const fundraises: FundraiseRow[] = [
     source: "Filing",
   },
   {
-    id: "fund-2",
+    id: "fund-demo-2",
     company: "Sample Components",
     route: "To be considered",
     stage: "BOARD MEETING ANNOUNCED",
@@ -166,6 +296,51 @@ function parseDateParam(param: string | null | undefined): Date | null {
     return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
   }
 
+  return null;
+}
+
+function parseTabParam(param: string | null | undefined): TabId | null {
+  if (!param) return null;
+  const normalized = param.trim().toLowerCase();
+  if (
+    normalized === "deals" ||
+    normalized === "bulk" ||
+    normalized === "block" ||
+    normalized === "bulk-block" ||
+    normalized === "bulk-and-block" ||
+    normalized === "bulk-and-block-deals" ||
+    normalized === "bulk_block" ||
+    normalized === "bulkblock"
+  ) {
+    return "deals";
+  }
+  if (
+    normalized === "fundraises" ||
+    normalized === "fundraise" ||
+    normalized === "funding" ||
+    normalized === "fund" ||
+    normalized === "fundraising"
+  ) {
+    return "fundraises";
+  }
+  if (
+    normalized === "news" ||
+    normalized === "announcements" ||
+    normalized === "market-news" ||
+    normalized === "marketnews" ||
+    normalized === "filings"
+  ) {
+    return "news";
+  }
+  if (
+    normalized === "brief" ||
+    normalized === "daily" ||
+    normalized === "daily-brief" ||
+    normalized === "summary" ||
+    normalized === "overview"
+  ) {
+    return "brief";
+  }
   return null;
 }
 
@@ -393,7 +568,15 @@ function MarketPulseContent() {
   const urlDateParam = searchParams.get("date") || searchParams.get("d");
   const parsedUrlDate = useMemo(() => parseDateParam(urlDateParam), [urlDateParam]);
 
-  const [activeTab, setActiveTab] = useState<TabId>("brief");
+  // Read tab parameter from URL if provided (supports ?tab=deals, ?tab=fundraises, ?tab=news, ?tab=brief)
+  const urlTabParam =
+    searchParams.get("tab") ||
+    searchParams.get("type") ||
+    searchParams.get("section") ||
+    searchParams.get("view");
+  const parsedUrlTab = useMemo(() => parseTabParam(urlTabParam), [urlTabParam]);
+
+  const [internalTab, setInternalTab] = useState<TabId>(() => parsedUrlTab ?? "brief");
   const [internalDate, setInternalDate] = useState<Date>(() => parsedUrlDate ?? getToday());
   const [query, setQuery] = useState("");
   const [watchlistOnly, setWatchlistOnly] = useState(false);
@@ -418,10 +601,25 @@ function MarketPulseContent() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [archiveOpen]);
 
-  // The active date: URL parameter takes priority, otherwise internal state
+  // Active tab and date: URL parameter takes priority, otherwise internal state
+  const activeTab = parsedUrlTab ?? internalTab;
   const date = parsedUrlDate ?? internalDate;
 
-  // Change date and synchronize the URL parameter ?date=YYYY-MM-DD
+  // Change tab and synchronize the URL parameter ?tab=... while preserving active date
+  const changeTab = useCallback(
+    (newTab: TabId) => {
+      setInternalTab(newTab);
+      const params = new URLSearchParams(searchParams ? searchParams.toString() : "");
+      params.set("tab", newTab);
+      params.delete("type");
+      params.delete("section");
+      params.delete("view");
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    [searchParams, router, pathname],
+  );
+
+  // Change date and synchronize the URL parameter ?date=... while preserving active tab
   const changeDate = useCallback(
     (newDate: Date) => {
       setInternalDate(newDate);
@@ -481,6 +679,20 @@ function MarketPulseContent() {
     [newsDocs, date],
   );
 
+  // Date-wise deals filtering with fallback
+  const dealsForDate = useMemo(() => {
+    const matching = deals.filter((row) => row.dealDate && matchesDate(row.dealDate, date));
+    if (matching.length > 0) return matching;
+    return deals;
+  }, [date]);
+
+  // Date-wise fundraises filtering with fallback
+  const fundraisesForDate = useMemo(() => {
+    const matching = fundraises.filter((row) => row.fundDate && matchesDate(row.fundDate, date));
+    if (matching.length > 0) return matching;
+    return fundraises;
+  }, [date]);
+
   // Group and sort available dates from database to offer easy edition navigation
   const availableScanDates = useMemo(() => {
     const map = new Map<string, number>();
@@ -500,24 +712,24 @@ function MarketPulseContent() {
 
   const filteredDeals = useMemo(
     () =>
-      deals.filter(
+      dealsForDate.filter(
         (row) =>
           (!watchlistOnly || starred.has(row.id)) &&
           (!term ||
             row.company.toLowerCase().includes(term) ||
             row.participant.toLowerCase().includes(term)),
       ),
-    [term, watchlistOnly, starred],
+    [dealsForDate, term, watchlistOnly, starred],
   );
 
   const filteredFundraises = useMemo(
     () =>
-      fundraises.filter(
+      fundraisesForDate.filter(
         (row) =>
           (!watchlistOnly || starred.has(row.id)) &&
           (!term || row.company.toLowerCase().includes(term)),
       ),
-    [term, watchlistOnly, starred],
+    [fundraisesForDate, term, watchlistOnly, starred],
   );
 
   const filteredNews = useMemo(
@@ -538,6 +750,8 @@ function MarketPulseContent() {
   const showNews = activeTab === "brief" || activeTab === "news";
   const shortDate = formatShortDate(date);
   const visibleNews = activeTab === "brief" ? filteredNews.slice(0, 2) : filteredNews;
+  const visibleDeals = activeTab === "brief" ? filteredDeals.slice(0, 3) : filteredDeals;
+  const visibleFundraises = activeTab === "brief" ? filteredFundraises.slice(0, 3) : filteredFundraises;
   const publishedLabel = newsForDate.length > 0 ? formatDbDate(newsForDate[0].newsDate) : shortDate;
 
   return (
@@ -561,7 +775,7 @@ function MarketPulseContent() {
             role="tab"
             aria-selected={activeTab === tab.id}
             className={`mp-tab${activeTab === tab.id ? " is-active" : ""}`}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => changeTab(tab.id)}
           >
             {tab.label}
           </button>
@@ -831,25 +1045,25 @@ function MarketPulseContent() {
 
       {activeTab === "brief" && (
         <div className="mp-stats">
-          <button type="button" className="mp-stat" onClick={() => setActiveTab("news")}>
+          <button type="button" className="mp-stat" onClick={() => changeTab("news")}>
             <span className="mp-stat-icon">
               <IconNews />
             </span>
             <span className="mp-stat-number">{newsLoading ? "—" : newsForDate.length}</span>
             <span className="mp-stat-label">News updates</span>
           </button>
-          <button type="button" className="mp-stat" onClick={() => setActiveTab("deals")}>
+          <button type="button" className="mp-stat" onClick={() => changeTab("deals")}>
             <span className="mp-stat-icon">
               <IconDeals />
             </span>
-            <span className="mp-stat-number">12</span>
+            <span className="mp-stat-number">{filteredDeals.length}</span>
             <span className="mp-stat-label">Bulk / block records</span>
           </button>
-          <button type="button" className="mp-stat" onClick={() => setActiveTab("fundraises")}>
+          <button type="button" className="mp-stat" onClick={() => changeTab("fundraises")}>
             <span className="mp-stat-icon">
               <IconFundraise />
             </span>
-            <span className="mp-stat-number">5</span>
+            <span className="mp-stat-number">{filteredFundraises.length}</span>
             <span className="mp-stat-label">Fundraise announcements</span>
           </button>
         </div>
@@ -863,7 +1077,7 @@ function MarketPulseContent() {
             meta={`Published: ${publishedLabel} · ${newsLoading ? "Loading updates" : `${newsForDate.length} updates`}`}
             total={newsLoading ? "—" : newsForDate.length}
             showViewAll={activeTab === "brief" && filteredNews.length > 0}
-            onViewAll={() => setActiveTab("news")}
+            onViewAll={() => changeTab("news")}
           />
           {visibleNews.length > 0 ? (
             <div className="mp-table-wrap">
@@ -989,9 +1203,9 @@ function MarketPulseContent() {
             icon={<IconDeals />}
             title="Bulk & Block Deals"
             meta={`Trade date: ${shortDate} · Updated 18:30 IST`}
-            total={12}
-            showViewAll={activeTab === "brief"}
-            onViewAll={() => setActiveTab("deals")}
+            total={filteredDeals.length}
+            showViewAll={activeTab === "brief" && filteredDeals.length > 0}
+            onViewAll={() => changeTab("deals")}
           />
           <div className="mp-table-wrap">
             <table className="mp-table mp-deals-table">
@@ -1009,7 +1223,7 @@ function MarketPulseContent() {
                 </tr>
               </thead>
               <tbody>
-                {filteredDeals.map((row) => (
+                {visibleDeals.map((row) => (
                   <tr key={row.id}>
                     <td className="mp-col-star">
                       <button
@@ -1047,9 +1261,9 @@ function MarketPulseContent() {
             icon={<IconFundraise />}
             title="Fundraises"
             meta={`Announcements: ${shortDate} · Updated 21:00 IST`}
-            total={5}
-            showViewAll={activeTab === "brief"}
-            onViewAll={() => setActiveTab("fundraises")}
+            total={filteredFundraises.length}
+            showViewAll={activeTab === "brief" && filteredFundraises.length > 0}
+            onViewAll={() => changeTab("fundraises")}
           />
           <div className="mp-table-wrap">
             <table className="mp-table mp-fundraise-table">
@@ -1065,7 +1279,7 @@ function MarketPulseContent() {
                 </tr>
               </thead>
               <tbody>
-                {filteredFundraises.map((row) => (
+                {visibleFundraises.map((row) => (
                   <tr key={row.id}>
                     <td className="mp-col-star">
                       <button

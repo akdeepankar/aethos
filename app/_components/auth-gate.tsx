@@ -190,7 +190,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/auth") ||
     pathname.startsWith("/signin") ||
     pathname === "/auth/success" ||
-    pathname === "/auth/failure";
+    pathname === "/auth/failure" ||
+    pathname === "/market-pulse" ||
+    pathname.startsWith("/market-pulse/");
 
   // If already logged in and visiting /auth or /signin, redirect to target or /
   useEffect(() => {

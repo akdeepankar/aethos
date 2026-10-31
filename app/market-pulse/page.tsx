@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { databases, Query } from "../_lib/appwrite";
 
 type TabId = "brief" | "deals" | "fundraises" | "news";
@@ -121,13 +122,68 @@ function isToday(d: Date): boolean {
   );
 }
 
+function parseDateParam(param: string | null | undefined): Date | null {
+  if (!param) return null;
+  const trimmed = param.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.toLowerCase() === "today") {
+    return new Date();
+  }
+  if (trimmed.toLowerCase() === "yesterday") {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d;
+  }
+
+  // Format: YYYY-MM-DD or YYYY/MM/DD
+  const ymd = trimmed.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (ymd) {
+    const y = parseInt(ymd[1], 10);
+    const m = parseInt(ymd[2], 10);
+    const d = parseInt(ymd[3], 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      const date = new Date(y, m - 1, d);
+      if (!isNaN(date.getTime())) return date;
+    }
+  }
+
+  // Format: DD-MM-YYYY or DD/MM/YYYY
+  const dmy = trimmed.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  if (dmy) {
+    const d = parseInt(dmy[1], 10);
+    const m = parseInt(dmy[2], 10);
+    const y = parseInt(dmy[3], 10);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      const date = new Date(y, m - 1, d);
+      if (!isNaN(date.getTime())) return date;
+    }
+  }
+
+  // ISO or general date parsing
+  const parsed = new Date(trimmed);
+  if (!isNaN(parsed.getTime())) {
+    return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+  }
+
+  return null;
+}
+
 function matchesDate(docDate: string, target: Date): boolean {
   if (!docDate) return false;
   const targetKey = toDateKey(target);
-  if (docDate === targetKey || docDate.startsWith(targetKey)) {
+  const trimmed = docDate.trim();
+  if (trimmed === targetKey || trimmed.startsWith(targetKey)) {
     return true;
   }
-  const parsed = new Date(docDate);
+  const dmy = trimmed.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  if (dmy) {
+    const d = String(dmy[1]).padStart(2, "0");
+    const m = String(dmy[2]).padStart(2, "0");
+    const y = dmy[3];
+    if (`${y}-${m}-${d}` === targetKey) return true;
+  }
+  const parsed = new Date(trimmed);
   if (!isNaN(parsed.getTime())) {
     return toDateKey(parsed) === targetKey;
   }
@@ -328,21 +384,58 @@ function SourceLink({ label, href }: { label: string; href?: string }) {
   );
 }
 
-export default function MarketPulsePage() {
+function MarketPulseContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Read date parameter from URL if provided (supports ?date=YYYY-MM-DD or ?d=...)
+  const urlDateParam = searchParams.get("date") || searchParams.get("d");
+  const parsedUrlDate = useMemo(() => parseDateParam(urlDateParam), [urlDateParam]);
+
   const [activeTab, setActiveTab] = useState<TabId>("brief");
-  const [date, setDate] = useState<Date>(getToday);
+  const [internalDate, setInternalDate] = useState<Date>(() => parsedUrlDate ?? getToday());
   const [query, setQuery] = useState("");
   const [watchlistOnly, setWatchlistOnly] = useState(false);
   const [starred, setStarred] = useState<Set<string>>(new Set());
   const [newsDocs, setNewsDocs] = useState<MarketNewsDoc[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState<string | null>(null);
-  const dateInputRef = useRef<HTMLInputElement>(null);
+  const [archiveOpen, setArchiveOpen] = useState(false);
 
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const archiveDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close archive dropdown on outside click
   useEffect(() => {
-    // Ensure current client browser date is selected
-    setDate(new Date());
-  }, []);
+    if (!archiveOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (archiveDropdownRef.current && !archiveDropdownRef.current.contains(e.target as Node)) {
+        setArchiveOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [archiveOpen]);
+
+  // The active date: URL parameter takes priority, otherwise internal state
+  const date = parsedUrlDate ?? internalDate;
+
+  // Change date and synchronize the URL parameter ?date=YYYY-MM-DD
+  const changeDate = useCallback(
+    (newDate: Date) => {
+      setInternalDate(newDate);
+      setArchiveOpen(false);
+      const newKey = toDateKey(newDate);
+      const params = new URLSearchParams(searchParams ? searchParams.toString() : "");
+      if (params.get("date") !== newKey) {
+        params.set("date", newKey);
+        params.delete("d");
+        router.push(`${pathname}?${params.toString()}`, { scroll: false });
+      }
+    },
+    [searchParams, router, pathname],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -387,6 +480,23 @@ export default function MarketPulsePage() {
     () => newsDocs.filter((row) => matchesDate(row.newsDate, date)),
     [newsDocs, date],
   );
+
+  // Group and sort available dates from database to offer easy edition navigation
+  const availableScanDates = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const doc of newsDocs) {
+      if (!doc.newsDate) continue;
+      const key = doc.newsDate.split("T")[0];
+      map.set(key, (map.get(key) || 0) + 1);
+    }
+    return Array.from(map.entries())
+      .map(([dateKey, count]) => ({
+        dateKey,
+        date: parseDateParam(dateKey) || new Date(dateKey),
+        count,
+      }))
+      .sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+  }, [newsDocs]);
 
   const filteredDeals = useMemo(
     () =>
@@ -459,7 +569,7 @@ export default function MarketPulsePage() {
       </div>
 
       <div className="mp-toolbar">
-        <div className="mp-toolbar-left">
+        <div className="mp-toolbar-left" style={{ position: "relative" }}>
           <button
             type="button"
             className="mp-control mp-date"
@@ -470,6 +580,7 @@ export default function MarketPulsePage() {
                 dateInputRef.current?.focus();
               }
             }}
+            title="Click to select date"
           >
             <IconCalendar />
             {formatDate(date)}
@@ -479,9 +590,9 @@ export default function MarketPulsePage() {
               value={toDateKey(date)}
               onChange={(e) => {
                 if (!e.target.value) return;
-                const [y, m, d] = e.target.value.split("-").map(Number);
-                if (y && m && d) {
-                  setDate(new Date(y, m - 1, d));
+                const parsed = parseDateParam(e.target.value);
+                if (parsed) {
+                  changeDate(parsed);
                 }
               }}
               style={{
@@ -495,35 +606,205 @@ export default function MarketPulsePage() {
               aria-hidden="true"
             />
           </button>
+
           <div className="mp-stepper">
             <button
               type="button"
               aria-label="Previous day"
-              onClick={() => setDate((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1))}
+              title="Previous day"
+              onClick={() => changeDate(new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1))}
             >
               <IconChevronLeft />
             </button>
             <button
               type="button"
               aria-label="Next day"
-              onClick={() => setDate((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1))}
+              title="Next day"
+              onClick={() => changeDate(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1))}
             >
               <IconChevronRight />
             </button>
           </div>
+
+          {!isToday(date) && (
+            <button
+              type="button"
+              className="mp-control"
+              onClick={() => changeDate(new Date())}
+              style={{
+                fontSize: "11.5px",
+                fontWeight: 600,
+                color: "#854d0e",
+                background: "#fefce8",
+                borderColor: "#fef08a",
+                cursor: "pointer",
+                padding: "0 10px",
+              }}
+              title="Return to today's date"
+            >
+              Today
+            </button>
+          )}
+
           <div className="mp-select">
-            <select aria-label="Edition">
-              <option>Daily edition</option>
-              <option>Morning wrap</option>
-              <option>Closing bell</option>
+            <select
+              aria-label="Edition"
+              value={
+                availableScanDates.some((item) => item.dateKey === toDateKey(date))
+                  ? toDateKey(date)
+                  : "daily"
+              }
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "daily") {
+                  changeDate(new Date());
+                } else if (val) {
+                  const parsed = parseDateParam(val);
+                  if (parsed) changeDate(parsed);
+                }
+              }}
+            >
+              <option value="daily">Daily scan edition</option>
+              {availableScanDates.map((item) => (
+                <option key={item.dateKey} value={item.dateKey}>
+                  Edition {formatDate(item.date)} ({item.count})
+                </option>
+              ))}
             </select>
             <IconChevronDown />
           </div>
-          <button type="button" className="mp-control">
-            <IconFolder />
-            Archive
-          </button>
+
+          <div ref={archiveDropdownRef} style={{ position: "relative" }}>
+            <button
+              type="button"
+              className={`mp-control${archiveOpen ? " is-active" : ""}`}
+              onClick={() => setArchiveOpen((prev) => !prev)}
+              aria-expanded={archiveOpen}
+              title="Browse past editions archive"
+            >
+              <IconFolder />
+              Archive
+              <IconChevronDown />
+            </button>
+
+            {archiveOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "calc(100% + 6px)",
+                  left: 0,
+                  zIndex: 40,
+                  background: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "10px",
+                  boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)",
+                  padding: "8px",
+                  minWidth: "220px",
+                }}
+              >
+                <div
+                  style={{
+                    padding: "6px 10px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    color: "#64748b",
+                    borderBottom: "1px solid #f1f5f9",
+                    marginBottom: "4px",
+                  }}
+                >
+                  Available Editions
+                </div>
+                {availableScanDates.length > 0 ? (
+                  availableScanDates.map((item) => {
+                    const isSelected = item.dateKey === toDateKey(date);
+                    return (
+                      <button
+                        key={item.dateKey}
+                        type="button"
+                        onClick={() => changeDate(item.date)}
+                        style={{
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "8px 10px",
+                          borderRadius: "6px",
+                          border: "none",
+                          background: isSelected ? "#f8fafc" : "transparent",
+                          fontWeight: isSelected ? 700 : 500,
+                          fontSize: "12.5px",
+                          color: isSelected ? "#0f172a" : "#334155",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          transition: "background 0.15s",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) e.currentTarget.style.background = "#f1f5f9";
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) e.currentTarget.style.background = "transparent";
+                        }}
+                      >
+                        <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <IconCalendar />
+                          {formatDate(item.date)}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            padding: "2px 6px",
+                            borderRadius: "10px",
+                            background: isSelected ? "#e2e8f0" : "#f1f5f9",
+                            color: "#64748b",
+                          }}
+                        >
+                          {item.count} updates
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <div style={{ padding: "10px", fontSize: "12px", color: "#64748b" }}>
+                    No recorded archives yet.
+                  </div>
+                )}
+                <div style={{ borderTop: "1px solid #f1f5f9", marginTop: "4px", paddingTop: "4px" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setArchiveOpen(false);
+                      try {
+                        dateInputRef.current?.showPicker();
+                      } catch {
+                        dateInputRef.current?.focus();
+                      }
+                    }}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "8px 10px",
+                      borderRadius: "6px",
+                      border: "none",
+                      background: "transparent",
+                      fontSize: "12px",
+                      color: "#b45309",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <span>Custom calendar date...</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
+
         <div className="mp-toolbar-right">
           <div className="mp-search">
             <IconSearch />
@@ -647,7 +928,9 @@ export default function MarketPulsePage() {
                   </div>
                   <p className="mp-empty-title">
                     {newsForDate.length === 0
-                      ? "No news today"
+                      ? isToday(date)
+                        ? "No news reported yet today"
+                        : `No news reported for ${shortDate}`
                       : "No news updates match the current filters."}
                   </p>
                   <p className="mp-empty-desc">
@@ -657,6 +940,41 @@ export default function MarketPulsePage() {
                         : `There are no corporate filings or market news announcements reported for ${shortDate}.`
                       : "Try clearing search keywords or unchecking watchlist only."}
                   </p>
+
+                  {newsForDate.length === 0 && availableScanDates.length > 0 && (
+                    <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "12px", color: "var(--muted, #64748b)" }}>
+                        Browse available archive editions:
+                      </span>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center" }}>
+                        {availableScanDates.map((item) => (
+                          <button
+                            key={item.dateKey}
+                            type="button"
+                            onClick={() => changeDate(item.date)}
+                            className="mp-control"
+                            style={{
+                              fontSize: "12px",
+                              padding: "4px 12px",
+                              borderRadius: "20px",
+                              background: "#ffffff",
+                              borderColor: "#cbd5e1",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                            }}
+                          >
+                            <IconCalendar />
+                            <strong>{formatDate(item.date)}</strong>
+                            <span style={{ fontSize: "10.5px", background: "#f1f5f9", padding: "1px 6px", borderRadius: "8px", color: "#64748b" }}>
+                              {item.count} updates
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </div>
@@ -779,15 +1097,68 @@ export default function MarketPulsePage() {
 
       <div className="mp-page-foot">
         <span>Daily scans are dated snapshots. Open the source for the full disclosure.</span>
-        <button
-          type="button"
-          className="mp-edition-link"
-          onClick={() => setDate((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1))}
-        >
-          <IconChevronLeft />
-          Previous edition
-        </button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <button
+            type="button"
+            className="mp-edition-link"
+            onClick={() => {
+              const earlier = availableScanDates.find((item) => item.dateKey < toDateKey(date));
+              if (earlier) {
+                changeDate(earlier.date);
+              } else {
+                changeDate(new Date(date.getFullYear(), date.getMonth(), date.getDate() - 1));
+              }
+            }}
+          >
+            <IconChevronLeft />
+            Previous edition
+          </button>
+
+          {availableScanDates.some((item) => item.dateKey > toDateKey(date)) && (
+            <button
+              type="button"
+              className="mp-edition-link"
+              onClick={() => {
+                const later = [...availableScanDates].reverse().find((item) => item.dateKey > toDateKey(date));
+                if (later) {
+                  changeDate(later.date);
+                } else {
+                  changeDate(new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1));
+                }
+              }}
+            >
+              Next edition
+              <IconChevronRight />
+            </button>
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+export default function MarketPulsePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="dash-overview-page mp-page" style={{ padding: "60px 20px", textAlign: "center" }}>
+          <div
+            style={{
+              display: "inline-block",
+              padding: "16px 28px",
+              background: "#ffffff",
+              borderRadius: "12px",
+              border: "1px solid #e2e8f0",
+            }}
+          >
+            <span style={{ fontSize: "13px", fontWeight: "600", color: "#64748b" }}>
+              Loading Market Pulse…
+            </span>
+          </div>
+        </div>
+      }
+    >
+      <MarketPulseContent />
+    </Suspense>
   );
 }

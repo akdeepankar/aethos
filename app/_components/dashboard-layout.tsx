@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useSearchParams } from "next/navigation";
-import { useState, useEffect, useCallback, createContext, useContext, Suspense } from "react";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useRef, useMemo, createContext, useContext, Suspense } from "react";
 import { useAuth } from "../_context/auth-context";
 import { ADMIN_EMAILS } from "../_hooks/use-paid-access";
 import { AuthGate } from "./auth-gate";
+import { databases, Query } from "../_lib/appwrite";
+import { reports as defaultReports, ipos as defaultIpos } from "../_lib/content";
 
 // Icons
 export function IconOverview() {
@@ -271,6 +273,417 @@ export const SidebarContext = createContext<SidebarContextValue>({
 
 export function useSidebar() {
   return useContext(SidebarContext);
+}
+
+interface SearchNewsItem {
+  $id?: string;
+  company: string;
+  ticker?: string;
+  headline: string;
+  summary?: string;
+  category?: string;
+  sentiment?: string;
+  filedTime?: string;
+  newsDate?: string;
+}
+
+interface SearchDeepDiveItem {
+  id: string;
+  title: string;
+  company?: string;
+  sector?: string;
+  subtitle?: string;
+  deck?: string;
+  slug: string;
+  badge: string;
+  url: string;
+}
+
+export function IconDocument() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+    </svg>
+  );
+}
+
+export function IconNewspaper() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2" />
+      <path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z" />
+    </svg>
+  );
+}
+
+function NavbarSearch() {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [newsDocs, setNewsDocs] = useState<SearchNewsItem[]>([]);
+  const [reportsDocs, setReportsDocs] = useState<any[]>([]);
+  const [iposDocs, setIposDocs] = useState<any[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const loadData = useCallback(async () => {
+    if (hasLoaded) return;
+    setLoading(true);
+    try {
+      const [newsRes, reportsRes, iposRes] = await Promise.allSettled([
+        databases.listDocuments("aethos_db", "market_news", [Query.limit(100)]),
+        databases.listDocuments("aethos_db", "reports", [Query.limit(50)]),
+        databases.listDocuments("aethos_db", "ipos", [Query.limit(50)]),
+      ]);
+
+      if (newsRes.status === "fulfilled" && newsRes.value?.documents) {
+        setNewsDocs(newsRes.value.documents as unknown as SearchNewsItem[]);
+      }
+      if (reportsRes.status === "fulfilled" && reportsRes.value?.documents) {
+        setReportsDocs(reportsRes.value.documents);
+      }
+      if (iposRes.status === "fulfilled" && iposRes.value?.documents) {
+        setIposDocs(iposRes.value.documents);
+      }
+    } catch {
+      // Ignore network errors
+    } finally {
+      setHasLoaded(true);
+      setLoading(false);
+    }
+  }, [hasLoaded]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        loadData();
+        setOpen((prev) => !prev);
+        setTimeout(() => inputRef.current?.focus(), 50);
+      } else if (e.key === "Escape") {
+        setOpen(false);
+        inputRef.current?.blur();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [loadData]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const allDeepDives = useMemo<SearchDeepDiveItem[]>(() => {
+    const map = new Map<string, SearchDeepDiveItem>();
+
+    defaultReports.forEach((r) => {
+      if (r.slug) {
+        map.set(r.slug.toLowerCase(), {
+          id: `report-${r.slug}`,
+          title: r.title,
+          company: r.company,
+          sector: r.sector || r.tag,
+          deck: r.deck,
+          slug: r.slug,
+          badge: r.researchType || "Deep Dive",
+          url: `/research/${r.slug}`,
+        });
+      }
+    });
+
+    reportsDocs.forEach((r) => {
+      const slug = (r.slug || r.$id || "").trim();
+      if (slug) {
+        map.set(slug.toLowerCase(), {
+          id: `report-${slug}`,
+          title: r.title || r.company || "Research Report",
+          company: r.company,
+          sector: r.sector || r.tag,
+          deck: r.deck,
+          slug,
+          badge: r.researchType || "Deep Dive",
+          url: `/research/${slug}`,
+        });
+      }
+    });
+
+    defaultIpos.forEach((ipo) => {
+      if (ipo.slug && (ipo.deepDive || ipo.hasReport || ipo.htmlUrl || ipo.pdfUrl)) {
+        map.set(`ipo-${ipo.slug.toLowerCase()}`, {
+          id: `ipo-${ipo.slug}`,
+          title: `${ipo.company} (IPO Note)`,
+          company: ipo.company,
+          sector: ipo.sector,
+          deck: ipo.deck,
+          slug: ipo.slug,
+          badge: "IPO Deep Dive",
+          url: `/ipos/${ipo.slug}`,
+        });
+      }
+    });
+
+    iposDocs.forEach((ipo) => {
+      const slug = (ipo.slug || ipo.$id || "").trim();
+      if (slug && (ipo.deepDive || ipo.hasReport || ipo.htmlUrl || ipo.pdfUrl)) {
+        map.set(`ipo-${slug.toLowerCase()}`, {
+          id: `ipo-${slug}`,
+          title: `${ipo.company} (IPO Note)`,
+          company: ipo.company,
+          sector: ipo.sector,
+          deck: ipo.deck,
+          slug,
+          badge: "IPO Deep Dive",
+          url: `/ipos/${slug}`,
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [reportsDocs, iposDocs]);
+
+  const q = query.trim().toLowerCase();
+
+  const matchedDeepDives = useMemo(() => {
+    if (!q) return allDeepDives.slice(0, 4);
+    return allDeepDives
+      .filter((d) =>
+        [d.title, d.company, d.sector, d.deck, d.badge].some((field) =>
+          (field || "").toLowerCase().includes(q)
+        )
+      )
+      .slice(0, 5);
+  }, [allDeepDives, q]);
+
+  const matchedNews = useMemo(() => {
+    if (!q) return newsDocs.slice(0, 4);
+    return newsDocs
+      .filter((n) =>
+        [n.company, n.ticker, n.headline, n.summary, n.category].some((field) =>
+          (field || "").toLowerCase().includes(q)
+        )
+      )
+      .slice(0, 5);
+  }, [newsDocs, q]);
+
+  const totalResults = matchedDeepDives.length + matchedNews.length;
+
+  const handleSelect = (url: string) => {
+    setOpen(false);
+    setQuery("");
+    inputRef.current?.blur();
+    router.push(url);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (selectedIndex >= 0) {
+        if (selectedIndex < matchedDeepDives.length) {
+          handleSelect(matchedDeepDives[selectedIndex].url);
+          return;
+        }
+        const newsIdx = selectedIndex - matchedDeepDives.length;
+        if (matchedNews[newsIdx]) {
+          const n = matchedNews[newsIdx];
+          handleSelect(`/market-pulse?tab=news&date=${n.newsDate || ""}&highlight=${encodeURIComponent(n.$id || "")}`);
+          return;
+        }
+      }
+      if (q) {
+        handleSelect(`/market-pulse?tab=news&q=${encodeURIComponent(q)}`);
+      }
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev < totalResults - 1 ? prev + 1 : prev));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev > 0 ? prev - 1 : -1));
+    }
+  };
+
+  return (
+    <div className={`header-search-bar-wrap ${open ? "is-mobile-open" : ""}`} ref={containerRef}>
+      <button
+        type="button"
+        className="mobile-search-toggle"
+        onClick={() => {
+          loadData();
+          setOpen((prev) => !prev);
+          setTimeout(() => inputRef.current?.focus(), 100);
+        }}
+        aria-label="Search news & deep dives"
+      >
+        <IconSearch />
+      </button>
+
+      <div className={`header-search-bar ${open ? "is-focused" : ""}`}>
+        <IconSearch />
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setSelectedIndex(-1);
+            if (!open) setOpen(true);
+          }}
+          onFocus={() => {
+            loadData();
+            setOpen(true);
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder="Search news, deep dives, companies..."
+          aria-expanded={open}
+        />
+        {query ? (
+          <button
+            type="button"
+            className="header-search-clear"
+            onClick={() => {
+              setQuery("");
+              inputRef.current?.focus();
+            }}
+            aria-label="Clear search"
+          >
+            ✕
+          </button>
+        ) : (
+          <span className="kbd-shortcut">⌘K</span>
+        )}
+      </div>
+
+      {open && (
+        <div className="header-search-dropdown" role="listbox">
+          {loading && !hasLoaded ? (
+            <div className="header-search-loading">
+              <span className="search-spinner" />
+              <span>Loading news &amp; deep dives…</span>
+            </div>
+          ) : totalResults === 0 ? (
+            <div className="header-search-empty">
+              <p>No results found for &ldquo;<strong>{query}</strong>&rdquo;</p>
+              <div className="header-search-empty-actions">
+                <button
+                  type="button"
+                  className="header-search-btn-link"
+                  onClick={() => handleSelect(`/market-pulse?tab=news&q=${encodeURIComponent(query)}`)}
+                >
+                  Search in Market Pulse News &rarr;
+                </button>
+                <button
+                  type="button"
+                  className="header-search-btn-link"
+                  onClick={() => handleSelect(`/research`)}
+                >
+                  Explore Research Deep Dives &rarr;
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="header-search-results">
+              {matchedDeepDives.length > 0 && (
+                <div className="header-search-group">
+                  <div className="header-search-group-title">
+                    <span>📑 {q ? "Deep Dives & Research" : "Featured Deep Dives"}</span>
+                    <span className="search-count-badge">{matchedDeepDives.length}</span>
+                  </div>
+                  {matchedDeepDives.map((d, idx) => {
+                    const isSelected = selectedIndex === idx;
+                    return (
+                      <button
+                        key={d.id}
+                        type="button"
+                        className={`header-search-row ${isSelected ? "is-selected" : ""}`}
+                        onClick={() => handleSelect(d.url)}
+                      >
+                        <div className="header-search-icon-wrap is-dive">
+                          <IconDocument />
+                        </div>
+                        <div className="header-search-row-body">
+                          <div className="header-search-row-title">{d.title}</div>
+                          <div className="header-search-row-sub">{d.subtitle}</div>
+                        </div>
+                        <span className="header-search-badge is-dive">{d.badge}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {matchedNews.length > 0 && (
+                <div className="header-search-group">
+                  <div className="header-search-group-title">
+                    <span>📰 {q ? "Market News" : "Recent News"}</span>
+                    <span className="search-count-badge">{matchedNews.length}</span>
+                  </div>
+                  {matchedNews.map((n, idx) => {
+                    const absIdx = matchedDeepDives.length + idx;
+                    const isSelected = selectedIndex === absIdx;
+                    const timeDisplay = n.filedTime || (n.newsDate ? n.newsDate.split("T")[0] : "");
+                    return (
+                      <button
+                        key={n.$id || `news-${idx}`}
+                        type="button"
+                        className={`header-search-row ${isSelected ? "is-selected" : ""}`}
+                        onClick={() =>
+                          handleSelect(
+                            `/market-pulse?tab=news&date=${n.newsDate || ""}&highlight=${encodeURIComponent(n.$id || "")}`
+                          )
+                        }
+                      >
+                        <div className="header-search-icon-wrap is-news">
+                          <IconNewspaper />
+                        </div>
+                        <div className="header-search-row-body">
+                          <div className="header-search-row-title">{n.headline}</div>
+                          <div className="header-search-row-sub">
+                            <strong>{n.company}</strong>
+                            {n.ticker ? <span className="search-ticker">{n.ticker}</span> : null}
+                            {timeDisplay ? <span> · {timeDisplay}</span> : null}
+                          </div>
+                        </div>
+                        {n.category && (
+                          <span className="header-search-badge is-category">{n.category}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="header-search-footer">
+            <div className="search-shortcuts">
+              <span><kbd>&uarr;&darr;</kbd> Navigate</span>
+              <span><kbd>&crarr;</kbd> Select</span>
+              <span><kbd>Esc</kbd> Close</span>
+            </div>
+            {query.trim() && (
+              <button
+                type="button"
+                className="search-view-all-link"
+                onClick={() => handleSelect(`/market-pulse?tab=news&q=${encodeURIComponent(query.trim())}`)}
+              >
+                View in Market Pulse &rarr;
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -574,14 +987,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   </button>
                 </div>
 
-                <div className="header-search-bar">
-                  <IconSearch />
-                  <input 
-                    type="text" 
-                    placeholder="Search companies, sectors, IPOs or research..." 
-                  />
-                  <span className="kbd-shortcut">⌘K</span>
-                </div>
+                <NavbarSearch />
               </>
             )}
 

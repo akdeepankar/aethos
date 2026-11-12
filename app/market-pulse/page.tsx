@@ -390,9 +390,44 @@ function formatMonthYear(date: Date) {
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function formatDbDate(value: string) {
-  const parts = value.split("-").map(Number);
+  if (!value) return "";
+  const cleaned = value.split("T")[0].trim();
+  const parts = cleaned.split("-").map(Number);
   if (parts.length !== 3 || parts.some(Number.isNaN)) return value;
   return `${parts[2]} ${monthNames[parts[1] - 1] ?? ""}`.trim();
+}
+
+const monthMap: Record<string, number> = {
+  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+};
+
+function parseNewsTimestamp(row: MarketNewsDoc): number {
+  if (row.filedTime) {
+    const trimmed = row.filedTime.trim();
+    const match = trimmed.match(/^(\d{1,2})[\s\-]+([A-Za-z]+)(?:[\s\-]+(\d{4}))?[,\s]+(\d{1,2}):(\d{2})/i);
+    if (match) {
+      const day = parseInt(match[1], 10);
+      const monthStr = match[2].toLowerCase().slice(0, 3);
+      const month = monthMap[monthStr] ?? 0;
+      let year = match[3] ? parseInt(match[3], 10) : null;
+      if (!year && row.newsDate) {
+        year = parseInt(row.newsDate.split("-")[0], 10);
+      }
+      if (!year) year = new Date().getFullYear();
+      const hour = parseInt(match[4], 10);
+      const min = parseInt(match[5], 10);
+      const dt = new Date(year, month, day, hour, min);
+      if (!isNaN(dt.getTime())) return dt.getTime();
+    }
+    const directDate = new Date(trimmed);
+    if (!isNaN(directDate.getTime())) return directDate.getTime();
+  }
+  if (row.newsDate) {
+    const d = new Date(row.newsDate);
+    if (!isNaN(d.getTime())) return d.getTime();
+  }
+  return 0;
 }
 
 function sentimentTone(value: string): SentimentTone {
@@ -593,7 +628,22 @@ function MarketPulseContent() {
 
   const [internalTab, setInternalTab] = useState<TabId>(() => parsedUrlTab ?? "brief");
   const [internalDate, setInternalDate] = useState<Date>(() => parsedUrlDate ?? getToday());
-  const [query, setQuery] = useState("");
+  const urlQueryParam = searchParams.get("q") || searchParams.get("query") || searchParams.get("search") || "";
+  const [query, setQuery] = useState(urlQueryParam);
+  const urlHighlightParam = searchParams.get("highlight") || searchParams.get("id") || "";
+  const [activeHighlight, setActiveHighlight] = useState<string>(urlHighlightParam);
+
+  useEffect(() => {
+    if (urlQueryParam) {
+      setQuery(urlQueryParam);
+    }
+  }, [urlQueryParam]);
+
+  useEffect(() => {
+    if (urlHighlightParam) {
+      setActiveHighlight(urlHighlightParam);
+    }
+  }, [urlHighlightParam]);
   const [watchlistOnly, setWatchlistOnly] = useState(false);
   const [starred, setStarred] = useState<Set<string>>(new Set());
   const [newsDocs, setNewsDocs] = useState<MarketNewsDoc[]>([]);
@@ -671,14 +721,35 @@ function MarketPulseContent() {
     [searchParams, router, pathname],
   );
 
+  // If highlight is provided in URL, automatically switch to news tab
+  useEffect(() => {
+    if (urlHighlightParam && activeTab !== "news") {
+      changeTab("news");
+    }
+  }, [urlHighlightParam, activeTab, changeTab]);
+
+  // If highlighted document belongs to a different date, switch date to match
+  useEffect(() => {
+    if (!urlHighlightParam || newsDocs.length === 0) return;
+    const targetDoc = newsDocs.find((d) => d.$id === urlHighlightParam);
+    if (targetDoc?.newsDate && !matchesDate(targetDoc.newsDate, date)) {
+      const parsed = parseDateParam(targetDoc.newsDate);
+      if (parsed) {
+        changeDate(parsed);
+      }
+    }
+  }, [urlHighlightParam, newsDocs, date, changeDate]);
+
   useEffect(() => {
     let cancelled = false;
 
     databases
-      .listDocuments("aethos_db", "market_news", [Query.orderAsc("sortOrder"), Query.limit(100)])
+      .listDocuments("aethos_db", "market_news", [Query.limit(100)])
       .then((response) => {
         if (cancelled) return;
-        const docs = response.documents as unknown as MarketNewsDoc[];
+        const docs = (response.documents as unknown as MarketNewsDoc[]).sort(
+          (a, b) => parseNewsTimestamp(b) - parseNewsTimestamp(a),
+        );
         setNewsDocs(docs);
         const watchlisted = docs.filter((doc) => doc.isWatchlist).map((doc) => doc.$id);
         if (watchlisted.length > 0) {
@@ -711,7 +782,10 @@ function MarketPulseContent() {
   const term = query.trim().toLowerCase();
 
   const newsForDate = useMemo(
-    () => newsDocs.filter((row) => matchesDate(row.newsDate, date)),
+    () =>
+      newsDocs
+        .filter((row) => matchesDate(row.newsDate, date))
+        .sort((a, b) => parseNewsTimestamp(b) - parseNewsTimestamp(a)),
     [newsDocs, date],
   );
 
@@ -806,18 +880,29 @@ function MarketPulseContent() {
     [fundraisesForDate, term, watchlistOnly, starred],
   );
 
-  const filteredNews = useMemo(
-    () =>
-      newsForDate.filter(
+  const filteredNews = useMemo(() => {
+    const candidateList = term && newsForDate.length === 0 ? newsDocs : newsForDate;
+    const list = candidateList
+      .filter(
         (row) =>
-          (!watchlistOnly || starred.has(row.$id)) &&
+          (!watchlistOnly || starred.has(row.$id) || row.$id === activeHighlight) &&
           (!term ||
+            row.$id === activeHighlight ||
             [row.company, row.ticker, row.headline, row.summary, row.category, row.sentiment].some((value) =>
               value.toLowerCase().includes(term),
             )),
-      ),
-    [newsForDate, term, watchlistOnly, starred],
-  );
+      )
+      .sort((a, b) => parseNewsTimestamp(b) - parseNewsTimestamp(a));
+
+    if (activeHighlight && !list.some((r) => r.$id === activeHighlight)) {
+      const target = newsDocs.find((r) => r.$id === activeHighlight);
+      if (target) {
+        return [target, ...list];
+      }
+    }
+
+    return list;
+  }, [newsForDate, newsDocs, term, watchlistOnly, starred, activeHighlight]);
 
   const showDeals = activeTab === "brief" || activeTab === "deals";
   const showFundraises = activeTab === "brief" || activeTab === "fundraises";
@@ -827,6 +912,18 @@ function MarketPulseContent() {
   const visibleDeals = activeTab === "brief" ? filteredDeals.slice(0, 3) : filteredDeals;
   const visibleFundraises = activeTab === "brief" ? filteredFundraises.slice(0, 3) : filteredFundraises;
   const publishedLabel = newsForDate.length > 0 ? formatDbDate(newsForDate[0].newsDate) : shortDate;
+
+  // Scroll to highlighted row when loaded and rendered
+  useEffect(() => {
+    if (!activeHighlight || newsLoading) return;
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`news-row-${activeHighlight}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [activeHighlight, newsLoading, visibleNews]);
 
   return (
     <div className="dash-overview-page mp-page">
@@ -1285,23 +1382,29 @@ function MarketPulseContent() {
           />
           {visibleNews.length > 0 ? (
             <div className="mp-table-wrap">
-              <table className="mp-table mp-news-table">
+              <table className={`mp-table mp-news-table${activeTab === "news" ? " is-news-tab" : ""}`}>
                 <thead>
                   <tr>
                     <th className="mp-col-star"><span className="mp-sr-only">Watchlist</span></th>
-                    <th>Time</th>
-                    <th>Company</th>
-                    <th>Headline</th>
-                    <th>Category</th>
-                    <th>Sentiment</th>
-                    <th>Source</th>
+                    <th className="mp-col-time">Time</th>
+                    <th className="mp-col-company">Company</th>
+                    <th className="mp-col-headline">Headline</th>
+                    <th className="mp-col-category">Category</th>
+                    <th className="mp-col-sentiment">Sentiment</th>
+                    <th className="mp-col-source">Source</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleNews.map((row) => {
                     const tone = sentimentTone(row.sentiment);
+                    const newsItemDate = row.filedTime || formatDbDate(row.newsDate);
+                    const isRowHighlighted = activeHighlight === row.$id;
                     return (
-                      <tr key={row.$id}>
+                      <tr
+                        key={row.$id}
+                        id={`news-row-${row.$id}`}
+                        className={`mp-news-row${isRowHighlighted ? " is-highlighted" : ""}`}
+                      >
                         <td className="mp-col-star">
                           <button
                             type="button"
@@ -1312,21 +1415,26 @@ function MarketPulseContent() {
                             <IconStar filled={starred.has(row.$id)} />
                           </button>
                         </td>
-                        <td className="mp-time">
+                        <td className="mp-col-time mp-time">
                           {row.filedTime}
                           <span className="mp-news-scan">Scan {formatDbDate(row.newsDate)}</span>
                         </td>
-                        <td>
+                        <td className="mp-col-company">
                           <strong>{row.company}</strong>
                           <span className="mp-company-ticker">{row.ticker}</span>
                         </td>
-                        <td>
+                        <td className="mp-col-headline">
+                          {newsItemDate && (
+                            <div className="mp-news-mobile-date">
+                              {newsItemDate}
+                            </div>
+                          )}
                           <strong className="mp-headline">{row.headline}</strong>
                           <span className="mp-headline-sub">{row.summary}</span>
                         </td>
-                        <td><span className={`mp-badge is-${tone}`}>{row.category}</span></td>
-                        <td><span className={`mp-sentiment is-${tone}`}>{row.sentiment}</span></td>
-                        <td><SourceLink label={row.sourceName} href={row.sourceUrl} /></td>
+                        <td className="mp-col-category"><span className={`mp-badge is-${tone}`}>{row.category}</span></td>
+                        <td className="mp-col-sentiment"><span className={`mp-sentiment is-${tone}`}>{row.sentiment}</span></td>
+                        <td className="mp-col-source"><SourceLink label={row.sourceName} href={row.sourceUrl} /></td>
                       </tr>
                     );
                   })}

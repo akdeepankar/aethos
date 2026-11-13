@@ -4361,6 +4361,14 @@ footer{background:var(--paper);color:var(--muted);padding-top:59px;border-top:1p
   font-variant-numeric: tabular-nums;
 }
 
+.mp-scan-date {
+  display: block;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
 .mp-source {
   display: inline-flex;
   align-items: center;

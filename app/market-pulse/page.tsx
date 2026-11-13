@@ -17,6 +17,8 @@ type DealRow = {
   value: string;
   source: string;
   dealDate?: string;
+  $createdAt?: string;
+  createdAt?: string;
 };
 
 type FundraiseRow = {
@@ -29,6 +31,8 @@ type FundraiseRow = {
   keyDate: string;
   source: string;
   fundDate?: string;
+  $createdAt?: string;
+  createdAt?: string;
 };
 
 type MarketNewsDoc = {
@@ -56,7 +60,7 @@ const tabs: { id: TabId; label: string }[] = [
   { id: "news", label: "News" },
 ];
 
-const deals: DealRow[] = [
+const INITIAL_DEALS: DealRow[] = [
   {
     id: "deal-1",
     company: "NLC India",
@@ -165,7 +169,7 @@ const deals: DealRow[] = [
   },
 ];
 
-const fundraises: FundraiseRow[] = [
+const INITIAL_FUNDRAISES: FundraiseRow[] = [
   {
     id: "fund-1",
     company: "BlueStone Jewellery and Lifestyle",
@@ -395,6 +399,14 @@ function formatDbDate(value: string) {
   const parts = cleaned.split("-").map(Number);
   if (parts.length !== 3 || parts.some(Number.isNaN)) return value;
   return `${parts[2]} ${monthNames[parts[1] - 1] ?? ""}`.trim();
+}
+
+function formatScanDate(value: string) {
+  if (!value) return "";
+  const cleaned = value.split("T")[0].trim();
+  const parts = cleaned.split("-").map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return value;
+  return `${parts[2]} ${monthNames[parts[1] - 1] ?? ""} ${parts[0]}`;
 }
 
 const monthMap: Record<string, number> = {
@@ -646,6 +658,10 @@ function MarketPulseContent() {
   }, [urlHighlightParam]);
   const [watchlistOnly, setWatchlistOnly] = useState(false);
   const [starred, setStarred] = useState<Set<string>>(new Set());
+  const [deals, setDeals] = useState<DealRow[]>(INITIAL_DEALS);
+  const [fundraises, setFundraises] = useState<FundraiseRow[]>(INITIAL_FUNDRAISES);
+  const [dealsLoading, setDealsLoading] = useState(true);
+  const [fundraisesLoading, setFundraisesLoading] = useState(true);
   const [newsDocs, setNewsDocs] = useState<MarketNewsDoc[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
   const [newsError, setNewsError] = useState<string | null>(null);
@@ -740,22 +756,81 @@ function MarketPulseContent() {
     }
   }, [urlHighlightParam, newsDocs, date, changeDate]);
 
+  const targetDateKey = toDateKey(date);
+
+  // On mount: fetch latest news to discover available dates and seed initial view if needed
   useEffect(() => {
     let cancelled = false;
 
     databases
-      .listDocuments("aethos_db", "market_news", [Query.limit(100)])
+      .listDocuments("aethos_db", "market_news", [
+        Query.orderDesc("newsDate"),
+        Query.limit(100),
+      ])
       .then((response) => {
         if (cancelled) return;
         const docs = (response.documents as unknown as MarketNewsDoc[]).sort(
           (a, b) => parseNewsTimestamp(b) - parseNewsTimestamp(a),
         );
-        setNewsDocs(docs);
+        if (docs.length > 0) {
+          setNewsDocs((prev) => {
+            const map = new Map<string, MarketNewsDoc>();
+            for (const d of prev) map.set(d.$id, d);
+            for (const d of docs) map.set(d.$id, d);
+            return Array.from(map.values()).sort(
+              (a, b) => parseNewsTimestamp(b) - parseNewsTimestamp(a),
+            );
+          });
+          const watchlisted = docs.filter((doc) => doc.isWatchlist).map((doc) => doc.$id);
+          if (watchlisted.length > 0) {
+            setStarred((prev) => new Set([...prev, ...watchlisted]));
+          }
+          if (!urlDateParam && docs[0]?.newsDate) {
+            const parsed = parseDateParam(docs[0].newsDate);
+            if (parsed) {
+              setInternalDate(parsed);
+            }
+          }
+        }
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        console.warn("Could not fetch initial news feed:", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [urlDateParam]);
+
+  // When date changes: fetch and filter news for the selected date
+  useEffect(() => {
+    let cancelled = false;
+    setNewsLoading(true);
+    setNewsError(null);
+
+    databases
+      .listDocuments("aethos_db", "market_news", [
+        Query.startsWith("newsDate", targetDateKey),
+        Query.limit(100),
+      ])
+      .then((response) => {
+        if (cancelled) return;
+        const docs = (response.documents as unknown as MarketNewsDoc[]).sort(
+          (a, b) => parseNewsTimestamp(b) - parseNewsTimestamp(a),
+        );
+        setNewsDocs((prev) => {
+          const map = new Map<string, MarketNewsDoc>();
+          for (const d of prev) map.set(d.$id, d);
+          for (const d of docs) map.set(d.$id, d);
+          return Array.from(map.values()).sort(
+            (a, b) => parseNewsTimestamp(b) - parseNewsTimestamp(a),
+          );
+        });
         const watchlisted = docs.filter((doc) => doc.isWatchlist).map((doc) => doc.$id);
         if (watchlisted.length > 0) {
           setStarred((prev) => new Set([...prev, ...watchlisted]));
         }
-        setNewsError(null);
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -763,6 +838,80 @@ function MarketPulseContent() {
       })
       .finally(() => {
         if (!cancelled) setNewsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [targetDateKey]);
+
+  // Fetch market deals and fundraises from Appwrite
+  useEffect(() => {
+    let cancelled = false;
+
+    databases
+      .listDocuments("aethos_db", "market_deals", [
+        Query.orderDesc("$createdAt"),
+        Query.limit(100),
+      ])
+      .then((res) => {
+        if (cancelled) return;
+        const mapped: DealRow[] = res.documents.map((d: any) => ({
+          id: d.$id,
+          company: d.company,
+          dealType: d.dealType,
+          participant: d.participant,
+          side: d.side,
+          quantity: d.quantity,
+          price: d.price,
+          value: d.value,
+          source: d.source,
+          dealDate: d.dealDate,
+          $createdAt: d.$createdAt,
+          createdAt: d.$createdAt,
+        }));
+        if (mapped.length > 0) {
+          setDeals(mapped);
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn("Could not load market_deals:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setDealsLoading(false);
+      });
+
+    databases
+      .listDocuments("aethos_db", "market_fundraises", [
+        Query.orderDesc("$createdAt"),
+        Query.limit(100),
+      ])
+      .then((res) => {
+        if (cancelled) return;
+        const mapped: FundraiseRow[] = res.documents.map((d: any) => ({
+          id: d.$id,
+          company: d.company,
+          route: d.route,
+          stage: d.stage,
+          stageTone: d.stageTone,
+          amount: d.amount,
+          keyDate: d.keyDate,
+          source: d.source,
+          fundDate: d.fundDate,
+          $createdAt: d.$createdAt,
+          createdAt: d.$createdAt,
+        }));
+        if (mapped.length > 0) {
+          setFundraises(mapped);
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.warn("Could not load market_fundraises:", err);
+      })
+      .finally(() => {
+        if (!cancelled) setFundraisesLoading(false);
       });
 
     return () => {
@@ -789,19 +938,21 @@ function MarketPulseContent() {
     [newsDocs, date],
   );
 
-  // Date-wise deals filtering with fallback
+  // Date-wise deals filtering strictly by createdAt
   const dealsForDate = useMemo(() => {
-    const matching = deals.filter((row) => row.dealDate && matchesDate(row.dealDate, date));
-    if (matching.length > 0) return matching;
-    return deals;
-  }, [date]);
+    return deals.filter((row) => {
+      const dateVal = row.$createdAt || row.createdAt || row.dealDate;
+      return dateVal && matchesDate(dateVal, date);
+    });
+  }, [deals, date]);
 
-  // Date-wise fundraises filtering with fallback
+  // Date-wise fundraises filtering strictly by createdAt
   const fundraisesForDate = useMemo(() => {
-    const matching = fundraises.filter((row) => row.fundDate && matchesDate(row.fundDate, date));
-    if (matching.length > 0) return matching;
-    return fundraises;
-  }, [date]);
+    return fundraises.filter((row) => {
+      const dateVal = row.$createdAt || row.createdAt || row.fundDate;
+      return dateVal && matchesDate(dateVal, date);
+    });
+  }, [fundraises, date]);
 
   // Map of available dates with update counts
   const availableScanMap = useMemo(() => {
@@ -815,23 +966,25 @@ function MarketPulseContent() {
       map.set(key, cur);
     }
     for (const deal of deals) {
-      if (!deal.dealDate) continue;
-      const key = deal.dealDate.split("T")[0];
+      const dateStr = deal.$createdAt || deal.createdAt || deal.dealDate;
+      if (!dateStr) continue;
+      const key = dateStr.split("T")[0];
       const cur = map.get(key) || { count: 0, newsCount: 0, dealsCount: 0, fundsCount: 0 };
       cur.dealsCount += 1;
       if (cur.newsCount === 0) cur.count += 1;
       map.set(key, cur);
     }
     for (const fund of fundraises) {
-      if (!fund.fundDate) continue;
-      const key = fund.fundDate.split("T")[0];
+      const dateStr = fund.$createdAt || fund.createdAt || fund.fundDate;
+      if (!dateStr) continue;
+      const key = dateStr.split("T")[0];
       const cur = map.get(key) || { count: 0, newsCount: 0, dealsCount: 0, fundsCount: 0 };
       cur.fundsCount += 1;
       if (cur.newsCount === 0 && cur.dealsCount === 0) cur.count += 1;
       map.set(key, cur);
     }
     return map;
-  }, [newsDocs]);
+  }, [newsDocs, deals, fundraises]);
 
   // Group and sort available dates to offer easy edition navigation
   const availableScanDates = useMemo(() => {
@@ -880,18 +1033,28 @@ function MarketPulseContent() {
     [fundraisesForDate, term, watchlistOnly, starred],
   );
 
+  const latestNewsDateStr = useMemo(() => {
+    if (newsDocs.length === 0) return null;
+    let max = "";
+    for (const doc of newsDocs) {
+      if (!doc.newsDate) continue;
+      const key = doc.newsDate.split("T")[0].trim();
+      if (!max || key > max) {
+        max = key;
+      }
+    }
+    return max || null;
+  }, [newsDocs]);
+
+  const latestNewsDate = useMemo(() => {
+    if (!latestNewsDateStr) return null;
+    return parseDateParam(latestNewsDateStr);
+  }, [latestNewsDateStr]);
+
+  // In market news, filter strictly date-wise using the newsDate column
   const filteredNews = useMemo(() => {
-    const candidateList = term && newsForDate.length === 0 ? newsDocs : newsForDate;
-    const list = candidateList
-      .filter(
-        (row) =>
-          (!watchlistOnly || starred.has(row.$id) || row.$id === activeHighlight) &&
-          (!term ||
-            row.$id === activeHighlight ||
-            [row.company, row.ticker, row.headline, row.summary, row.category, row.sentiment].some((value) =>
-              value.toLowerCase().includes(term),
-            )),
-      )
+    const list = newsDocs
+      .filter((row) => row.newsDate && matchesDate(row.newsDate, date))
       .sort((a, b) => parseNewsTimestamp(b) - parseNewsTimestamp(a));
 
     if (activeHighlight && !list.some((r) => r.$id === activeHighlight)) {
@@ -902,7 +1065,7 @@ function MarketPulseContent() {
     }
 
     return list;
-  }, [newsForDate, newsDocs, term, watchlistOnly, starred, activeHighlight]);
+  }, [newsDocs, date, activeHighlight]);
 
   const showDeals = activeTab === "brief" || activeTab === "deals";
   const showFundraises = activeTab === "brief" || activeTab === "fundraises";
@@ -911,7 +1074,10 @@ function MarketPulseContent() {
   const visibleNews = activeTab === "brief" ? filteredNews.slice(0, 2) : filteredNews;
   const visibleDeals = activeTab === "brief" ? filteredDeals.slice(0, 3) : filteredDeals;
   const visibleFundraises = activeTab === "brief" ? filteredFundraises.slice(0, 3) : filteredFundraises;
-  const publishedLabel = newsForDate.length > 0 ? formatDbDate(newsForDate[0].newsDate) : shortDate;
+  const publishedLabel =
+    filteredNews.length > 0 && filteredNews[0].newsDate
+      ? formatDbDate(filteredNews[0].newsDate)
+      : shortDate;
 
   // Scroll to highlighted row when loaded and rendered
   useEffect(() => {
@@ -1320,26 +1486,28 @@ function MarketPulseContent() {
           )}
         </div>
 
-        <div className="mp-toolbar-right">
-          <div className="mp-search">
-            <IconSearch />
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Find a company..."
-              aria-label="Find a company"
-            />
+        {activeTab !== "news" && (
+          <div className="mp-toolbar-right">
+            <div className="mp-search">
+              <IconSearch />
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Find a company..."
+                aria-label="Find a company"
+              />
+            </div>
+            <label className="mp-watch">
+              <input
+                type="checkbox"
+                checked={watchlistOnly}
+                onChange={(event) => setWatchlistOnly(event.target.checked)}
+              />
+              My watchlist only
+            </label>
           </div>
-          <label className="mp-watch">
-            <input
-              type="checkbox"
-              checked={watchlistOnly}
-              onChange={(event) => setWatchlistOnly(event.target.checked)}
-            />
-            My watchlist only
-          </label>
-        </div>
+        )}
       </div>
 
       <p className="mp-viewing">Viewing {shortDate} · Each scan shows its own coverage and update time.</p>
@@ -1357,14 +1525,14 @@ function MarketPulseContent() {
             <span className="mp-stat-icon">
               <IconDeals />
             </span>
-            <span className="mp-stat-number">{filteredDeals.length}</span>
+            <span className="mp-stat-number">{dealsLoading ? "—" : filteredDeals.length}</span>
             <span className="mp-stat-label">Bulk / block records</span>
           </button>
           <button type="button" className="mp-stat" onClick={() => changeTab("fundraises")}>
             <span className="mp-stat-icon">
               <IconFundraise />
             </span>
-            <span className="mp-stat-number">{filteredFundraises.length}</span>
+            <span className="mp-stat-number">{fundraisesLoading ? "—" : filteredFundraises.length}</span>
             <span className="mp-stat-label">Fundraise announcements</span>
           </button>
         </div>
@@ -1375,8 +1543,8 @@ function MarketPulseContent() {
           <SectionHead
             icon={<IconNews />}
             title="News & Announcements"
-            meta={`Published: ${publishedLabel} · ${newsLoading ? "Loading updates" : `${newsForDate.length} updates`}`}
-            total={newsLoading ? "—" : newsForDate.length}
+            meta={`Published: ${publishedLabel} · ${newsLoading ? "Loading updates" : `${filteredNews.length} updates`}`}
+            total={newsLoading ? "—" : filteredNews.length}
             showViewAll={activeTab === "brief" && filteredNews.length > 0}
             onViewAll={() => changeTab("news")}
           />
@@ -1386,7 +1554,7 @@ function MarketPulseContent() {
                 <thead>
                   <tr>
                     <th className="mp-col-star"><span className="mp-sr-only">Watchlist</span></th>
-                    <th className="mp-col-time">Time</th>
+                    <th className="mp-col-time">Date</th>
                     <th className="mp-col-company">Company</th>
                     <th className="mp-col-headline">Headline</th>
                     <th className="mp-col-category">Category</th>
@@ -1397,7 +1565,7 @@ function MarketPulseContent() {
                 <tbody>
                   {visibleNews.map((row) => {
                     const tone = sentimentTone(row.sentiment);
-                    const newsItemDate = row.filedTime || formatDbDate(row.newsDate);
+                    const newsItemDate = formatScanDate(row.newsDate);
                     const isRowHighlighted = activeHighlight === row.$id;
                     return (
                       <tr
@@ -1416,8 +1584,8 @@ function MarketPulseContent() {
                           </button>
                         </td>
                         <td className="mp-col-time mp-time">
-                          {row.filedTime}
-                          <span className="mp-news-scan">Scan {formatDbDate(row.newsDate)}</span>
+                          <strong className="mp-scan-date">{formatScanDate(row.newsDate)}</strong>
+                          <span className="mp-news-scan">Scan Date</span>
                         </td>
                         <td className="mp-col-company">
                           <strong>{row.company}</strong>
@@ -1453,18 +1621,14 @@ function MarketPulseContent() {
                     <IconNews />
                   </div>
                   <p className="mp-empty-title">
-                    {newsForDate.length === 0
-                      ? isToday(date)
-                        ? "No news reported yet today"
-                        : `No news reported for ${shortDate}`
-                      : "No news updates match the current filters."}
+                    {isToday(date)
+                      ? "No news reported yet today"
+                      : `No news reported for ${shortDate}`}
                   </p>
                   <p className="mp-empty-desc">
-                    {newsForDate.length === 0
-                      ? isToday(date)
-                        ? "There are no corporate filings or market news announcements reported yet today."
-                        : `There are no corporate filings or market news announcements reported for ${shortDate}.`
-                      : "Try clearing search keywords or unchecking watchlist only."}
+                    {isToday(date)
+                      ? "There are no corporate filings or market news announcements reported yet today."
+                      : `There are no corporate filings or market news announcements reported for ${shortDate}. Use the calendar to select an edition date.`}
                   </p>
 
                   {newsForDate.length === 0 && (
@@ -1509,7 +1673,7 @@ function MarketPulseContent() {
             icon={<IconDeals />}
             title="Bulk & Block Deals"
             meta={`Trade date: ${shortDate} · Updated 18:30 IST`}
-            total={filteredDeals.length}
+            total={dealsLoading ? "—" : filteredDeals.length}
             showViewAll={activeTab === "brief" && filteredDeals.length > 0}
             onViewAll={() => changeTab("deals")}
           />
@@ -1554,7 +1718,9 @@ function MarketPulseContent() {
               </tbody>
             </table>
             {filteredDeals.length === 0 && (
-              <p className="mp-empty">No bulk or block deals match the current filters.</p>
+              <p className="mp-empty">
+                {dealsLoading ? "Loading bulk and block deals…" : `No bulk or block deals reported for ${shortDate}.`}
+              </p>
             )}
           </div>
           <p className="mp-card-foot">Individual reported records; buy and sell entries may relate to the same transaction.</p>
@@ -1567,7 +1733,7 @@ function MarketPulseContent() {
             icon={<IconFundraise />}
             title="Fundraises"
             meta={`Announcements: ${shortDate} · Updated 21:00 IST`}
-            total={filteredFundraises.length}
+            total={fundraisesLoading ? "—" : filteredFundraises.length}
             showViewAll={activeTab === "brief" && filteredFundraises.length > 0}
             onViewAll={() => changeTab("fundraises")}
           />
@@ -1608,7 +1774,9 @@ function MarketPulseContent() {
               </tbody>
             </table>
             {filteredFundraises.length === 0 && (
-              <p className="mp-empty">No fundraise announcements match the current filters.</p>
+              <p className="mp-empty">
+                {fundraisesLoading ? "Loading fundraise announcements…" : `No fundraise announcements reported for ${shortDate}.`}
+              </p>
             )}
           </div>
           <p className="mp-card-foot">Track each raise from meeting notice through proposal, approval and allotment.</p>

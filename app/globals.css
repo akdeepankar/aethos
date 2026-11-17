@@ -4349,6 +4349,10 @@ footer{background:var(--paper);color:var(--muted);padding-top:59px;border-top:1p
   display: none;
 }
 
+.mp-mobile-only {
+  display: none;
+}
+
 .mp-headline-sub {
   display: block;
   color: #94a3b8 !important;
@@ -4521,18 +4525,30 @@ footer{background:var(--paper);color:var(--muted);padding-top:59px;border-top:1p
 }
 
 @media (max-width: 768px) {
-  .mp-news-table {
+  .mp-mobile-only {
+    display: block !important;
+  }
+
+  .mp-news-table,
+  .mp-deals-table,
+  .mp-fundraise-table {
     min-width: 0 !important;
     width: 100% !important;
     table-layout: fixed;
   }
 
   .mp-news-table th:not(.mp-col-headline),
-  .mp-news-table td:not(.mp-col-headline) {
+  .mp-news-table td:not(.mp-col-headline),
+  .mp-deals-table th:not(.mp-col-headline),
+  .mp-deals-table td:not(.mp-col-headline),
+  .mp-fundraise-table th:not(.mp-col-headline),
+  .mp-fundraise-table td:not(.mp-col-headline) {
     display: none !important;
   }
 
-  .mp-news-table th.mp-col-headline {
+  .mp-news-table th.mp-col-headline,
+  .mp-deals-table th.mp-col-headline,
+  .mp-fundraise-table th.mp-col-headline {
     display: table-cell;
     width: 100% !important;
     box-sizing: border-box;
@@ -4545,7 +4561,9 @@ footer{background:var(--paper);color:var(--muted);padding-top:59px;border-top:1p
     white-space: normal;
   }
 
-  .mp-news-table td.mp-col-headline {
+  .mp-news-table td.mp-col-headline,
+  .mp-deals-table td.mp-col-headline,
+  .mp-fundraise-table td.mp-col-headline {
     display: table-cell;
     width: 100% !important;
     box-sizing: border-box;
@@ -4555,7 +4573,9 @@ footer{background:var(--paper);color:var(--muted);padding-top:59px;border-top:1p
     padding: 14px 16px;
   }
 
-  .mp-news-table tbody tr.is-highlighted td.mp-col-headline {
+  .mp-news-table tbody tr.is-highlighted td.mp-col-headline,
+  .mp-deals-table tbody tr.is-highlighted td.mp-col-headline,
+  .mp-fundraise-table tbody tr.is-highlighted td.mp-col-headline {
     background-color: #fefce8 !important;
     border-left: 4px solid #ca8a04 !important;
     padding-left: 12px !important;
@@ -4572,7 +4592,9 @@ footer{background:var(--paper);color:var(--muted);padding-top:59px;border-top:1p
     letter-spacing: 0.01em;
   }
 
-  .mp-news-table .mp-headline {
+  .mp-news-table .mp-headline,
+  .mp-deals-table .mp-headline,
+  .mp-fundraise-table .mp-headline {
     display: block !important;
     font-size: 13.5px;
     line-height: 1.45;
@@ -4583,7 +4605,9 @@ footer{background:var(--paper);color:var(--muted);padding-top:59px;border-top:1p
     overflow-wrap: anywhere;
   }
 
-  .mp-news-table .mp-headline-sub {
+  .mp-news-table .mp-headline-sub,
+  .mp-deals-table .mp-headline-sub,
+  .mp-fundraise-table .mp-headline-sub {
     display: block;
     font-size: 12px;
     line-height: 1.5;
@@ -4591,6 +4615,78 @@ footer{background:var(--paper);color:var(--muted);padding-top:59px;border-top:1p
     white-space: normal !important;
     word-break: break-word;
     overflow-wrap: anywhere;
+  }
+
+  .mp-item-mobile-sub {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .mp-item-badges {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .mp-item-badges .mp-side {
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+  }
+
+  .mp-item-badges .mp-side.is-buy {
+    background: #ecfdf5;
+    color: #15803d;
+    border: 1px solid #bbf7d0;
+  }
+
+  .mp-item-badges .mp-side.is-sell {
+    background: #fef2f2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+  }
+
+  .mp-item-val {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mp-item-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 12px;
+    color: #64748b;
+  }
+
+  .mp-item-participant {
+    font-weight: 500;
+    color: #334155;
+  }
+
+  .mp-item-price-qty {
+    font-size: 11.5px;
+    color: #64748b;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mp-item-keydate {
+    font-size: 11px;
+    color: #854d0e;
+    background: #fefce8;
+    border: 1px solid #fef08a;
+    padding: 2px 7px;
+    border-radius: 4px;
+    display: inline-block;
+    align-self: flex-start;
+    font-weight: 500;
   }
 }
 

@@ -401,7 +401,7 @@ function formatDbDate(value: string) {
   return `${parts[2]} ${monthNames[parts[1] - 1] ?? ""}`.trim();
 }
 
-function formatScanDate(value: string) {
+function formatScanDate(value?: string | null) {
   if (!value) return "";
   const cleaned = value.split("T")[0].trim();
   const parts = cleaned.split("-").map(Number);
@@ -1682,7 +1682,7 @@ function MarketPulseContent() {
               <thead>
                 <tr>
                   <th className="mp-col-star"><span className="mp-sr-only">Watchlist</span></th>
-                  <th>Company</th>
+                  <th className="mp-col-headline">Company</th>
                   <th>Deal</th>
                   <th>Participant</th>
                   <th>Side</th>
@@ -1693,28 +1693,49 @@ function MarketPulseContent() {
                 </tr>
               </thead>
               <tbody>
-                {visibleDeals.map((row) => (
-                  <tr key={row.id}>
-                    <td className="mp-col-star">
-                      <button
-                        type="button"
-                        className={`mp-star${starred.has(row.id) ? " is-starred" : ""}`}
-                        aria-label={`${starred.has(row.id) ? "Remove" : "Add"} ${row.company} ${starred.has(row.id) ? "from" : "to"} watchlist`}
-                        onClick={() => toggleStar(row.id)}
-                      >
-                        <IconStar filled={starred.has(row.id)} />
-                      </button>
-                    </td>
-                    <td><strong>{row.company}</strong></td>
-                    <td><span className="mp-badge">{row.dealType}</span></td>
-                    <td>{row.participant}</td>
-                    <td><span className={`mp-side is-${row.side.toLowerCase()}`}>{row.side}</span></td>
-                    <td className="mp-num">{row.quantity}</td>
-                    <td className="mp-num">{row.price}</td>
-                    <td className="mp-num">{row.value}</td>
-                    <td><SourceLink label={row.source} /></td>
-                  </tr>
-                ))}
+                {visibleDeals.map((row) => {
+                  const dealDate = formatScanDate(row.$createdAt || row.createdAt || row.dealDate);
+                  return (
+                    <tr key={row.id}>
+                      <td className="mp-col-star">
+                        <button
+                          type="button"
+                          className={`mp-star${starred.has(row.id) ? " is-starred" : ""}`}
+                          aria-label={`${starred.has(row.id) ? "Remove" : "Add"} ${row.company} ${starred.has(row.id) ? "from" : "to"} watchlist`}
+                          onClick={() => toggleStar(row.id)}
+                        >
+                          <IconStar filled={starred.has(row.id)} />
+                        </button>
+                      </td>
+                      <td className="mp-col-headline">
+                        {dealDate && (
+                          <div className="mp-news-mobile-date">
+                            {dealDate}
+                          </div>
+                        )}
+                        <strong className="mp-headline">{row.company}</strong>
+                        <div className="mp-mobile-only mp-item-mobile-sub">
+                          <div className="mp-item-badges">
+                            <span className="mp-badge">{row.dealType}</span>
+                            <span className={`mp-side is-${row.side.toLowerCase()}`}>{row.side}</span>
+                            <strong className="mp-item-val">{row.value}</strong>
+                          </div>
+                          <div className="mp-item-meta">
+                            <span className="mp-item-participant">{row.participant}</span>
+                            <span className="mp-item-price-qty">{row.quantity} shares · {row.price}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td><span className="mp-badge">{row.dealType}</span></td>
+                      <td>{row.participant}</td>
+                      <td><span className={`mp-side is-${row.side.toLowerCase()}`}>{row.side}</span></td>
+                      <td className="mp-num">{row.quantity}</td>
+                      <td className="mp-num">{row.price}</td>
+                      <td className="mp-num">{row.value}</td>
+                      <td><SourceLink label={row.source} /></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {filteredDeals.length === 0 && (
@@ -1742,7 +1763,7 @@ function MarketPulseContent() {
               <thead>
                 <tr>
                   <th className="mp-col-star"><span className="mp-sr-only">Watchlist</span></th>
-                  <th>Company</th>
+                  <th className="mp-col-headline">Company</th>
                   <th>Route</th>
                   <th>Stage</th>
                   <th>Amount</th>
@@ -1751,26 +1772,48 @@ function MarketPulseContent() {
                 </tr>
               </thead>
               <tbody>
-                {visibleFundraises.map((row) => (
-                  <tr key={row.id}>
-                    <td className="mp-col-star">
-                      <button
-                        type="button"
-                        className={`mp-star${starred.has(row.id) ? " is-starred" : ""}`}
-                        aria-label={`${starred.has(row.id) ? "Remove" : "Add"} ${row.company} ${starred.has(row.id) ? "from" : "to"} watchlist`}
-                        onClick={() => toggleStar(row.id)}
-                      >
-                        <IconStar filled={starred.has(row.id)} />
-                      </button>
-                    </td>
-                    <td><strong>{row.company}</strong></td>
-                    <td>{row.route}</td>
-                    <td><span className={`mp-badge is-${row.stageTone === "proposed" ? "proposed" : "plain"}`}>{row.stage}</span></td>
-                    <td className="mp-num">{row.amount}</td>
-                    <td>{row.keyDate}</td>
-                    <td><SourceLink label={row.source} /></td>
-                  </tr>
-                ))}
+                {visibleFundraises.map((row) => {
+                  const fundDate = formatScanDate(row.$createdAt || row.createdAt || row.fundDate);
+                  return (
+                    <tr key={row.id}>
+                      <td className="mp-col-star">
+                        <button
+                          type="button"
+                          className={`mp-star${starred.has(row.id) ? " is-starred" : ""}`}
+                          aria-label={`${starred.has(row.id) ? "Remove" : "Add"} ${row.company} ${starred.has(row.id) ? "from" : "to"} watchlist`}
+                          onClick={() => toggleStar(row.id)}
+                        >
+                          <IconStar filled={starred.has(row.id)} />
+                        </button>
+                      </td>
+                      <td className="mp-col-headline">
+                        {fundDate && (
+                          <div className="mp-news-mobile-date">
+                            {fundDate}
+                          </div>
+                        )}
+                        <strong className="mp-headline">{row.company}</strong>
+                        <div className="mp-mobile-only mp-item-mobile-sub">
+                          <div className="mp-item-badges">
+                            <span className={`mp-badge is-${row.stageTone === "proposed" ? "proposed" : "plain"}`}>{row.stage}</span>
+                            {row.amount && <strong className="mp-item-val">{row.amount}</strong>}
+                          </div>
+                          {row.route && <span className="mp-headline-sub">{row.route}</span>}
+                          {row.keyDate && (
+                            <div className="mp-item-keydate">
+                              <span>{row.keyDate}</span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td>{row.route}</td>
+                      <td><span className={`mp-badge is-${row.stageTone === "proposed" ? "proposed" : "plain"}`}>{row.stage}</span></td>
+                      <td className="mp-num">{row.amount}</td>
+                      <td>{row.keyDate}</td>
+                      <td><SourceLink label={row.source} /></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {filteredFundraises.length === 0 && (
